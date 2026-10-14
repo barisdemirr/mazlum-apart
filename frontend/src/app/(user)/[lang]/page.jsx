@@ -1,14 +1,18 @@
-import { getDictionary } from "@/lib/i18n/getDictionary";
+import Hero from "@/components/home/Hero";
+import BillsStrip from "@/components/home/BillsStrip";
+import RoomsShowcase from "@/components/home/RoomsShowcase";
+import { getHeroMedia, getRoomTypes } from "@/services";
+import { settle } from "@/lib/api";
 
-// Geçici: anasayfa bölümleri sonraki adımlarda eklenecek
-export default async function HomePage({ params }) {
-    const { lang } = await params;
-    const t = getDictionary(lang);
+export default async function HomePage() {
+    // Bölümler birbirinden bağımsız yüklenir; biri başarısız olursa diğerleri görünmeye devam eder
+    const [hero, rooms] = await Promise.all([settle(getHeroMedia(), null), settle(getRoomTypes(), [])]);
 
     return (
-        <main className="min-h-screen flex flex-col items-center justify-center gap-4 p-8 text-center">
-            <h1 className="font-display text-5xl italic text-orchid-pink">Mazlum Apart</h1>
-            <p className="text-orchid-muted">{t.common.billsIncluded}</p>
+        <main>
+            <Hero media={hero.data} />
+            <BillsStrip />
+            {rooms.data?.length > 0 && <RoomsShowcase rooms={rooms.data} />}
         </main>
     );
 }
