@@ -1,0 +1,31 @@
+import { INTL_LOCALES } from "@/lib/i18n/config";
+
+const SYMBOLS = { TRY: "₺", USD: "$", EUR: "€" };
+
+/** formatPrice(12500, "TRY", "tr") -> "₺12.500" */
+export function formatPrice(amount, currency = "TRY", locale = "tr") {
+    if (amount == null || Number.isNaN(Number(amount))) return "";
+
+    const number = new Intl.NumberFormat(INTL_LOCALES[locale] ?? INTL_LOCALES.tr, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    }).format(Number(amount));
+
+    return `${SYMBOLS[currency] ?? currency}${number}`;
+}
+
+/** "YYYY-MM-DD" metnini saat dilimi kayması olmadan yerel tarihe çevirir */
+export function parseDateOnly(value) {
+    if (value instanceof Date) return value;
+    const [y, m, d] = String(value).split("-").map(Number);
+    return new Date(y, m - 1, d);
+}
+
+/** "2026-12-05" -> "05/12/2026" (sitede tarih her yerde gg/aa/yyyy) */
+export function formatDate(value) {
+    if (!value) return "";
+    const date = parseDateOnly(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
+}
