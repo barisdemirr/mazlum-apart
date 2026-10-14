@@ -23,6 +23,7 @@
     --animate-marquee-right: marquee-right 32s linear infinite;
     --animate-kenburns: kenburns 16s ease-in-out infinite alternate;
     --animate-spin-slow: spin 22s linear infinite;
+    --animate-fade-char: fade-char 0.4s both cubic-bezier(0.22, 1, 0.36, 1);
 
     @keyframes blob {
         0% { transform: translate(0, 0) scale(1); }
@@ -50,6 +51,10 @@
     @keyframes marquee-right {
         from { transform: translateX(-50%); }
         to { transform: translateX(0); }
+    }
+    @keyframes fade-char {
+        from { opacity: 0; transform: translateY(14px); }
+        to { opacity: 1; transform: translateY(0); }
     }
     @keyframes kenburns {
         from { transform: scale(1); }
@@ -142,6 +147,26 @@ body {
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     .no-scrollbar::-webkit-scrollbar { display: none; }
 }
+
+/* ───────────── Açılış ekranı (toplam ~1 sn) ─────────────
+   Harfler 0–0.6 sn'de belirir, 0.65 sn'de eğri bir perde yukarı çekilir, 1 sn'de biter.
+   Tamamen CSS: JS yüklenmese bile kendiliğinden kapanır ve hiçbir zaman tıklamayı engellemez. */
+#preloader {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    pointer-events: none;
+    background: var(--color-orchid-white);
+    animation: preloader-wipe 0.35s 0.65s cubic-bezier(0.77, 0, 0.175, 1) forwards;
+    will-change: transform;
+}
+@keyframes preloader-wipe {
+    from { transform: translateY(0); border-radius: 0; }
+    99% { visibility: visible; }
+    to { transform: translateY(-105%); border-radius: 0 0 50% 50% / 0 0 14vh 14vh; visibility: hidden; }
+}
+/* Bu oturumda zaten görüldüyse hiç gösterme (layout içindeki küçük script işaretler) */
+html[data-preloader-seen] #preloader { display: none; }
 
 /* Özel imleç yalnızca JS çalışıp imleç bileşeni açıldığında gizlenir */
 @media (pointer: fine) {

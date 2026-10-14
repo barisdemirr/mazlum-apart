@@ -19,6 +19,9 @@ export const waHref = (message) => {
     return message ? `${base}?text=${encodeURIComponent(message)}` : base;
 };
 
-/** Açılış ekranı süresi (ms) ve oturum anahtarı */
-export const PRELOADER_DURATION = 1600;
+/**
+ * Açılış ekranı: yalnızca ~1 sn görünür ve oturum başına bir kez oynar.
+ * Süre globals.css içindeki preloader animasyonlarıyla eşleşmelidir (harfler + perde = 1 sn).
+ */
+export const PRELOADER_DURATION = 1000;
 export const PRELOADER_STORAGE_KEY = "mazlum-preloader-seen";

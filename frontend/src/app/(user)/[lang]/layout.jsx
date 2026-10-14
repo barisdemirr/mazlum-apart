@@ -2,8 +2,10 @@ import "@/styles/globals.css";
 import { notFound } from "next/navigation";
 import { Fraunces, Manrope } from "next/font/google";
 import { Providers } from "./providers";
+import UserShell from "@/components/layout/UserShell";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import { LOCALES, OG_LOCALES, isLocale } from "@/lib/i18n/config";
+import { PRELOADER_STORAGE_KEY } from "@/lib/constants";
 
 const fraunces = Fraunces({
     subsets: ["latin", "latin-ext"],
@@ -65,9 +67,17 @@ export default async function LangLayout({ children, params }) {
                     rel="stylesheet"
                     href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"
                 />
+                {/* Açılış bu oturumda görüldüyse ilk boyamadan önce gizle (titreme olmasın) */}
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `try{if(sessionStorage.getItem(${JSON.stringify(PRELOADER_STORAGE_KEY)})==="1")document.documentElement.setAttribute("data-preloader-seen","1")}catch(e){}`,
+                    }}
+                />
             </head>
             <body>
-                <Providers locale={lang}>{children}</Providers>
+                <Providers locale={lang}>
+                    <UserShell>{children}</UserShell>
+                </Providers>
             </body>
         </html>
     );
