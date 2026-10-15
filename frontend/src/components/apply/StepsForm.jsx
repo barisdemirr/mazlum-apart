@@ -228,36 +228,40 @@ export function StepPersonal({ form, set, err, tick }) {
                 inputProps={{ inputMode: "tel", autoComplete: "tel-national", maxLength: 13 }}
             />
             <FloatingField id="address" name="address" label={p.address} required multiline value={form.address} onChange={(v) => set("address", v)} error={err("address")} tick={tick} inputProps={{ autoComplete: "street-address" }} />
-            <div className={grid}>
-                <SearchSelect
-                    id="provinceId"
-                    name="provinceId"
-                    label={p.province}
-                    required
-                    options={provinces}
-                    value={form.provinceId}
-                    onChange={(v) => {
-                        set("provinceId", v);
-                        set("district", "");
-                    }}
-                    error={err("provinceId")}
-                    tick={tick}
-                    noResult={p.noResult}
-                />
-                <SearchSelect
-                    id="district"
-                    name="district"
-                    label={p.district}
-                    required
-                    options={districts}
-                    value={form.district}
-                    onChange={(v) => set("district", v)}
-                    error={err("district")}
-                    tick={tick}
-                    noResult={p.noResult}
-                    disabled={!form.provinceId}
-                    placeholder={p.pickProvince}
-                />
+            <div className={`${grid} relative z-30`}>
+                <div className="relative z-20">
+                    <SearchSelect
+                        id="provinceId"
+                        name="provinceId"
+                        label={p.province}
+                        required
+                        options={provinces}
+                        value={form.provinceId}
+                        onChange={(v) => {
+                            set("provinceId", v);
+                            set("district", "");
+                        }}
+                        error={err("provinceId")}
+                        tick={tick}
+                        noResult={p.noResult}
+                    />
+                </div>
+                <div className="relative z-10">
+                    <SearchSelect
+                        id="district"
+                        name="district"
+                        label={p.district}
+                        required
+                        options={districts}
+                        value={form.district}
+                        onChange={(v) => set("district", v)}
+                        error={err("district")}
+                        tick={tick}
+                        noResult={p.noResult}
+                        disabled={!form.provinceId}
+                        placeholder={p.pickProvince}
+                    />
+                </div>
             </div>
         </div>
     );

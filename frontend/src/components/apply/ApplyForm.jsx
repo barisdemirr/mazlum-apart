@@ -288,12 +288,18 @@ export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }
                                         <SubmitButton submitting={status === "submitting"} label={a.submit} onClick={submit} />
                                     </Magnetic>
                                 ) : (
-                                    <Magnetic className="inline-flex w-full justify-end">
-                                        <button type="button" onClick={next} className="aurora-btn flex h-12 w-full items-center justify-center gap-2 rounded-full px-10 text-sm font-bold text-white transition-transform active:scale-[0.97] sm:w-auto lg:h-14">
-                                            {a.next}
-                                            <Icon name="arrow_forward" className="text-[20px]" />
-                                        </button>
-                                    </Magnetic>
+                                    <div className="flex w-full justify-end">
+                                        <Magnetic>
+                                            <button
+                                                type="button"
+                                                onClick={next}
+                                                className="aurora-btn flex h-12 w-full items-center justify-center gap-2 rounded-full px-10 text-sm font-bold text-white transition-transform active:scale-[0.97] sm:w-auto lg:h-14"
+                                            >
+                                                {a.next}
+                                                <Icon name="arrow_forward" className="text-[20px]" />
+                                            </button>
+                                        </Magnetic>
+                                    </div>
                                 )}
                             </div>
                         </div>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion";
 import LocalizedLink from "@/components/ui/LocalizedLink";
 import Icon from "@/components/ui/Icon";
 import Magnetic from "@/components/ui/Magnetic";
@@ -10,6 +10,7 @@ import VideoModal from "@/components/ui/VideoModal";
 import { APPLY_HREF } from "@/components/layout/navigation";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { mediaAlt, mediaUrl } from "@/lib/media";
+import { localized } from "@/lib/i18n/localized";
 import { EASE_OUT } from "@/lib/motion";
 
 // Giriş animasyonu: her öğe sırayla yükselir (açılış perdesi ~1 sn sürdüğü için gecikme eklendi)
@@ -19,7 +20,7 @@ const rise = (i) => ({
     transition: { duration: 0.9, delay: 0.7 + i * 0.12, ease: EASE_OUT },
 });
 
-export default function Hero({ media }) {
+export default function Hero({ media, slides = [] }) {
     const { t, locale } = useLanguage();
     const [videoOpen, setVideoOpen] = useState(false);
     const closeVideo = useCallback(() => setVideoOpen(false), []);
@@ -29,6 +30,18 @@ export default function Hero({ media }) {
     const { scrollYProgress } = useScroll({ target: sectionRef, offset: ["start start", "end start"] });
     const imageY = useTransform(scrollYProgress, [0, 1], [0, 90]);
     const blobY = useTransform(scrollYProgress, [0, 1], [0, -120]);
+
+    // Yönetim panelinden eklenen slaytlar 5 sn'de bir geçer; yoksa tek kapak görseli kullanılır
+    const items = slides.length > 0 ? slides : [{ id: "cover", image: media?.image, title: null, subtitle: null }];
+    const [index, setIndex] = useState(0);
+    const current = items[index % items.length];
+    useEffect(() => {
+        if (items.length < 2) return;
+        const timer = setInterval(() => setIndex((i) => (i + 1) % items.length), 5000);
+        return () => clearInterval(timer);
+    }, [items.length]);
+    const slideTitle = localized(current.title, locale);
+    const slideSubtitle = localized(current.subtitle, locale);
 
     const videoUrl = media?.videoUrl ? mediaUrl(media.videoUrl) : null;
 
@@ -65,12 +78,18 @@ export default function Hero({ media }) {
                         {...rise(1)}
                         className="font-display text-5xl font-normal leading-[1.06] tracking-tight text-orchid-dark sm:text-6xl xl:text-7xl"
                     >
-                        {t.hero.titleStart} <span className="italic font-light text-orchid-pink">{t.hero.titleAccent}</span>{" "}
-                        {t.hero.titleEnd}
+                        {slideTitle ? (
+                            slideTitle
+                        ) : (
+                            <>
+                                {t.hero.titleStart} <span className="italic font-light text-orchid-pink">{t.hero.titleAccent}</span>{" "}
+                                {t.hero.titleEnd}
+                            </>
+                        )}
                     </motion.h1>
 
                     <motion.p {...rise(2)} className="max-w-xl text-base leading-relaxed text-orchid-muted sm:text-lg lg:text-xl">
-                        {t.hero.description}
+                        {slideSubtitle || t.hero.description}
                     </motion.p>
 
                     <motion.div {...rise(3)} className="flex flex-wrap items-center gap-4 pt-2">
@@ -120,13 +139,35 @@ export default function Hero({ media }) {
 
                     <motion.div style={{ y: imageY }} className="relative">
                         <div className="group relative h-[380px] w-[320px] overflow-hidden border-4 border-white/70 shadow-[0_30px_70px_rgba(180,57,143,0.3)] animate-morph sm:h-[480px] sm:w-[420px] lg:h-[520px] lg:w-[460px]">
-                            <SafeImage
-                                src={mediaUrl(media?.image, "lg")}
-                                alt={mediaAlt(media?.image, locale)}
-                                className="h-full w-full object-cover animate-kenburns"
-                                fetchPriority="high"
-                            />
+                            <AnimatePresence initial={false}>
+                                <motion.div
+                                    key={current.id}
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.9 }}
+                                    className="absolute inset-0"
+                                >
+                                    <SafeImage
+                                        src={mediaUrl(current.image, "lg")}
+                                        alt={mediaAlt(current.image, locale)}
+                                        className="h-full w-full object-cover animate-kenburns"
+                                        fetchPriority="high"
+                                    />
+                                </motion.div>
+                            </AnimatePresence>
                             <div className="absolute inset-0 bg-gradient-to-t from-orchid-dark/60 via-orchid-dark/10 to-transparent" />
+                            {items.length > 1 && (
+                                <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 p-6 text-white">
+                                    {items.length > 1 && (
+                                        <div className="flex gap-1.5">
+                                            {items.map((it, i) => (
+                                                <span key={it.id} className={`h-1.5 rounded-full transition-all ${i === index % items.length ? "w-6 bg-white" : "w-1.5 bg-white/50"}`} />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Oda turu videosu yüklendiyse oynat düğmesi görünür */}
                             {videoUrl && (
