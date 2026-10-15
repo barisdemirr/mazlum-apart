@@ -1,7 +1,9 @@
-import ComingSoon from "@/components/admin/ComingSoon";
+import AccountsView from "@/components/admin/accounting/AccountsView";
+import { adminGet, getAdminContext } from "@/lib/admin/data";
 
 export const metadata = { title: "Öğrenci Hesapları" };
 
-export default function Page() {
-    return <ComingSoon title="Öğrenci Hesapları" icon="account_balance_wallet" />;
+export default async function Page() {
+    const { period } = await getAdminContext();
+    return <AccountsView enrollments={await adminGet("/enrollments", { periodId: period.id })} />;
 }

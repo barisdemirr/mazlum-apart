@@ -1,7 +1,8 @@
-import ComingSoon from "@/components/admin/ComingSoon";
+import AdminsView from "@/components/admin/system/AdminsView";
+import { adminGet } from "@/lib/admin/data";
 
 export const metadata = { title: "Yöneticiler" };
 
-export default function Page() {
-    return <ComingSoon title="Yöneticiler" icon="admin_panel_settings" />;
+export default async function Page() {
+    return <AdminsView users={await adminGet("/users")} />;
 }

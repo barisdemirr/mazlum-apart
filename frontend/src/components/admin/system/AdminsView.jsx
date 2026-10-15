@@ -2,79 +2,40 @@
 
 import { useState } from "react";
 import Icon from "@/components/ui/Icon";
-import { useAdmin } from "@/components/admin/data/AdminDataProvider";
-import ConfirmDialog from "@/components/admin/ConfirmDialog";
-import DataTable from "@/components/admin/DataTable";
-import FormDialog from "@/components/admin/FormDialog";
+import ActionDialog from "@/components/admin/ActionDialog";
 import useCommand from "@/components/admin/useCommand";
-import { useToast } from "@/components/admin/Toast";
-import { Avatar, Badge } from "@/components/admin/ui";
-import { Field, TextInput } from "@/components/admin/fields";
-import { addAdmin, setAdminActive } from "@/lib/admin/domain/config";
+import { Badge, Card, PageHeader } from "@/components/admin/ui";
+import { useAdmin } from "@/components/admin/data/AdminDataProvider";
+import { createAdmin, resetAdminPassword, updateAdmin } from "@/lib/admin/commands/finance";
+import { turkeyDate } from "@/lib/format";
 import { date } from "@/lib/admin/labels";
 
-export default function AdminsView() {
-    const { state, user } = useAdmin();
+/** Yöneticiler: ekleme, pasife alma, şifre sıfırlama. Yeni şifre yalnızca bir kez gösterilir. */
+export default function AdminsView({ users }) {
+    const { user } = useAdmin();
     const { exec } = useCommand();
-    const [adding, setAdding] = useState(false);
-    const [created, setCreated] = useState(null);
-    const [toggling, setToggling] = useState(null);
-
-    const confirmToggle = async () => {
-        const out = await exec(setAdminActive, { id: toggling.id, active: !toggling.active }, toggling.active ? "Yönetici pasife alındı." : "Yönetici aktifleştirildi.");
-        if (out.ok) setToggling(null);
-    };
-
-    const columns = [
-        { key: "name", header: "Yönetici", sort: (a) => a.name, render: (a) => <div className="flex items-center gap-2.5"><Avatar name={a.name} /><div className="min-w-0"><div className="truncate font-bold">{a.name}{a.id === (user?.id ?? "admin-1") && <span className="ms-2 text-xs font-normal text-ad-muted">(siz)</span>}</div><div className="text-[11px] text-ad-muted">{a.email}</div></div></div> },
-        { key: "created", header: "Eklenme", sort: (a) => a.createdAt, render: (a) => <span className="ad-num">{date(a.createdAt.slice(0, 10))}</span> },
-        { key: "status", header: "Durum", render: (a) => <Badge tone={a.active ? "ok" : "neutral"}>{a.active ? "Aktif" : "Pasif"}</Badge> },
-        { key: "act", header: "", align: "end", render: (a) => a.id === (user?.id ?? "admin-1") ? null : <button type="button" onClick={() => setToggling(a)} className={`text-xs font-bold hover:underline ${a.active ? "text-ad-danger" : "text-ad-brand"}`}>{a.active ? "Pasife al" : "Aktifleştir"}</button> },
-    ];
-
+    const [dialog, setDialog] = useState(null);
+    const [secret, setSecret] = useState(null);
+    const act = async (fn, input, msg, label) => { const out = await exec(fn, input, msg); if (out.ok && out.result?.initialPassword) setSecret({ label, password: out.result.initialPassword }); };
     return (
         <div>
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                <p className="max-w-2xl text-sm text-ad-muted">Panele giriş yapabilen yöneticiler. Yönetici silinmez, pasife alınır; geçmiş işlemlerde adı kalır.</p>
-                <button type="button" onClick={() => setAdding(true)} className="ad-btn ad-btn-primary"><Icon name="person_add" className="text-[20px]" />Yönetici ekle</button>
+            <PageHeader title="Yöneticiler" description="Panele giriş yapabilen kişiler. Hepsi tam yetkilidir." actions={<button type="button" onClick={() => setDialog({ type: "add" })} className="ad-btn ad-btn-primary"><Icon name="person_add" className="text-[20px]" />Yönetici ekle</button>} />
+            {secret && <div className="mb-4 rounded-2xl bg-ad-ok-soft p-4 text-sm text-ad-ok">{secret.label}: <code className="rounded bg-ad-surface px-2 py-0.5 tracking-widest">{secret.password}</code> · yalnızca şimdi gösterilir.</div>}
+            <div className="grid gap-4 md:grid-cols-2">
+                {users.map((u) => (
+                    <Card key={u.id}>
+                        <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate font-bold">{u.name}</p><p className="truncate text-xs text-ad-muted">{u.email}</p></div><Badge tone={u.active ? "ok" : "neutral"}>{u.active ? "Aktif" : "Pasif"}</Badge></div>
+                        <p className="mt-2 text-xs text-ad-faint">{u.lastLoginAt ? `Son giriş ${date(turkeyDate(u.lastLoginAt))}` : "Henüz giriş yapmadı"}</p>
+                        <div className="mt-3 flex gap-3 text-xs font-bold">
+                            <button type="button" className="text-ad-brand hover:underline" onClick={() => setDialog({ type: "edit", item: u })}>Düzenle</button>
+                            <button type="button" className="text-ad-brand hover:underline" onClick={() => act(resetAdminPassword, { id: u.id }, "Şifre sıfırlandı.", `${u.name} yeni şifre`)}>Şifre sıfırla</button>
+                            {u.id !== user?.id && <button type="button" className="text-ad-danger hover:underline" onClick={() => act(updateAdmin, { id: u.id, name: u.name, email: u.email, active: !u.active }, u.active ? "Pasife alındı." : "Aktifleştirildi.")}>{u.active ? "Pasife al" : "Aktifleştir"}</button>}
+                        </div>
+                    </Card>
+                ))}
             </div>
-            <DataTable columns={columns} rows={state.admins} rowKey={(a) => a.id} empty={{ icon: "admin_panel_settings", title: "Yönetici yok" }} />
-            {adding && <AddAdminDialog onClose={() => setAdding(false)} onCreated={setCreated} />}
-            {created && <CreatedDialog data={created} onClose={() => setCreated(null)} />}
-            <ConfirmDialog open={!!toggling} title={toggling?.active ? "Yönetici pasife alınsın mı?" : "Yönetici aktifleştirilsin mi?"} message={toggling ? `${toggling.name} ${toggling.active ? "artık panele giriş yapamaz." : "yeniden giriş yapabilir."}` : ""} confirmLabel={toggling?.active ? "Pasife al" : "Aktifleştir"} danger={!!toggling?.active} onConfirm={confirmToggle} onCancel={() => setToggling(null)} />
+            {dialog?.type === "add" && <ActionDialog title="Yönetici ekle" command={createAdmin} success="Yönetici eklendi." onClose={() => setDialog(null)} onDone={(r) => setSecret({ label: `${r.admin.name} ilk şifre`, password: r.initialPassword })} note="İlk şifre oluşturulur ve yalnızca bir kez gösterilir." fields={[{ name: "name", label: "Ad soyad", type: "text", required: true }, { name: "email", label: "E-posta", type: "text", required: true }]} />}
+            {dialog?.type === "edit" && <ActionDialog title="Yöneticiyi düzenle" command={updateAdmin} extra={{ id: dialog.item.id, active: dialog.item.active }} initial={dialog.item} success="Kaydedildi." onClose={() => setDialog(null)} fields={[{ name: "name", label: "Ad soyad", type: "text", required: true }, { name: "email", label: "E-posta", type: "text", required: true }]} />}
         </div>
-    );
-}
-
-function AddAdminDialog({ onClose, onCreated }) {
-    const { exec, busy } = useCommand();
-    const [f, setF] = useState({ name: "", email: "" });
-    const submit = async (e) => {
-        e.preventDefault();
-        const out = await exec(addAdmin, f, "Yönetici eklendi.");
-        if (out.ok) { onCreated(out.result); onClose(); }
-    };
-    return (
-        <FormDialog open title="Yönetici ekle" onClose={onClose} onSubmit={submit} busy={busy} saveLabel="Ekle" columns={1}>
-            <Field label="Ad soyad" required><TextInput value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
-            <Field label="E-posta" required><TextInput type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></Field>
-        </FormDialog>
-    );
-}
-
-function CreatedDialog({ data, onClose }) {
-    const toast = useToast();
-    const copy = async () => {
-        try { await navigator.clipboard.writeText(data.initialPassword); toast.success("Şifre kopyalandı."); } catch { toast.error("Kopyalanamadı."); }
-    };
-    return (
-        <FormDialog open title="Yönetici eklendi" description={`${data.admin.name} · ${data.admin.email}`} onClose={onClose} hideFooter columns={1}>
-            <div className="rounded-2xl border border-ad-line p-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-ad-muted">İlk şifre</p>
-                <p className="mt-2 flex items-center gap-3"><code className="rounded bg-ad-sunken px-3 py-1 text-lg tracking-widest">{data.initialPassword}</code><button type="button" onClick={copy} className="ad-btn ad-btn-soft ad-btn-sm"><Icon name="content_copy" className="text-[16px]" />Kopyala</button></p>
-                <p className="mt-3 text-xs text-ad-warn">Bu şifre yalnızca şimdi gösterilir. Kişiye güvenli bir yoldan iletin; ilk girişte değiştirmesi önerilir.</p>
-            </div>
-            <button type="button" onClick={onClose} className="ad-btn ad-btn-outline">Kapat</button>
-        </FormDialog>
     );
 }

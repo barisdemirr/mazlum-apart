@@ -1,7 +1,9 @@
-import ComingSoon from "@/components/admin/ComingSoon";
+import CashBankView from "@/components/admin/accounting/CashBankView";
+import { adminGet, getAdminContext } from "@/lib/admin/data";
 
 export const metadata = { title: "Kasa & Banka" };
 
-export default function Page() {
-    return <ComingSoon title="Kasa & Banka" icon="account_balance" />;
+export default async function Page() {
+    const { period } = await getAdminContext();
+    return <CashBankView data={await adminGet("/cash-bank", { periodId: period.id })} />;
 }

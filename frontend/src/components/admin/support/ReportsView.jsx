@@ -1,101 +1,42 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useAdmin } from "@/components/admin/data/AdminDataProvider";
-import DataTable from "@/components/admin/DataTable";
-import { Card, Chips, PageHeader, ProgressBar } from "@/components/admin/ui";
-import DateRange, { inRange } from "@/components/admin/accounting/DateRange";
-import { round, sum } from "@/lib/admin/domain/accounting";
-import { addDays, monthLabel } from "@/lib/admin/domain/dates";
-import { METHOD, money } from "@/lib/admin/labels";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Card, PageHeader } from "@/components/admin/ui";
+import { DateInput, Field } from "@/components/admin/fields";
+import ExportButton from "@/components/admin/ExportButton";
+import { monthLabel } from "@/lib/admin/month";
+import { METHOD, date, money } from "@/lib/admin/labels";
 
-/** Tarih aralığına göre gelir/gider raporu. Transferler gelir ya da gider sayılmaz. Tablo Excel'e aktarılır. */
-export default function ReportsView() {
-    const { state, period, today } = useAdmin();
-    const end = today < period.end ? (today < period.start ? period.start : today) : period.end;
-    const [preset, setPreset] = useState("period");
-    const [custom, setCustom] = useState({ from: "", to: "" });
-
-    const range = useMemo(() => {
-        if (preset === "month") return { from: `${end.slice(0, 7)}-01`, to: end };
-        if (preset === "30") return { from: addDays(end, -29) < period.start ? period.start : addDays(end, -29), to: end };
-        if (preset === "custom") return custom;
-        return { from: period.start, to: period.end };
-    }, [preset, custom, end, period]);
-
-    const data = useMemo(() => {
-        const payments = state.payments.filter((p) => p.periodId === period.id && !p.cancelledAt && inRange(p.date, range));
-        const collections = payments.filter((p) => p.kind === "collection");
-        const refunds = payments.filter((p) => p.kind === "refund");
-        const expenses = state.expenses.filter((e) => e.periodId === period.id && !e.cancelledAt && inRange(e.date, range));
-        const typeOf = new Map(state.accounts.map((a) => [a.id, a]));
-
-        const months = new Map();
-        const bucket = (day) => {
-            const key = day.slice(0, 7);
-            if (!months.has(key)) months.set(key, { month: key, collected: 0, refunded: 0, spent: 0 });
-            return months.get(key);
-        };
-        collections.forEach((p) => (bucket(p.date).collected = round(bucket(p.date).collected + p.amount)));
-        refunds.forEach((p) => (bucket(p.date).refunded = round(bucket(p.date).refunded + p.amount)));
-        expenses.forEach((e) => (bucket(e.date).spent = round(bucket(e.date).spent + e.amount)));
-
-        return {
-            collected: sum(collections, (p) => p.amount),
-            refunded: sum(refunds, (p) => p.amount),
-            spent: sum(expenses, (e) => e.amount),
-            byMethod: Object.keys(METHOD).map((k) => ({ key: k, amount: sum(collections.filter((p) => p.method === k), (p) => p.amount) })),
-            byAccount: state.accounts.map((a) => ({ a, amount: sum(collections.filter((p) => p.accountId === a.id), (p) => p.amount) })).filter((x) => x.amount > 0),
-            bank: sum(collections.filter((p) => typeOf.get(p.accountId)?.type === "bank"), (p) => p.amount),
-            cash: sum(collections.filter((p) => typeOf.get(p.accountId)?.type === "cash"), (p) => p.amount),
-            byCategory: state.expenseCategories.map((c) => ({ c, amount: sum(expenses.filter((e) => e.categoryId === c.id), (e) => e.amount) })).filter((x) => x.amount > 0).sort((a, b) => b.amount - a.amount),
-            months: [...months.values()].sort((a, b) => a.month.localeCompare(b.month)).map((m) => ({ ...m, net: round(m.collected - m.refunded - m.spent) })),
-        };
-    }, [state, period.id, range]);
-
-    const net = round(data.collected - data.refunded - data.spent);
-    const columns = [
-        { key: "month", header: "Ay", sort: (m) => m.month, render: (m) => <b>{monthLabel(m.month)}</b>, export: { value: (m) => monthLabel(m.month) } },
-        { key: "collected", header: "Tahsilat", align: "end", render: (m) => <span className="ad-num text-ad-ok">{money(m.collected)}</span>, export: { type: "money", value: (m) => m.collected } },
-        { key: "refunded", header: "İade", align: "end", render: (m) => <span className="ad-num text-ad-warn">{money(m.refunded)}</span>, export: { type: "money", value: (m) => m.refunded } },
-        { key: "spent", header: "Gider", align: "end", render: (m) => <span className="ad-num text-ad-danger">{money(m.spent)}</span>, export: { type: "money", value: (m) => m.spent } },
-        { key: "net", header: "Net", align: "end", sort: (m) => m.net, render: (m) => <span className={`ad-num font-bold ${m.net < 0 ? "text-ad-danger" : ""}`}>{money(m.net)}</span>, export: { type: "money", value: (m) => m.net } },
-    ];
-
+/** Finans raporu: seçilen tarih aralığında tahsilat, iade, gider, yönteme/hesaba/kategoriye göre dağılım ve aylık seyir. */
+export default function ReportsView({ report: r }) {
+    const router = useRouter();
+    const [range, setRange] = useState({ from: r.from, to: r.to });
+    const apply = () => router.push(`/admin/raporlar?from=${range.from}&to=${range.to}`);
+    const cols = [{ key: "m", header: "Ay", export: { value: (x) => x.month } }, { key: "c", header: "Tahsilat", export: { type: "money", value: (x) => x.collected } }, { key: "r", header: "İade", export: { type: "money", value: (x) => x.refunded } }, { key: "s", header: "Gider", export: { type: "money", value: (x) => x.spent } }, { key: "n", header: "Net", export: { type: "money", value: (x) => x.net } }];
+    const List = ({ title, rows }) => (
+        <Card title={title}><ul className="mt-4 divide-y divide-ad-line text-sm">{rows.length === 0 ? <li className="py-2 text-ad-muted">Veri yok.</li> : rows.map((x) => <li key={x.key} className="flex justify-between py-2"><span>{x.label}</span><b className="ad-num">{money(x.amount)}</b></li>)}</ul></Card>
+    );
     return (
         <div>
-            <PageHeader title="Raporlar" description="Seçili dönemin gelir ve gider özeti. Tarih aralığını değiştirin, aylık tabloyu Excel'e aktarın." />
-            <div className="mb-5 flex flex-wrap items-center gap-3">
-                <Chips value={preset} onChange={setPreset} items={[{ value: "period", label: "Tüm dönem" }, { value: "month", label: "Bu ay" }, { value: "30", label: "Son 30 gün" }, { value: "custom", label: "Özel aralık" }]} />
-                {preset === "custom" && <DateRange {...custom} onChange={setCustom} />}
+            <PageHeader title="Raporlar" description={`${date(r.from)} – ${date(r.to)} aralığı`} actions={<ExportButton name="finans-raporu" columns={cols} rows={r.months} />} />
+            <div className="mb-5 flex flex-wrap items-end gap-3">
+                <Field label="Başlangıç"><DateInput value={range.from} onChange={(e) => setRange((x) => ({ ...x, from: e.target.value }))} /></Field>
+                <Field label="Bitiş"><DateInput value={range.to} onChange={(e) => setRange((x) => ({ ...x, to: e.target.value }))} /></Field>
+                <button type="button" onClick={apply} className="ad-btn ad-btn-primary">Uygula</button>
             </div>
-
-            <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <Card><p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Tahsilat</p><p className="ad-num mt-2 text-2xl font-extrabold text-ad-ok">{money(data.collected)}</p><p className="mt-1 text-xs text-ad-muted">Banka {money(data.bank)} · Nakit {money(data.cash)}</p></Card>
-                <Card><p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Avans iadeleri</p><p className="ad-num mt-2 text-2xl font-extrabold text-ad-warn">{money(data.refunded)}</p></Card>
-                <Card><p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Gider</p><p className="ad-num mt-2 text-2xl font-extrabold text-ad-danger">{money(data.spent)}</p></Card>
-                <Card><p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Net</p><p className={`ad-num mt-2 text-2xl font-extrabold ${net < 0 ? "text-ad-danger" : ""}`}>{money(net)}</p><p className="mt-1 text-xs text-ad-muted">Tahsilat − iade − gider</p></Card>
+            <div className="mb-5 grid gap-4 sm:grid-cols-4">
+                {[["Tahsilat", r.collected], ["İade", r.refunded], ["Gider", r.spent], ["Net", r.net]].map(([l, v]) => <Card key={l}><p className="text-xs font-bold uppercase tracking-wider text-ad-muted">{l}</p><p className={`ad-num mt-2 text-2xl font-extrabold ${l === "Net" && v < 0 ? "text-ad-danger" : ""}`}>{money(v)}</p></Card>)}
             </div>
-
-            <div className="mb-5 grid gap-5 lg:grid-cols-3">
-                <Card title="Yönteme göre tahsilat">
-                    <ul className="mt-4 space-y-3">{data.byMethod.map(({ key, amount }) => (
-                        <li key={key} className="text-sm"><div className="mb-1 flex justify-between"><span className="font-semibold">{METHOD[key]}</span><span className="ad-num font-bold">{money(amount)}</span></div><ProgressBar value={data.collected ? amount / data.collected : 0} /></li>
-                    ))}</ul>
-                </Card>
-                <Card title="Hesaba göre tahsilat">
-                    {data.byAccount.length === 0 ? <p className="mt-4 text-sm text-ad-muted">Bu aralıkta tahsilat yok.</p> : <ul className="mt-4 space-y-3">{data.byAccount.map(({ a, amount }) => (
-                        <li key={a.id} className="text-sm"><div className="mb-1 flex justify-between"><span className="font-semibold">{a.name}</span><span className="ad-num font-bold">{money(amount)}</span></div><ProgressBar value={data.collected ? amount / data.collected : 0} tone="accent" /></li>
-                    ))}</ul>}
-                </Card>
-                <Card title="Kategoriye göre gider">
-                    {data.byCategory.length === 0 ? <p className="mt-4 text-sm text-ad-muted">Bu aralıkta gider yok.</p> : <ul className="mt-4 space-y-3">{data.byCategory.map(({ c, amount }) => (
-                        <li key={c.id} className="text-sm"><div className="mb-1 flex justify-between"><span className="font-semibold">{c.name}</span><span className="ad-num font-bold">{money(amount)}</span></div><ProgressBar value={data.spent ? amount / data.spent : 0} tone="danger" /></li>
-                    ))}</ul>}
-                </Card>
+            <div className="grid gap-5 lg:grid-cols-3">
+                <List title="Yönteme göre tahsilat" rows={r.byMethod.map((x) => ({ key: x.method, label: METHOD[x.method], amount: x.amount }))} />
+                <List title="Hesaba göre tahsilat" rows={r.byAccount.map((x) => ({ key: x.accountId, label: x.name, amount: x.amount }))} />
+                <List title="Kategoriye göre gider" rows={r.byCategory.map((x) => ({ key: x.categoryId, label: x.name, amount: x.amount }))} />
             </div>
-
-            <DataTable columns={columns} rows={data.months} rowKey={(m) => m.month} exportName="aylik-rapor" initialSort={{ key: "month", dir: "asc" }} empty={{ icon: "analytics", title: "Bu aralıkta hareket yok", description: "Tarih aralığını genişletin." }} />
+            <Card title="Aylık seyir" className="mt-5"><div className="ad-scroll mt-4 overflow-x-auto"><table className="ad-table">
+                <thead><tr><th>Ay</th><th className="!text-end">Tahsilat</th><th className="!text-end">İade</th><th className="!text-end">Gider</th><th className="!text-end">Net</th></tr></thead>
+                <tbody>{r.months.map((m) => <tr key={m.month}><td className="font-semibold">{monthLabel(m.month)}</td><td className="ad-num text-end">{money(m.collected)}</td><td className="ad-num text-end">{money(m.refunded)}</td><td className="ad-num text-end">{money(m.spent)}</td><td className={`ad-num text-end font-bold ${m.net < 0 ? "text-ad-danger" : ""}`}>{money(m.net)}</td></tr>)}</tbody>
+            </table></div></Card>
         </div>
     );
 }

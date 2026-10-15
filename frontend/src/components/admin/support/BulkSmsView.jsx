@@ -1,149 +1,66 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import Icon from "@/components/ui/Icon";
-import ConfirmDialog from "@/components/admin/ConfirmDialog";
-import { useAdmin } from "@/components/admin/data/AdminDataProvider";
-import { useToast } from "@/components/admin/Toast";
-import { Avatar, Card, Chips, EmptyState } from "@/components/admin/ui";
-import { Field } from "@/components/admin/fields";
-import { sendSms } from "@/lib/admin/domain/support";
-import { fillTemplate, hasUnfilled, messageVars, smsInfo } from "@/lib/admin/messaging";
+import { useMemo, useRef, useState } from "react";
+import { Card, PageHeader } from "@/components/admin/ui";
+import { Field, SelectInput, TextInput } from "@/components/admin/fields";
+import useCommand from "@/components/admin/useCommand";
+import { previewSms, sendSms } from "@/lib/admin/commands/support";
+import { newIdempotencyKey } from "@/lib/api/bff";
+import { adaptRow } from "@/lib/admin/adapters";
+import { CONTACT_PURPOSE, money } from "@/lib/admin/labels";
+import { smsInfo } from "@/lib/admin/messaging";
 
-const AUDIENCES = [
-    { value: "overdue", label: "Gecikmiş ödemesi olanlar" },
-    { value: "upcoming", label: "Vadesi yaklaşanlar (7 gün)" },
-    { value: "all", label: "Tüm öğrenciler" },
-];
+/** Toplu SMS: alıcıları seçin, metni yazın ({ad}, {tutar}, {vade}… sunucuda kişiye göre dolar), önizleyin, gönderin. */
+export default function BulkSmsView({ enrollments, status }) {
+    const { exec, busy } = useCommand();
+    const rows = useMemo(() => enrollments.map(adaptRow).filter((r) => !["cancelled", "left"].includes(r.enrollment.status)), [enrollments]);
+    const [picked, setPicked] = useState(() => new Set());
+    const [q, setQ] = useState("");
+    const [only, setOnly] = useState("all");
+    const [purpose, setPurpose] = useState("announcement");
+    const [text, setText] = useState("");
+    const [preview, setPreview] = useState(null);
+    const key = useRef(newIdempotencyKey());
 
-/**
- * Toplu SMS (Verimor): kitle seç, şablon seç, alıcıları işaretle, onayla.
- * Her alıcı için mesaj kendi bilgileriyle ayrı doldurulur ({ad}, {tutar}, {vade}…).
- * Gönderim şimdilik MOCK (iletişim geçmişine "sms" olarak yazılır); gerçek gönderimi backend yapar.
- */
-export default function BulkSmsView() {
-    const { state, view, run } = useAdmin();
-    const toast = useToast();
-    const [audience, setAudience] = useState("overdue");
-    const [templateId, setTemplateId] = useState(() => state.messageTemplates.find((t) => t.key === "payment_overdue")?.id ?? state.messageTemplates[0]?.id);
-    const [lang, setLang] = useState("tr");
-    const [text, setText] = useState(() => state.messageTemplates.find((t) => t.key === "payment_overdue")?.tr ?? "");
-    const [excluded, setExcluded] = useState(() => new Set());
-    const [confirm, setConfirm] = useState(false);
-
-    const templates = state.messageTemplates;
-    const template = templates.find((t) => t.id === templateId);
-
-    const pickTemplate = (id, language = lang) => {
-        const t = templates.find((x) => x.id === id);
-        setTemplateId(id);
-        setText(t?.[language] ?? "");
-    };
-
-    /* Kitle: öğrenci başına tek satır (ilgili borç kalemiyle) */
-    const people = useMemo(() => {
-        const seen = new Set();
-        const source = audience === "overdue" ? view.overdue : audience === "upcoming" ? view.upcoming : view.live;
-        return source.filter((r) => !seen.has(r.enrollment.id) && seen.add(r.enrollment.id));
-    }, [audience, view]);
-
-    const recipients = useMemo(
-        () =>
-            people.map((r) => {
-                const message = fillTemplate(text, messageVars(r, r.item));
-                const phoneOk = /^5\d{9}$/.test(r.student.phone ?? "");
-                const problem = !phoneOk ? "Telefon geçersiz" : hasUnfilled(message) ? "Değişken eksik" : !message.trim() ? "Mesaj boş" : null;
-                return { r, message, problem, parts: smsInfo(message).parts };
-            }),
-        [people, text]
-    );
-
-    const selected = recipients.filter((x) => !x.problem && !excluded.has(x.r.enrollment.id));
-    const totalParts = selected.reduce((a, x) => a + x.parts, 0);
-    const toggle = (id) => setExcluded((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-
-    const send = async () => {
-        try {
-            const out = await run(sendSms, { messages: selected.map((x) => ({ enrollmentId: x.r.enrollment.id, text: x.message, purpose: template?.key ?? "other" })) });
-            toast.success(`${out.sent.length} kişiye SMS gönderime alındı (${totalParts} SMS).`);
-            setConfirm(false);
-        } catch (e) {
-            toast.error(e.message);
-        }
-    };
-
-    const first = selected[0] ?? recipients[0];
+    const shown = rows.filter((r) => (only === "all" || r.summary.remaining > 0) && `${r.student.firstName} ${r.student.lastName} ${r.student.phone}`.toLowerCase().includes(q.toLowerCase()));
+    const toggle = (id) => setPicked((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    const input = () => ({ purpose, text, lang: "tr", recipients: [...picked].map((enrollmentId) => ({ enrollmentId })) });
     const info = smsInfo(text);
 
+    const doPreview = async () => { const out = await exec(previewSms, input(), null, { refresh: false }); if (out.ok) setPreview(out.result); };
+    const doSend = async () => {
+        const out = await exec(sendSms, { ...input(), key: key.current }, (r) => `${r.sent.length} kişiye SMS gönderime alındı.`);
+        if (out.ok) { key.current = newIdempotencyKey(); setPreview(null); setPicked(new Set()); setText(""); }
+    };
+
     return (
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-            <div className="space-y-5">
-                <Card title="1 · Kime?">
-                    <div className="mt-3">
-                        <Chips items={AUDIENCES.map((a) => ({ ...a, count: undefined }))} value={audience} onChange={(v) => { setAudience(v); setExcluded(new Set()); }} />
-                    </div>
+        <div>
+            <PageHeader title="Toplu SMS" description="Maliyetli işlem: önce önizleyin. Aynı numaraya iki kez gönderilmez, günlük boy sınırı vardır." />
+            {!status.enabled && <p className="mb-4 rounded-2xl bg-ad-warn-soft p-4 text-sm text-ad-warn">SMS sağlayıcısı kapalı (Sms:Enabled). Gönderimler gerçek SMS olarak gitmez, simülasyon olarak kaydedilir.</p>}
+            <div className="grid gap-5 lg:grid-cols-2">
+                <Card title={`Alıcılar (${picked.size})`} actions={<div className="flex gap-2 text-xs font-bold"><button type="button" className="text-ad-brand" onClick={() => setPicked(new Set(shown.map((r) => r.enrollment.id)))}>Görünenleri seç</button><button type="button" className="text-ad-muted" onClick={() => setPicked(new Set())}>Temizle</button></div>}>
+                    <div className="mt-3 flex gap-2"><TextInput value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ad veya telefon ara" /><SelectInput value={only} onChange={(e) => setOnly(e.target.value)}><option value="all">Tümü</option><option value="debt">Borcu olanlar</option></SelectInput></div>
+                    <ul className="ad-scroll mt-3 max-h-96 divide-y divide-ad-line overflow-y-auto">{shown.map((r) => (
+                        <li key={r.enrollment.id}><label className="flex cursor-pointer items-center gap-3 py-2 text-sm"><input type="checkbox" checked={picked.has(r.enrollment.id)} onChange={() => toggle(r.enrollment.id)} /><span className="min-w-0 flex-1 truncate font-semibold">{r.student.firstName} {r.student.lastName}</span><span className="ad-num text-xs text-ad-muted">{r.summary.remaining > 0 ? money(r.summary.remaining) : ""}</span></label></li>
+                    ))}</ul>
                 </Card>
-                <Card title="2 · Mesaj" description="Değişkenler her alıcı için kendi bilgisiyle dolar.">
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                        {templates.map((t) => (
-                            <button key={t.id} type="button" onClick={() => pickTemplate(t.id)} className={`rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${templateId === t.id ? "border-ad-brand bg-ad-brand text-white" : "border-ad-line-strong text-ad-body hover:bg-ad-sunken"}`}>{t.name}</button>
-                        ))}
-                        <div className="ms-auto flex rounded-full bg-ad-sunken p-0.5 text-xs font-bold">
-                            {["tr", "en"].map((l) => (
-                                <button key={l} type="button" onClick={() => { setLang(l); if (templateId) pickTemplate(templateId, l); }} className={`rounded-full px-3 py-1 uppercase ${lang === l ? "bg-ad-surface text-ad-brand-dark shadow-ad-sm" : "text-ad-muted"}`}>{l}</button>
-                            ))}
+                <Card title="Mesaj">
+                    <div className="mt-3 space-y-3">
+                        <Field label="Amaç"><SelectInput value={purpose} onChange={(e) => setPurpose(e.target.value)}>{Object.entries(CONTACT_PURPOSE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</SelectInput></Field>
+                        <Field label="Metin" hint="Değişkenler: {ad} {tutar} {vade} {kalem} {oda}"><TextInput as="textarea" rows={6} value={text} onChange={(e) => { setText(e.target.value); setPreview(null); }} /></Field>
+                        <p className="text-xs text-ad-muted">{info.length} karakter · {info.parts} SMS (kişi başı){info.unicode && " · Türkçe karakter: kısa SMS"}</p>
+                        {preview && (
+                            <div className="rounded-2xl bg-ad-sunken p-4 text-sm"><b>{preview.messages.length} kişiye {preview.totalParts} SMS</b> · bugün {preview.usedToday}/{preview.dailyLimit}
+                                {preview.messages[0] && <p className="mt-2 whitespace-pre-wrap text-xs text-ad-body">Örnek: {preview.messages[0].text}</p>}
+                                {preview.skipped.length > 0 && <p className="mt-2 text-xs text-ad-warn">Atlanan {preview.skipped.length}: {preview.skipped.slice(0, 3).map((s) => `${s.name} (${s.reason})`).join(", ")}</p>}</div>
+                        )}
+                        <div className="flex gap-2">
+                            <button type="button" disabled={busy || !picked.size || !text.trim()} onClick={doPreview} className="ad-btn ad-btn-outline">Önizle</button>
+                            <button type="button" disabled={busy || !preview || preview.messages.length === 0} onClick={doSend} className="ad-btn ad-btn-primary">Gönder</button>
                         </div>
                     </div>
-                    <div className="mt-3">
-                        <Field label="Metin" hint={`${info.length} karakter · ${info.parts} SMS${info.unicode ? " (Türkçe karakter: kısa SMS)" : ""}`}>
-                            <textarea rows={6} value={text} onChange={(e) => setText(e.target.value)} className="ad-field resize-y leading-relaxed" />
-                        </Field>
-                    </div>
-                    {first && (
-                        <div className="mt-4 rounded-2xl bg-ad-sunken p-4">
-                            <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-ad-muted">Örnek: {first.r.student.firstName}</p>
-                            <p className="text-sm leading-relaxed">{first.message || "—"}</p>
-                        </div>
-                    )}
                 </Card>
             </div>
-
-            <Card title="3 · Alıcılar" description={`${selected.length} / ${recipients.length} kişi seçili · tahmini ${totalParts} SMS`}
-                actions={<button type="button" disabled={selected.length === 0} onClick={() => setConfirm(true)} className="ad-btn ad-btn-primary"><Icon name="send" className="text-[17px]" />SMS gönder</button>}>
-                {recipients.length === 0 ? (
-                    <EmptyState icon="sms" title="Bu kitlede kimse yok" description="Başka bir kitle seçin." />
-                ) : (
-                    <div className="ad-scroll mt-3 max-h-[560px] overflow-auto rounded-xl border border-ad-line">
-                        <table className="ad-table">
-                            <thead><tr><th className="w-10" /><th>Öğrenci</th><th>Telefon</th><th className="!text-end">SMS</th></tr></thead>
-                            <tbody>
-                                {recipients.map(({ r, problem, parts }) => {
-                                    const id = r.enrollment.id;
-                                    const on = !problem && !excluded.has(id);
-                                    return (
-                                        <tr key={id} className={problem ? "opacity-60" : ""}>
-                                            <td><input type="checkbox" checked={on} disabled={Boolean(problem)} onChange={() => toggle(id)} aria-label={`${r.student.firstName} ${r.student.lastName}`} className="h-4 w-4 accent-[var(--color-ad-brand)]" /></td>
-                                            <td><div className="flex items-center gap-2.5"><Avatar name={`${r.student.firstName} ${r.student.lastName}`} /><div><div className="font-bold">{r.student.firstName} {r.student.lastName}</div><div className="text-[11px] text-ad-muted">{r.room?.label ?? "Yerleşmedi"}</div></div></div></td>
-                                            <td className="ad-num whitespace-nowrap">{problem ? <span className="text-ad-warn">{problem}</span> : `+90 ${r.student.phone}`}</td>
-                                            <td className="ad-num text-end">{problem ? "—" : parts}</td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </Card>
-
-            <ConfirmDialog
-                open={confirm}
-                danger={false}
-                title="SMS gönderilsin mi?"
-                message={`${selected.length} kişiye, toplam yaklaşık ${totalParts} SMS gönderilecek. Gönderilen SMS geri alınamaz ve SMS kredinizden düşer.`}
-                confirmLabel="Gönder"
-                onConfirm={send}
-                onCancel={() => setConfirm(false)}
-            />
         </div>
     );
 }

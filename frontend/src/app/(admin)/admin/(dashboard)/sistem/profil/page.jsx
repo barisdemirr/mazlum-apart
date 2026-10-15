@@ -1,7 +1,8 @@
-import ComingSoon from "@/components/admin/ComingSoon";
+import ProfileView from "@/components/admin/system/ProfileView";
+import { adminGet } from "@/lib/admin/data";
 
 export const metadata = { title: "Profilim" };
 
-export default function Page() {
-    return <ComingSoon title="Profilim" icon="person" />;
+export default async function Page() {
+    return <ProfileView me={await adminGet("/me")} />;
 }

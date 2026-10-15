@@ -1,7 +1,9 @@
-import ComingSoon from "@/components/admin/ComingSoon";
+import PaymentsView from "@/components/admin/accounting/PaymentsView";
+import { adminGet, getAdminContext } from "@/lib/admin/data";
 
 export const metadata = { title: "Tahsilatlar" };
 
-export default function Page() {
-    return <ComingSoon title="Tahsilatlar" icon="request_quote" />;
+export default async function Page() {
+    const { period } = await getAdminContext();
+    return <PaymentsView data={await adminGet("/payments", { periodId: period.id })} />;
 }

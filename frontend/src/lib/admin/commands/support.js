@@ -16,3 +16,8 @@ export const previewSms = ({ purpose, text, lang, recipients }) => admin.post("/
 /** Çift tıklama iki SMS göndermesin diye her gönderim tek anahtar taşır (anahtar bileşen başına üretilir) */
 export const sendSms = ({ purpose, text, lang, recipients, key }) =>
     admin.post("/sms/send", { purpose: purposeOf(purpose), text, lang, recipients }, { idempotent: key ?? newIdempotencyKey() });
+
+/** Toplu bildirim (Web Push) */
+export const previewPush = (i) => admin.post("/notifications/preview", pushBody(i));
+export const sendPush = ({ key, ...i }) => admin.post("/notifications/send", pushBody(i), { idempotent: key ?? newIdempotencyKey() });
+const pushBody = ({ purpose, url, title, body, recipients }) => ({ purpose: purposeOf(purpose), url: url || "/ogrenci", title, body, recipients });

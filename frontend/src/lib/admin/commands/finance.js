@@ -1,0 +1,41 @@
+import { admin } from "@/lib/admin/api";
+
+/** Muhasebe komutları. Para hareketi yapanlar Idempotency-Key taşır (çift tıklama tek kayıt). Kurallar backend'dedir. */
+const idem = { idempotent: true };
+const n = (v) => Number(v);
+const dateOrNull = (v) => v || null;
+
+export const getAccount = ({ enrollmentId }) => admin.get(`/enrollments/${enrollmentId}/account`);
+
+export const recordPayment = ({ enrollmentId, amount, date, method, accountId, note }) =>
+    admin.post(`/enrollments/${enrollmentId}/payments`, { amount: n(amount), date: dateOrNull(date), method, accountId, note: note || null }, idem);
+export const cancelPayment = ({ id, reason }) => admin.post(`/payments/${id}/cancel`, { reason });
+export const refundAdvance = ({ enrollmentId, amount, date, accountId, note }) =>
+    admin.post(`/enrollments/${enrollmentId}/refunds`, { amount: n(amount), date: dateOrNull(date), accountId, note: note || null }, idem);
+export const addCharge = ({ enrollmentId, kind, month, amount, dueDate, note }) =>
+    admin.post(`/enrollments/${enrollmentId}/charges`, { kind, month: month || null, amount: n(amount), dueDate: dateOrNull(dueDate), note: note || null }, idem);
+export const reverseCharge = ({ id, reason }) => admin.post(`/charges/${id}/reverse`, { reason });
+
+export const addExpense = ({ periodId, categoryId, amount, date, accountId, description }) =>
+    admin.post("/expenses", { periodId, categoryId, amount: n(amount), date: dateOrNull(date), accountId, description: description || null }, idem);
+export const cancelExpense = ({ id, reason }) => admin.post(`/expenses/${id}/cancel`, { reason });
+
+export const addBill = ({ periodId, kind, month, amount, dueDate, note }) =>
+    admin.post("/bills", { periodId, kind, month, amount: n(amount), dueDate: dateOrNull(dueDate), note: note || null }, idem);
+export const payBill = ({ id, accountId, date }) => admin.post(`/bills/${id}/pay`, { accountId, date: dateOrNull(date) }, idem);
+export const deleteBill = ({ id }) => admin.del(`/bills/${id}`);
+
+export const addAccount = ({ type, name, iban }) => admin.post("/accounts", { type, name, iban: (iban || "").replace(/\s/g, "") || null });
+export const setOpening = ({ id, periodId, amount, date }) => admin.post(`/accounts/${id}/opening`, { periodId, amount: n(amount), date: dateOrNull(date) });
+export const transfer = ({ periodId, fromId, toId, amount, date, note }) =>
+    admin.post("/transfers", { periodId, fromId, toId, amount: n(amount), date: dateOrNull(date), note: note || null }, idem);
+
+/* Destek ve sistem */
+export const updateMaintenance = ({ id, status, adminNote }) => admin.put(`/maintenance/${id}`, { status, adminNote: adminNote || null });
+export const resetStudentPassword = ({ studentId }) => admin.post(`/students/${studentId}/reset-password`);
+
+export const createAdmin = ({ name, email }) => admin.post("/users", { name, email });
+export const updateAdmin = ({ id, name, email, active }) => admin.put(`/users/${id}`, { name, email, active });
+export const resetAdminPassword = ({ id }) => admin.post(`/users/${id}/reset-password`);
+export const updateProfile = ({ name }) => admin.put("/me", { name });
+export const changePassword = ({ currentPassword, newPassword }) => admin.post("/me/password", { currentPassword, newPassword });

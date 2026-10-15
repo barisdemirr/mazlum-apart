@@ -1,82 +1,36 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useAdmin } from "@/components/admin/data/AdminDataProvider";
+import ActionDialog from "@/components/admin/ActionDialog";
 import DataTable from "@/components/admin/DataTable";
-import FormDialog from "@/components/admin/FormDialog";
-import WhatsAppButton from "@/components/admin/WhatsAppButton";
-import useCommand from "@/components/admin/useCommand";
-import { Avatar, Chips, PageHeader, StatusBadge } from "@/components/admin/ui";
-import { Field, SelectInput, TextInput } from "@/components/admin/fields";
-import { updateMaintenance } from "@/lib/admin/domain/support";
-import { enrollmentRow } from "@/lib/admin/domain/selectors";
+import { Chips, PageHeader, StatusBadge } from "@/components/admin/ui";
+import { useAdmin } from "@/components/admin/data/AdminDataProvider";
+import { updateMaintenance } from "@/lib/admin/commands/finance";
+import { turkeyDate } from "@/lib/format";
 import { MAINT_AREA, MAINT_STATUS, date } from "@/lib/admin/labels";
 
-/** Öğrencilerin bildirdiği arızalar (öğrenci alanından gelir). Durum güncellenir, öğrenciye WhatsApp ile haber verilir. */
-export default function MaintenanceView() {
-    const { state, period, today } = useAdmin();
+/** Öğrencilerin arıza bildirimleri: durumu ve yönetici notunu güncelleyin; öğrenci kendi sayfasında görür. */
+export default function MaintenanceView({ items }) {
+    const { period } = useAdmin();
     const [tab, setTab] = useState("open");
-    const [openId, setOpenId] = useState(null);
-
-    const all = useMemo(
-        () => state.maintenance.filter((m) => m.periodId === period.id).map((m) => {
-            const enrollment = state.enrollments.find((e) => e.id === m.enrollmentId);
-            return { m, row: enrollment ? enrollmentRow(state, enrollment, today) : null };
-        }),
-        [state, period.id, today]
-    );
-    const rows = all.filter(({ m }) => tab === "all" || (tab === "open" ? m.status !== "done" : m.status === "done"));
-    const current = all.find(({ m }) => m.id === openId) ?? null;
-
+    const [edit, setEdit] = useState(null);
+    const rows = items.filter((m) => (tab === "open" ? m.status !== "done" : tab === "done" ? m.status === "done" : true));
     const columns = [
-        { key: "date", header: "Bildirim", sort: ({ m }) => m.createdAt, render: ({ m }) => <span className="ad-num whitespace-nowrap">{date(m.createdAt.slice(0, 10))}</span>, export: { type: "date", value: ({ m }) => m.createdAt.slice(0, 10) } },
-        { key: "student", header: "Öğrenci", sort: ({ row }) => row?.student.lastName, render: ({ row }) => row ? <div className="flex items-center gap-2.5"><Avatar name={`${row.student.firstName} ${row.student.lastName}`} /><span className="font-bold">{row.student.firstName} {row.student.lastName}</span></div> : "—", export: { value: ({ row }) => row ? `${row.student.firstName} ${row.student.lastName}` : "", width: 24 } },
-        { key: "room", header: "Oda", render: ({ m }) => <span className="whitespace-nowrap">{m.roomLabel}</span>, export: { value: ({ m }) => m.roomLabel } },
-        { key: "area", header: "Alan", render: ({ m }) => MAINT_AREA[m.area] ?? m.area, export: { value: ({ m }) => MAINT_AREA[m.area] ?? m.area } },
-        { key: "title", header: "Arıza", render: ({ m }) => <span className="font-semibold">{m.title}</span>, export: { value: ({ m }) => m.title, width: 28 } },
-        { key: "status", header: "Durum", render: ({ m }) => <StatusBadge map={MAINT_STATUS} value={m.status} />, export: { value: ({ m }) => MAINT_STATUS[m.status].label } },
-        { key: "note", header: "Not", render: ({ m }) => <span className="block max-w-56 truncate text-xs text-ad-muted">{m.adminNote}</span>, export: { value: ({ m }) => m.adminNote, width: 30 } },
+        { key: "no", header: "No", render: (m) => <span className="ad-num text-xs">{m.no}</span>, export: { value: (m) => m.no } },
+        { key: "title", header: "Konu", render: (m) => <div className="min-w-0"><div className="truncate font-bold">{m.title}</div><div className="truncate text-[11px] text-ad-muted">{MAINT_AREA[m.area] ?? m.area} · {m.roomLabel}</div></div>, export: { value: (m) => m.title, width: 30 } },
+        { key: "student", header: "Öğrenci", render: (m) => <Link href={`/admin/ogrenciler/${m.enrollmentId}`} onClick={(e) => e.stopPropagation()} className="hover:text-ad-brand">{m.student.firstName} {m.student.lastName}</Link>, export: { value: (m) => `${m.student.firstName} ${m.student.lastName}` } },
+        { key: "date", header: "Tarih", sort: (m) => m.createdAt, render: (m) => <span className="ad-num">{date(turkeyDate(m.createdAt))}</span>, export: { type: "date", value: (m) => turkeyDate(m.createdAt) } },
+        { key: "status", header: "Durum", render: (m) => <StatusBadge map={MAINT_STATUS} value={m.status} />, export: { value: (m) => MAINT_STATUS[m.status].label } },
     ];
-
     return (
         <div>
-            <PageHeader title="Arıza Kayıtları" description="Öğrencilerin bildirdiği arızalar. Durumu güncelleyin; öğrenci kendi alanında durumu görür." />
-            <div className="mb-4"><Chips value={tab} onChange={setTab} items={[{ value: "open", label: "Açık", count: all.filter(({ m }) => m.status !== "done").length }, { value: "done", label: "Tamamlanan", count: all.filter(({ m }) => m.status === "done").length }, { value: "all", label: "Tümü", count: all.length }]} /></div>
-            <DataTable
-                columns={columns}
-                rows={rows}
-                rowKey={({ m }) => m.id}
-                searchText={({ m, row }) => `${m.title} ${m.roomLabel} ${row?.student.firstName} ${row?.student.lastName}`}
-                searchPlaceholder="Arıza, oda veya öğrenci ara"
-                onRowClick={({ m }) => setOpenId(m.id)}
-                initialSort={{ key: "date", dir: "desc" }}
-                exportName="ariza-kayitlari"
-                empty={{ icon: "build", title: "Arıza kaydı yok", description: tab === "open" ? "Açık arıza kalmadı." : "Bu görünümde kayıt yok." }}
-            />
-            {current && <MaintenanceDialog key={current.m.id} item={current.m} row={current.row} readOnly={period.status === "closed"} onClose={() => setOpenId(null)} />}
+            <PageHeader title="Arıza Kayıtları" description="Öğrencilerin Arıza sayfasından ilettiği bildirimler." />
+            <div className="mb-4"><Chips value={tab} onChange={setTab} items={[{ value: "open", label: "Açık", count: items.filter((m) => m.status !== "done").length }, { value: "done", label: "Tamamlanan", count: items.filter((m) => m.status === "done").length }, { value: "all", label: "Tümü", count: items.length }]} /></div>
+            <DataTable columns={columns} rows={rows} rowKey={(m) => m.id} searchText={(m) => `${m.no} ${m.title} ${m.student.firstName} ${m.student.lastName}`} searchPlaceholder="Arıza ara" onRowClick={(m) => period.status !== "closed" && setEdit(m)} exportName="ariza-kayitlari" empty={{ icon: "build", title: "Arıza bildirimi yok" }} />
+            {edit && <ActionDialog title={edit.title} description={`${edit.no} · ${edit.student.firstName} ${edit.student.lastName} · ${edit.roomLabel}`} command={updateMaintenance} extra={{ id: edit.id }} initial={{ status: edit.status, adminNote: edit.adminNote ?? "" }} success="Arıza güncellendi." onClose={() => setEdit(null)}
+                note={edit.description}
+                fields={[{ name: "status", label: "Durum", type: "select", options: Object.entries(MAINT_STATUS).map(([k, v]) => [k, v.label]) }, { name: "adminNote", label: "Öğrenciye görünen not", type: "textarea" }]} />}
         </div>
-    );
-}
-
-function MaintenanceDialog({ item, row, readOnly, onClose }) {
-    const { exec, busy } = useCommand();
-    const [status, setStatus] = useState(item.status);
-    const [note, setNote] = useState(item.adminNote ?? "");
-
-    const submit = async (e) => {
-        e.preventDefault();
-        const out = await exec(updateMaintenance, { id: item.id, status, adminNote: note }, "Arıza kaydı güncellendi.");
-        if (out.ok) onClose();
-    };
-
-    return (
-        <FormDialog open title={item.title} description={`${item.roomLabel} · ${MAINT_AREA[item.area] ?? ""} · ${date(item.createdAt.slice(0, 10))}`} onClose={onClose} onSubmit={readOnly ? undefined : submit} busy={busy} saveLabel="Kaydet" columns={1} hideFooter={readOnly}>
-            {row && <p className="text-sm">Bildiren: <Link href={`/admin/ogrenciler/${row.enrollment.id}`} className="font-bold text-ad-brand hover:underline">{row.student.firstName} {row.student.lastName}</Link></p>}
-            <p className="rounded-2xl bg-ad-sunken p-4 text-sm leading-relaxed">{item.description || "Açıklama girilmemiş."}</p>
-            <Field label="Durum"><SelectInput value={status} onChange={(e) => setStatus(e.target.value)} disabled={readOnly}>{Object.entries(MAINT_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</SelectInput></Field>
-            <Field label="Öğrenciye görünen not" hint="Örn. “Tesisatçı yarın gelecek.”"><TextInput as="textarea" rows={3} value={note} onChange={(e) => setNote(e.target.value)} disabled={readOnly} /></Field>
-            {row && <div><WhatsAppButton row={row} purpose="maintenance_update" defaultTemplate="maintenance_update" extraVars={{ konu: item.title, durum: MAINT_STATUS[status].label }} compact={false} label="Öğrenciye WhatsApp ile bildir" className="!h-10 !px-4" /></div>}
-        </FormDialog>
     );
 }
