@@ -93,3 +93,14 @@ export const AUDIT_ACTION = {
     "placement.create": "Yerleşim yapıldı",
     "placement.move": "Oda değiştirildi",
 };
+
+/** Hesap hareketi kaynağı (Kasa & Banka listesi) */
+export const TX_SOURCE = {
+    opening: "Açılış bakiyesi",
+    payment: "Öğrenci tahsilatı",
+    payment_cancel: "Tahsilat iptali",
+    refund: "Avans iadesi",
+    expense: "Gider",
+    expense_cancel: "Gider iptali",
+    transfer: "Transfer",
+};
