@@ -155,7 +155,7 @@ export default function MediaGallery({ items = [], roomName }) {
         <div className="flex flex-col gap-4">
             {/* Kategori filtreleri */}
             {categories.length > 1 && (
-                <div className="no-scrollbar -mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1" role="tablist">
+                <div className="no-scrollbar order-2 -mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1" role="tablist">
                     {["all", ...categories].map((key) => {
                         const on = category === key;
                         const count = key === "all" ? items.length : items.filter((i) => i.category === key).length;
@@ -185,7 +185,7 @@ export default function MediaGallery({ items = [], roomName }) {
             )}
 
             {/* Sahne */}
-            <div className="group relative aspect-[16/10] max-h-[620px] w-full overflow-hidden rounded-[32px] border border-orchid-petal/30 bg-orchid-powder shadow-[0_24px_60px_rgba(180,57,143,0.18)] sm:aspect-[16/9]">
+            <div className="group relative order-1 aspect-[4/3] max-h-[640px] w-full overflow-hidden rounded-[28px] sm:aspect-[16/9] sm:rounded-[32px] border border-orchid-petal/30 bg-orchid-powder shadow-[0_24px_60px_rgba(180,57,143,0.18)]">
                 <AnimatePresence mode="wait" initial={false}>
                     <motion.div
                         key={active.id}
@@ -297,7 +297,7 @@ export default function MediaGallery({ items = [], roomName }) {
 
             {/* Küçük resim şeridi */}
             {filtered.length > 1 && (
-                <div className="no-scrollbar -mx-1 flex gap-3 overflow-x-auto px-1 pb-2 pt-1">
+                <div className="no-scrollbar order-3 -mx-1 hidden gap-3 overflow-x-auto sm:flex px-1 pb-2 pt-1">
                     {filtered.map((item, i) => {
                         const on = i === safeIndex;
                         const thumb = item.type === "video" ? item.poster : item.url;
@@ -325,7 +325,7 @@ export default function MediaGallery({ items = [], roomName }) {
                 </div>
             )}
 
-            <p className="text-xs text-orchid-muted">
+            <p className="order-4 hidden text-xs sm:block text-orchid-muted">
                 {photoCount > 0 && tpl(t.roomDetail.media.photoCount, { count: photoCount })}
             </p>
 
