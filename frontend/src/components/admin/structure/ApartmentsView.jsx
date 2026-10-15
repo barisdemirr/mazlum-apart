@@ -7,16 +7,17 @@ import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import FormDialog from "@/components/admin/FormDialog";
 import useCommand from "@/components/admin/useCommand";
 import { Badge, Card, EmptyState, PageHeader, StatusBadge } from "@/components/admin/ui";
-import { Field, NumberInput, SelectInput, TextInput } from "@/components/admin/fields";
+import { Field, NumberInput, SelectInput, Switch, TextInput } from "@/components/admin/fields";
 import { deleteApartment, deleteRoom, saveApartment, saveRoom } from "@/lib/admin/domain/config";
 import { occupancyOn } from "@/lib/admin/domain/registration";
 import { ROOM_STATUS } from "@/lib/admin/labels";
 import ExportButton from "@/components/admin/ExportButton";
+import GalleryDialog from "./GalleryDialog";
 
 export default function ApartmentsView() {
     const { state, period, today } = useAdmin();
     const { exec } = useCommand();
-    const [dialog, setDialog] = useState(null); // {type:"apt"|"room", item?, apartmentId?}
+    const [dialog, setDialog] = useState(null); // {type:"apt"|"room"|"gallery", item?, apartmentId?}
     const [removing, setRemoving] = useState(null); // {type, item}
 
     const day = today >= period.start && today <= period.end ? today : period.start;
@@ -44,7 +45,7 @@ export default function ApartmentsView() {
         <div>
             <PageHeader
                 title="Daireler & Odalar"
-                description={`${state.apartments.length} daire · ${state.rooms.length} oda · ${totalBeds} kullanılabilir yatak. Doluluk bugünkü yerleşimlerden hesaplanır.`}
+                description={`${state.apartments.length} daire · ${state.rooms.length} oda · ${totalBeds} kullanılabilir yatak. Doluluk bugünkü yerleşimlerden hesaplanır. Fotoğraf ve video her dairenin “Galeri” düğmesinden eklenir.`}
                 actions={<><ExportButton name="daire-oda-listesi" columns={exportColumns} rows={exportRows} /><button type="button" onClick={() => setDialog({ type: "apt" })} className="ad-btn ad-btn-primary"><Icon name="add" className="text-[20px]" />Daire ekle</button></>}
             />
             {state.apartments.length === 0 ? <EmptyState icon="holiday_village" title="Daire yok" description="İlk daireyi ekleyerek başlayın." /> : (
@@ -53,7 +54,12 @@ export default function ApartmentsView() {
                         const rooms = state.rooms.filter((r) => r.apartmentId === apt.id);
                         return (
                             <Card key={apt.id} title={apt.name} description={[apt.floor ? `${apt.floor}. kat` : "", `${apt.kitchens} mutfak`, `${apt.bathrooms} banyo`, apt.note].filter(Boolean).join(" · ")}
-                                actions={<div className="flex gap-1.5"><button type="button" onClick={() => setDialog({ type: "room", apartmentId: apt.id })} className="ad-btn ad-btn-soft ad-btn-sm"><Icon name="add" className="text-[16px]" />Oda</button><button type="button" onClick={() => setDialog({ type: "apt", item: apt })} className="ad-btn ad-btn-outline ad-btn-sm"><Icon name="edit" className="text-[16px]" />Düzenle</button>{rooms.length === 0 && <button type="button" onClick={() => setRemoving({ type: "apt", item: apt })} className="ad-btn ad-btn-danger-soft ad-btn-sm">Sil</button>}</div>}>
+                                actions={<div className="flex gap-1.5"><button type="button" onClick={() => setDialog({ type: "gallery", apartmentId: apt.id })} className="ad-btn ad-btn-soft ad-btn-sm"><Icon name="photo_library" className="text-[16px]" />Galeri</button><button type="button" onClick={() => setDialog({ type: "room", apartmentId: apt.id })} className="ad-btn ad-btn-soft ad-btn-sm"><Icon name="add" className="text-[16px]" />Oda</button><button type="button" onClick={() => setDialog({ type: "apt", item: apt })} className="ad-btn ad-btn-outline ad-btn-sm"><Icon name="edit" className="text-[16px]" />Düzenle</button>{rooms.length === 0 && <button type="button" onClick={() => setRemoving({ type: "apt", item: apt })} className="ad-btn ad-btn-danger-soft ad-btn-sm">Sil</button>}</div>}>
+                                <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ad-muted" data-gallery-count={apt.id}>
+                                    <span>{(apt.gallery ?? []).filter((g) => g.type !== "video").length} fotoğraf · {(apt.gallery ?? []).some((g) => g.type === "video") ? "1 video" : <span className="text-ad-warn">video yok</span>}</span>
+                                    {(apt.gallery ?? []).some((g) => g.type !== "video" && !g.tag) && <span className="text-ad-warn">etiketsiz fotoğraf var</span>}
+                                    {apt.published === false ? <Badge tone="neutral">Sitede gizli</Badge> : <Badge tone="ok">Sitede görünür</Badge>}
+                                </p>
                                 <div className="ad-scroll mt-4 overflow-x-auto">
                                     <table className="ad-table">
                                         <thead><tr><th>Oda</th><th>Oda tipi</th><th className="!text-end">Yatak</th><th className="!text-end">Bugün dolu</th><th>Durum</th><th /></tr></thead>
@@ -78,6 +84,7 @@ export default function ApartmentsView() {
                 </div>
             )}
             {dialog?.type === "apt" && <ApartmentDialog apartment={dialog.item} onClose={() => setDialog(null)} />}
+            {dialog?.type === "gallery" && <GalleryDialog apartmentId={dialog.apartmentId} onClose={() => setDialog(null)} />}
             {dialog?.type === "room" && <RoomDialog room={dialog.item} apartmentId={dialog.apartmentId} onClose={() => setDialog(null)} />}
             <ConfirmDialog open={!!removing} title={removing?.type === "apt" ? "Daire silinsin mi?" : "Oda silinsin mi?"} message={removing ? `${removing.item.name} kalıcı olarak silinecek.${removing.type === "room" ? " Geçmişte yerleşim kaydı varsa silinemez; bu durumda odayı “Kapalı” yapın." : ""}` : ""} confirmLabel="Sil" onConfirm={confirmRemove} onCancel={() => setRemoving(null)} />
         </div>
@@ -86,7 +93,7 @@ export default function ApartmentsView() {
 
 function ApartmentDialog({ apartment, onClose }) {
     const { exec, busy } = useCommand();
-    const [f, setF] = useState({ name: apartment?.name ?? "", floor: apartment?.floor ?? "", kitchens: apartment?.kitchens ?? 1, bathrooms: apartment?.bathrooms ?? 1, note: apartment?.note ?? "" });
+    const [f, setF] = useState({ name: apartment?.name ?? "", floor: apartment?.floor ?? "", kitchens: apartment?.kitchens ?? 1, bathrooms: apartment?.bathrooms ?? 1, note: apartment?.note ?? "", published: apartment?.published ?? true });
     const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
     const submit = async (e) => {
         e.preventDefault();
@@ -100,6 +107,7 @@ function ApartmentDialog({ apartment, onClose }) {
             <Field label="Mutfak sayısı"><NumberInput min="0" value={f.kitchens} onChange={set("kitchens")} /></Field>
             <Field label="Banyo sayısı"><NumberInput min="0" value={f.bathrooms} onChange={set("bathrooms")} /></Field>
             <Field label="Not" className="sm:col-span-2"><TextInput value={f.note} onChange={set("note")} /></Field>
+            <div className="sm:col-span-2"><Switch checked={f.published} onChange={(v) => setF((x) => ({ ...x, published: v }))} label="Sitede göster" hint="Kapalıysa daire, oda tipi sayfasında listelenmez (yatak durumu ve yerleşim etkilenmez). Fotoğrafları hazır olunca açın." /></div>
         </FormDialog>
     );
 }

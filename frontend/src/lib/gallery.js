@@ -1,12 +1,14 @@
 /**
  * Oda tipi galerisi: fotoğraf etiketleri ve ortak yardımcılar (hem halka açık site hem yönetim paneli kullanır).
  *
+ * Galeri DAİREYE aittir (fotoğraflar + en fazla 1 video). Aynı tipte birden fazla daire olabilir ve her dairenin
+ * görüntüsü farklıdır.
  * Müşteri kuralı: fotoğraflar etiketlenebilmeli; örn. "1. Sol Oda", "2. Sol Oda", "1. Sağ Oda", "2. Sağ Oda", "Mutfak", "Banyo".
- * Etiketli fotoğraf, dairedeki fiziksel odayla EŞLEŞİR: oda adından üretilen anahtar (`room:1-sol-oda`) hem fotoğrafta
+ * Etiketli fotoğraf, dairedeki fiziksel odayla EŞLEŞİR: oda kimliğinden üretilen anahtar (`room:<odaId>`) hem fotoğrafta
  * hem de doluluk ekranındaki odada aynıdır; böylece öğrenci bir odayı seçerken o odanın fotoğraflarını görebilir.
  *
  * Etiket: { key, tr, en }        Galeri öğesi (DTO):
- *   key: "room:<slug>" | "kitchen" | "bathroom" | "living" | "hall" | "balcony" | "building" | "custom:<slug>"
+ *   key: "room:<odaId>" | "kitchen" | "bathroom" | "living" | "hall" | "balcony" | "building" | "custom:<slug>"
  *   { id, type: "image" | "video", url, poster?, tag?: Etiket, caption?: { tr, en }, size? }
  * Halka açık sitenin gördüğü şekil (toPublicGallery): { id, type, url, poster, label, category, tag }
  */
@@ -33,8 +35,12 @@ export function slugKey(text) {
         .replace(/^-+|-+$/g, "");
 }
 
-/** Fiziksel oda adından etiket anahtarı: "1. Sol Oda" -> "room:1-sol-oda" */
-export const roomTagKey = (roomName) => `${ROOM_TAG_PREFIX}${slugKey(roomName)}`;
+/**
+ * Fiziksel odanın kimliğinden etiket anahtarı: "room:<odaId>".
+ * Anahtar oda ADINDAN değil KİMLİĞİNDEN üretilir: farklı dairelerde "Sol Oda" adlı birden fazla oda olabilir,
+ * fotoğraflar yalnızca kendi dairesinin odasına bağlanır.
+ */
+export const roomTagKey = (roomId) => `${ROOM_TAG_PREFIX}${roomId}`;
 
 const ORDINAL_EN = { 1: "1st", 2: "2nd", 3: "3rd" };
 const SIDE_EN = { sol: "Left", sag: "Right", "sağ": "Right" };
@@ -55,8 +61,8 @@ export function roomNameEn(trName) {
     return parts.join(" ");
 }
 
-/** Fiziksel oda için etiket */
-export const tagForRoom = (roomName) => ({ key: roomTagKey(roomName), tr: String(roomName).trim(), en: roomNameEn(roomName) });
+/** Fiziksel oda için etiket. room: { id, name } (name Türkçe oda adı, örn. "1. Sol Oda") */
+export const tagForRoom = (room) => ({ key: roomTagKey(room.id), tr: String(room.name).trim(), en: roomNameEn(room.name) });
 
 /** Özel etiket (yönetici kendi yazar) */
 export const customTag = (tr, en) => ({ key: `${CUSTOM_TAG_PREFIX}${slugKey(tr)}`, tr: tr.trim(), en: (en ?? "").trim() || tr.trim() });

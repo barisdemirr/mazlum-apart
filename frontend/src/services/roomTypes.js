@@ -1,5 +1,5 @@
 // import { apiGet, buildQuery } from "@/lib/api";
-import { MOCK_ROOM_TYPES, getMockAvailability, getMockRoomTypeDetail } from "@/lib/mockData";
+import { MOCK_ROOM_TYPES, getMockApartment, getMockApartments, getMockAvailability, getMockRoomTypeDetail } from "@/lib/mockData";
 
 /**
  * Oda tipleri.
@@ -25,4 +25,20 @@ export async function getRoomTypeBySlug(slug) {
  */
 export async function getRoomTypeAvailability(slug) {
     return getMockAvailability(slug);
+}
+
+/**
+ * Bu tipteki daireler (özet kartlar: kapak, boş yatak, kişi sayıları). Galeri DAİREYE aittir.
+ * Backend hazır olunca: return apiGet(`/api/room-types/${encodeURIComponent(slug)}/apartments`);
+ */
+export async function getRoomTypeApartments(slug) {
+    return getMockApartments(slug);
+}
+
+/**
+ * Tek daire: galeri (video + etiketli fotoğraflar), odalar ve yataklar.
+ * Backend hazır olunca: return apiGet(`/api/room-types/${encodeURIComponent(slug)}/apartments/${encodeURIComponent(apartmentSlug)}`); (404 -> null)
+ */
+export async function getApartment(slug, apartmentSlug) {
+    return getMockApartment(slug, apartmentSlug);
 }

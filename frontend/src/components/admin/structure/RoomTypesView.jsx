@@ -12,13 +12,11 @@ import { Field, NumberInput, Switch, TextInput } from "@/components/admin/fields
 import { saveRoomType } from "@/lib/admin/domain/config";
 import { money } from "@/lib/admin/labels";
 import ListEditor from "./ListEditor";
-import GalleryDialog from "./GalleryDialog";
 
 /** Oda tipleri: sitede görünen tanıtım içeriği. Fiyatlar dönemden döneme değiştiği için Dönemler & Fiyatlar sayfasındadır. */
 export default function RoomTypesView() {
     const { state, period } = useAdmin();
     const [editing, setEditing] = useState(null); // null | "new" | roomType
-    const [galleryFor, setGalleryFor] = useState(null); // roomTypeId
 
     const info = (rt) => {
         const rooms = state.rooms.filter((r) => r.roomTypeId === rt.id);
@@ -29,7 +27,7 @@ export default function RoomTypesView() {
         <div>
             <PageHeader
                 title="Oda Tipleri"
-                description="Sitede görünen oda tipi içerikleri: ad, açıklama, özellikler, görsel ve “dairede kaç kişi kalıyor” bilgisi. Boş bırakılan bölümler sitede gösterilmez."
+                description="Kategori düzeyinde içerik: ad, açıklama, özellikler, kapak görseli. Fotoğraf ve video DAİRELERE eklenir (Daireler & Odalar sayfası); çünkü aynı tipte birden fazla daire olabilir. Boş bırakılan bölümler sitede gösterilmez."
                 actions={<button type="button" onClick={() => setEditing("new")} className="ad-btn ad-btn-primary"><Icon name="add" className="text-[20px]" />Oda tipi ekle</button>}
             />
             {state.roomTypes.length === 0 ? <EmptyState icon="meeting_room" title="Oda tipi yok" description="İlk oda tipini ekleyin." /> : (
@@ -53,20 +51,13 @@ export default function RoomTypesView() {
                                         <div className="rounded-xl bg-ad-sunken py-2"><dd className="ad-num text-base font-extrabold">{i.price ? money(i.price.monthly) : "—"}</dd><dt className="text-[10px] font-bold uppercase text-ad-muted">Aylık</dt></div>
                                     </dl>
                                     <p className="mt-3 text-xs text-ad-muted">{rt.features.length} oda özelliği · {rt.sharedAreas.length} ortak alan{rt.peopleInFlat ? ` · dairede ${rt.peopleInFlat} kişi` : ""}</p>
-                                    <p className="mt-1 text-xs text-ad-muted" data-gallery-count>
-                                        {(rt.gallery ?? []).filter((g) => g.type !== "video").length} fotoğraf · {(rt.gallery ?? []).some((g) => g.type === "video") ? "1 video" : <span className="text-ad-warn">video yok</span>}
-                                    </p>
-                                    <div className="mt-4 grid grid-cols-2 gap-2">
-                                        <button type="button" onClick={() => setGalleryFor(rt.id)} className="ad-btn ad-btn-soft"><Icon name="photo_library" className="text-[18px]" />Galeri</button>
-                                        <button type="button" onClick={() => setEditing(rt)} className="ad-btn ad-btn-outline"><Icon name="edit" className="text-[18px]" />Düzenle</button>
-                                    </div>
+                                    <button type="button" onClick={() => setEditing(rt)} className="ad-btn ad-btn-outline mt-4 w-full"><Icon name="edit" className="text-[18px]" />Düzenle</button>
                                 </div>
                             </Card>
                         );
                     })}
                 </div>
             )}
-            {galleryFor && <GalleryDialog roomTypeId={galleryFor} onClose={() => setGalleryFor(null)} />}
             {editing && <RoomTypeDialog roomType={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
         </div>
     );
@@ -103,9 +94,9 @@ function RoomTypeDialog({ roomType, onClose }) {
             <LocalizedField label="Oda tipi adı" name="name" required value={f.name} onChange={set("name")} />
             <LocalizedField label="Açıklama" name="description" multiline rows={4} value={f.description} onChange={set("description")} hint="İsteğe bağlı; oda sayfasında görünür." />
             <div className="grid gap-4 sm:grid-cols-3">
-                <Field label="Dairede kalan kişi" hint="Tanıtım bilgisi"><NumberInput min="0" value={f.peopleInFlat} onChange={num("peopleInFlat")} /></Field>
-                <Field label="Mutfağı paylaşan" hint="Tanıtım bilgisi"><NumberInput min="0" value={f.peopleSharingKitchen} onChange={num("peopleSharingKitchen")} /></Field>
-                <Field label="Banyoyu paylaşan" hint="Tanıtım bilgisi"><NumberInput min="0" value={f.peopleSharingBathroom} onChange={num("peopleSharingBathroom")} /></Field>
+                <Field label="Dairede kalan kişi" hint="Tip kartı için genel bilgi"><NumberInput min="0" value={f.peopleInFlat} onChange={num("peopleInFlat")} /></Field>
+                <Field label="Mutfağı paylaşan" hint="Tip kartı için genel bilgi"><NumberInput min="0" value={f.peopleSharingKitchen} onChange={num("peopleSharingKitchen")} /></Field>
+                <Field label="Banyoyu paylaşan" hint="Tip kartı için genel bilgi"><NumberInput min="0" value={f.peopleSharingBathroom} onChange={num("peopleSharingBathroom")} /></Field>
             </div>
             <Field label="Kapak görseli"><MediaPicker value={f.mediaId} onChange={set("mediaId")} allowNone /></Field>
             <ListEditor title="Oda özellikleri" hint="Yatak, çalışma masası, gardırop…" prefix="feat" items={f.features} onChange={set("features")} />

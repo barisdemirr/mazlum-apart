@@ -1,6 +1,7 @@
 import { DomainError, fail, find, nextId, withAudit } from "./core";
 import { peakOccupancy } from "./registration";
 import { round } from "./accounting";
+import { tagForRoom } from "@/lib/gallery";
 
 /**
  * YAPI VE AYAR KOMUTLARI: oda tipi, daire, oda, dönem, fiyat, şablon, içerik, yönetici.
@@ -49,23 +50,33 @@ export function saveRoomType(state, input, ctx) {
     return { state: s, result: roomType };
 }
 
-/* ───────── oda tipi galerisi (fotoğraf + en fazla 1 video, etiketli) ───────── */
+/* ───────── daire galerisi (fotoğraf + en fazla 1 video, etiketli) ─────────
+   Galeri DAİREYE aittir: aynı tipte birden fazla daire olabilir ve her dairenin görüntüsü farklıdır.
+   Etiket anahtarı fiziksel odanın kimliğinden üretilir ("room:<odaId>", lib/gallery.js). */
 
 export const GALLERY_MAX_ITEMS = 30;
 
 const cleanTag = (tag) => (tag?.key && tag.tr?.trim() ? { key: String(tag.key), tr: tag.tr.trim(), en: tag.en?.trim() || tag.tr.trim() } : null);
 const cleanCaption = (c) => ({ tr: c?.tr?.trim() ?? "", en: c?.en?.trim() ?? "" });
+const withGallery = (state, apt, gallery) => ({ ...state, apartments: upsert(state.apartments, { ...apt, gallery }) });
 
-/** Galeriye bir ya da birkaç dosya ekler. Müşteri kuralı: her oda tipine en fazla 1 video. */
-export function addGalleryItems(state, { roomTypeId, items }, ctx) {
-    const rt = find(state.roomTypes, roomTypeId, "Oda tipi");
-    const gallery = rt.gallery ?? [];
+/** Etiketi verilen oda anahtarına ait fotoğrafların etiketini kaldırır (oda silinince / başka daireye taşınınca) */
+const untagRoom = (state, apartmentId, roomId) => {
+    const apt = state.apartments.find((a) => a.id === apartmentId);
+    if (!apt?.gallery?.some((g) => g.tag?.key === `room:${roomId}`)) return state;
+    return withGallery(state, apt, apt.gallery.map((g) => (g.tag?.key === `room:${roomId}` ? { ...g, tag: null } : g)));
+};
+
+/** Galeriye bir ya da birkaç dosya ekler. Müşteri kuralı: her oda tipine/daireye en fazla 1 video. */
+export function addGalleryItems(state, { apartmentId, items }, ctx) {
+    const apt = find(state.apartments, apartmentId, "Daire");
+    const gallery = apt.gallery ?? [];
     if (!items?.length) fail("Dosya seçin.");
     if (items.some((i) => !i.url)) fail("Dosya okunamadı.");
     const incomingVideos = items.filter((i) => i.type === "video").length;
-    if (incomingVideos > 1) fail("Her oda tipine yalnızca 1 video eklenebilir.");
-    if (incomingVideos && gallery.some((g) => g.type === "video")) fail("Bu oda tipinde zaten bir video var. Yenisini eklemek için önce mevcut videoyu silin.", "conflict");
-    if (gallery.length + items.length > GALLERY_MAX_ITEMS) fail(`Bir oda tipinde en fazla ${GALLERY_MAX_ITEMS} dosya olabilir.`);
+    if (incomingVideos > 1) fail("Her daireye yalnızca 1 video eklenebilir.");
+    if (incomingVideos && gallery.some((g) => g.type === "video")) fail("Bu dairede zaten bir video var. Yenisini eklemek için önce mevcut videoyu silin.", "conflict");
+    if (gallery.length + items.length > GALLERY_MAX_ITEMS) fail(`Bir dairede en fazla ${GALLERY_MAX_ITEMS} dosya olabilir.`);
 
     let s = state;
     const added = items.map((i) => {
@@ -76,38 +87,36 @@ export function addGalleryItems(state, { roomTypeId, items }, ctx) {
             name: i.name ?? "", size: i.size ?? 0, tag: cleanTag(i.tag), caption: cleanCaption(i.caption),
         };
     });
-    const next = { ...rt, gallery: [...gallery, ...added] };
-    s = { ...s, roomTypes: upsert(s.roomTypes, next) };
-    s = withAudit(s, ctx, { action: "roomtype.gallery.add", entity: "roomtype", entityId: rt.id, before: null, after: { added: added.map((a) => a.id) } });
+    s = withGallery(s, apt, [...gallery, ...added]);
+    s = withAudit(s, ctx, { action: "apartment.gallery.add", entity: "apartment", entityId: apt.id, before: null, after: { added: added.map((a) => a.id) } });
     return { state: s, result: added };
 }
 
-/** Etiket (hangi oda / mutfak / banyo) ve açıklamayı günceller. */
-export function updateGalleryItem(state, { roomTypeId, id, tag, caption }, ctx) {
-    const rt = find(state.roomTypes, roomTypeId, "Oda tipi");
-    const item = (rt.gallery ?? []).find((g) => g.id === id);
+/** Etiket (hangi oda / mutfak / banyo) ve açıklamayı günceller. Oda etiketi yalnızca bu dairenin odalarından olabilir. */
+export function updateGalleryItem(state, { apartmentId, id, tag, caption }, ctx) {
+    const apt = find(state.apartments, apartmentId, "Daire");
+    const item = (apt.gallery ?? []).find((g) => g.id === id);
     if (!item) fail("Galeri öğesi bulunamadı.", "not_found");
+    if (tag?.key?.startsWith("room:") && !state.rooms.some((r) => r.apartmentId === apt.id && `room:${r.id}` === tag.key)) fail("Bu oda bu dairede değil.", "conflict");
     const updated = { ...item, tag: tag === undefined ? item.tag : cleanTag(tag), caption: caption === undefined ? item.caption : cleanCaption(caption) };
-    const next = { ...rt, gallery: rt.gallery.map((g) => (g.id === id ? updated : g)) };
-    return { state: { ...state, roomTypes: upsert(state.roomTypes, next) }, result: updated };
+    return { state: withGallery(state, apt, apt.gallery.map((g) => (g.id === id ? updated : g))), result: updated };
 }
 
-export function moveGalleryItem(state, { roomTypeId, id, direction }, ctx) {
-    const rt = find(state.roomTypes, roomTypeId, "Oda tipi");
-    const list = [...(rt.gallery ?? [])];
+export function moveGalleryItem(state, { apartmentId, id, direction }, ctx) {
+    const apt = find(state.apartments, apartmentId, "Daire");
+    const list = [...(apt.gallery ?? [])];
     const i = list.findIndex((g) => g.id === id);
     if (i < 0) fail("Galeri öğesi bulunamadı.", "not_found");
     const j = direction === "up" ? i - 1 : i + 1;
     if (j < 0 || j >= list.length) return { state, result: id };
     [list[i], list[j]] = [list[j], list[i]];
-    return { state: { ...state, roomTypes: upsert(state.roomTypes, { ...rt, gallery: list }) }, result: id };
+    return { state: withGallery(state, apt, list), result: id };
 }
 
-export function removeGalleryItem(state, { roomTypeId, id }, ctx) {
-    const rt = find(state.roomTypes, roomTypeId, "Oda tipi");
-    if (!(rt.gallery ?? []).some((g) => g.id === id)) fail("Galeri öğesi bulunamadı.", "not_found");
-    const next = { ...rt, gallery: rt.gallery.filter((g) => g.id !== id) };
-    const s = withAudit({ ...state, roomTypes: upsert(state.roomTypes, next) }, ctx, { action: "roomtype.gallery.remove", entity: "roomtype", entityId: rt.id, before: { id }, after: null });
+export function removeGalleryItem(state, { apartmentId, id }, ctx) {
+    const apt = find(state.apartments, apartmentId, "Daire");
+    if (!(apt.gallery ?? []).some((g) => g.id === id)) fail("Galeri öğesi bulunamadı.", "not_found");
+    const s = withAudit(withGallery(state, apt, apt.gallery.filter((g) => g.id !== id)), ctx, { action: "apartment.gallery.remove", entity: "apartment", entityId: apt.id, before: { id }, after: null });
     return { state: s, result: id };
 }
 
@@ -125,7 +134,12 @@ export function saveApartment(state, input, ctx) {
         id = made.id;
     }
     const n = (v) => (v === "" || v == null ? 0 : Math.max(0, Math.round(Number(v))));
-    const apartment = { id, name: input.name.trim(), floor: n(input.floor), kitchens: n(input.kitchens), bathrooms: n(input.bathrooms), note: input.note?.trim() ?? "" };
+    const apartment = {
+        ...(before ?? {}),
+        id, name: input.name.trim(), floor: n(input.floor), kitchens: n(input.kitchens), bathrooms: n(input.bathrooms), note: input.note?.trim() ?? "",
+        published: input.published ?? before?.published ?? true, // sitede (herkese açık) görünsün mü
+        gallery: before?.gallery ?? [],
+    };
     s = { ...s, apartments: upsert(s.apartments, apartment) };
     s = withAudit(s, ctx, { action: before ? "apartment.update" : "apartment.create", entity: "apartment", entityId: id, before, after: apartment });
     return { state: s, result: apartment };
@@ -168,6 +182,17 @@ export function saveRoom(state, input, ctx) {
     }
     const room = { id, apartmentId: input.apartmentId, name: input.name.trim(), roomTypeId: input.roomTypeId, beds, status: input.status };
     s = { ...s, rooms: upsert(s.rooms, room) };
+    // Galeri etiketleri odayla birlikte güncel kalır: ad değişirse etiket adı yenilenir, başka daireye taşınırsa eski dairedeki fotoğraflar etiketsiz kalır
+    if (before) {
+        if (before.apartmentId !== room.apartmentId) s = untagRoom(s, before.apartmentId, id);
+        else if (before.name !== room.name) {
+            const apt = s.apartments.find((a) => a.id === room.apartmentId);
+            if (apt?.gallery?.some((g) => g.tag?.key === `room:${id}`)) {
+                const tag = tagForRoom(room);
+                s = withGallery(s, apt, apt.gallery.map((g) => (g.tag?.key === `room:${id}` ? { ...g, tag } : g)));
+            }
+        }
+    }
     s = withAudit(s, ctx, { action: before ? "room.update" : "room.create", entity: "room", entityId: id, before, after: room });
     return { state: s, result: room };
 }
@@ -175,7 +200,7 @@ export function saveRoom(state, input, ctx) {
 export function deleteRoom(state, { id }, ctx) {
     const room = find(state.rooms, id, "Oda");
     if (state.placements.some((p) => p.roomId === id)) fail("Bu odada geçmişte yerleşim kaydı var; silinemez. Odayı “Kapalı” yapın.", "conflict");
-    const s = withAudit({ ...state, rooms: state.rooms.filter((r) => r.id !== id) }, ctx, { action: "room.delete", entity: "room", entityId: id, before: room });
+    const s = withAudit(untagRoom({ ...state, rooms: state.rooms.filter((r) => r.id !== id) }, room.apartmentId, id), ctx, { action: "room.delete", entity: "room", entityId: id, before: room });
     return { state: s, result: id };
 }
 

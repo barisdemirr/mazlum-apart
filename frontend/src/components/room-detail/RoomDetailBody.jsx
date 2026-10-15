@@ -8,6 +8,8 @@ import Reveal from "@/components/ui/Reveal";
 import RoomListCard from "@/components/rooms/RoomListCard";
 import MediaGallery from "./MediaGallery";
 import AvailabilityPicker from "./AvailabilityPicker";
+import ApartmentCards from "./ApartmentCards";
+import SafeImage from "@/components/ui/SafeImage";
 import BookingCard, { buildApplyHref } from "./BookingCard";
 import { About, Features, Included, LivingPlan, Terms } from "./DetailSections";
 import { summarizeAvailability } from "@/lib/availability";
@@ -15,25 +17,38 @@ import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { localized } from "@/lib/i18n/localized";
 import { formatPrice } from "@/lib/format";
 import { EASE_OUT } from "@/lib/motion";
+import { mediaAlt, mediaUrl } from "@/lib/media";
 
 /**
- * Oda tipi detay sayfasının içeriği. Yatak seçimi hem seçiciyi hem de
- * sağdaki başvuru kartını etkilediği için burada, ortak durumda tutulur.
+ * İki sayfa için ortak gövde:
+ *  - Oda TİPİ sayfası (`apartment` yok): kapak, tip bilgisi ve o tipteki dairelerin kartları.
+ *  - DAİRE sayfası (`apartment` var): dairenin kendi galerisi (video + etiketli fotoğraflar), odaları ve yatak seçici.
+ * Fotoğraf ve video DAİREYE aittir; aynı tipte birden fazla daire olabilir ve her birinin görüntüsü farklıdır.
+ * Yatak seçimi hem seçiciyi hem de sağdaki başvuru kartını etkilediği için burada, ortak durumda tutulur.
  */
-export default function RoomDetailBody({ room, availability, otherRooms }) {
+export default function RoomDetailBody({ room: typeRoom, availability, otherRooms, apartments = [], apartment = null }) {
     const { t, tpl, locale } = useLanguage();
     const [selectedBed, setSelectedBed] = useState(null); // { id, bedLabel, roomName, flatName } | null = yatak fark etmez
     const summary = useMemo(() => summarizeAvailability(availability), [availability]);
 
+    // Daire sayfasında kişi sayıları dairenin kendi (yatak sayısından hesaplanan) değerleridir
+    const room = useMemo(
+        () => (apartment ? { ...typeRoom, peopleInFlat: apartment.peopleInFlat, peopleSharingKitchen: apartment.peopleSharingKitchen, peopleSharingBathroom: apartment.peopleSharingBathroom } : typeRoom),
+        [typeRoom, apartment]
+    );
+    const gallery = apartment?.gallery ?? [];
+    const siblings = apartments.filter((a) => a.slug !== apartment?.slug);
+
     // Fotoğraf–oda eşleşmesi: doluluk ekranında bir odanın "fotoğraflar" düğmesi galeriyi o odanın etiketine süzer
     const [galleryFilter, setGalleryFilter] = useState("all");
-    const photoKeys = useMemo(() => new Set((room.gallery ?? []).filter((item) => item.type === "image" && item.tag).map((item) => item.tag.key)), [room.gallery]);
+    const photoKeys = useMemo(() => new Set(gallery.filter((item) => item.type === "image" && item.tag).map((item) => item.tag.key)), [gallery]);
     const showRoomPhotos = useCallback((tagKey) => {
         setGalleryFilter(tagKey);
         document.getElementById("galeri")?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, []);
 
-    const name = localized(room.name, locale);
+    const typeName = localized(room.name, locale);
+    const name = apartment ? `${typeName} · ${localized(apartment.name, locale)}` : typeName;
     const lead =
         listFirst(room.description, locale) ||
         tpl(t.roomDetail.summaryFallback, {
@@ -66,9 +81,21 @@ export default function RoomDetailBody({ room, availability, otherRooms }) {
                         {t.nav.rooms}
                     </LocalizedLink>
                     <span className="text-orchid-petal">/</span>
-                    <span className="font-semibold text-orchid-pink" aria-current="page">
-                        {name}
-                    </span>
+                    {apartment ? (
+                        <>
+                            <LocalizedLink href={`/odalar/${room.slug}`} className="transition-colors hover:text-orchid-pink">
+                                {typeName}
+                            </LocalizedLink>
+                            <span className="text-orchid-petal">/</span>
+                            <span className="font-semibold text-orchid-pink" aria-current="page">
+                                {localized(apartment.name, locale)}
+                            </span>
+                        </>
+                    ) : (
+                        <span className="font-semibold text-orchid-pink" aria-current="page">
+                            {typeName}
+                        </span>
+                    )}
                 </motion.nav>
 
                 <motion.div
@@ -78,7 +105,13 @@ export default function RoomDetailBody({ room, availability, otherRooms }) {
                     transition={{ duration: 0.9, delay: 0.55, ease: EASE_OUT }}
                     className="scroll-mt-24"
                 >
-                    <MediaGallery items={room.gallery ?? []} roomName={name} filter={galleryFilter} onFilterChange={setGalleryFilter} />
+                    {apartment ? (
+                        <MediaGallery items={gallery} roomName={name} filter={galleryFilter} onFilterChange={setGalleryFilter} />
+                    ) : (
+                        <div className="relative aspect-[16/9] overflow-hidden rounded-[32px] bg-orchid-powder sm:aspect-[21/9]">
+                            <SafeImage src={mediaUrl(room.image, "lg")} alt={mediaAlt(room.image, locale, typeName)} fetchPriority="high" className="h-full w-full object-cover" />
+                        </div>
+                    )}
                 </motion.div>
             </section>
 
@@ -165,13 +198,17 @@ export default function RoomDetailBody({ room, availability, otherRooms }) {
                 <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
                     <div className="flex min-w-0 flex-col gap-8 lg:col-span-8">
                         <LivingPlan room={room} />
-                        <AvailabilityPicker
-                            availability={availability}
-                            selectedBedId={selectedBed?.id ?? null}
-                            onSelect={setSelectedBed}
-                            photoKeys={photoKeys}
-                            onShowPhotos={showRoomPhotos}
-                        />
+                        {apartment ? (
+                            <AvailabilityPicker
+                                availability={availability}
+                                selectedBedId={selectedBed?.id ?? null}
+                                onSelect={setSelectedBed}
+                                photoKeys={photoKeys}
+                                onShowPhotos={showRoomPhotos}
+                            />
+                        ) : (
+                            <ApartmentCards apartments={apartments} typeSlug={room.slug} />
+                        )}
                         <About room={room} />
                         <Features room={room} />
                         <Included room={room} />
@@ -183,6 +220,13 @@ export default function RoomDetailBody({ room, availability, otherRooms }) {
                     </div>
                 </div>
             </section>
+
+            {/* ───────── Aynı tipteki diğer daireler (daire sayfası) ───────── */}
+            {apartment && siblings.length > 0 && (
+                <section className="mx-auto w-full max-w-7xl px-4 pb-8 pt-4 sm:px-8 lg:px-12">
+                    <ApartmentCards apartments={siblings} typeSlug={room.slug} eyebrow={t.roomDetail.apartments.siblingsEyebrow} title={t.roomDetail.apartments.siblingsTitle} subtitle={null} />
+                </section>
+            )}
 
             {/* ───────── Diğer oda tipleri ───────── */}
             {otherRooms.length > 0 && (

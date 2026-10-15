@@ -1,5 +1,5 @@
 import { SITE } from "@/lib/constants";
-import { MOCK_HERO, MOCK_ROOM_TYPES, getMockRawGallery, getMockRoomNames, getMockRoomTypeDetail } from "@/lib/mockData";
+import { MOCK_HERO, MOCK_ROOM_TYPES, getMockFlatGallery, getMockRoomNames, getMockRoomTypeDetail } from "@/lib/mockData";
 import { MOCK_PERIODS } from "./periods";
 import { addBill, addExpense, addCharge, payBill, recordPayment, refundAdvance, reverseCharge, transfer } from "@/lib/admin/domain/ledger";
 import { approveApplication, createApplication, endEnrollment, placeStudent, rejectApplication } from "@/lib/admin/domain/registration";
@@ -47,7 +47,6 @@ export function buildSeed() {
             peopleInFlat: r.peopleInFlat, peopleSharingKitchen: r.peopleSharingKitchen, peopleSharingBathroom: r.peopleSharingBathroom,
             features: feat(d?.roomFeatures), sharedAreas: feat(d?.sharedAreas),
             image: { mediaId: `med-${r.slug}`, url: r.image.url }, active: true,
-            gallery: getMockRawGallery(r.slug).map((g) => ({ ...g, name: "", size: 0, poster: g.poster ?? null, caption: { tr: g.caption?.tr ?? "", en: g.caption?.en ?? "" }, tag: g.tag ?? null })),
         };
     });
     const media = [
@@ -81,6 +80,13 @@ export function buildSeed() {
         ...ucNames.map((n, i) => room(`r-3-${i + 1}`, "apt-3", n, UC, 3)),
         ...tekNames.map((n, i) => room(`r-4-${i + 1}`, "apt-4", n, TEK, 1, i === 3 ? "maintenance" : "active")),
     ];
+
+    // Galeri DAİREYE aittir: her dairenin kendi odalarına etiketli fotoğrafları + 1 video (dairelerin görüntüsü farklıdır)
+    apartments.forEach((apt, variant) => {
+        apt.published = true;
+        apt.gallery = getMockFlatGallery(rooms.filter((r) => r.apartmentId === apt.id).map((r) => ({ id: r.id, name: r.name })), variant)
+            .map((g) => ({ ...g, name: "", size: 0, poster: g.poster ?? null, caption: { tr: g.caption?.tr ?? "", en: g.caption?.en ?? "" }, tag: g.tag ?? null }));
+    });
 
     let state = {
         seq: 1,

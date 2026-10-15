@@ -17,11 +17,11 @@ const CUSTOM = "__custom";
 const NONE = "";
 
 /**
- * Oda tipi galerisi: fotoğraflar + en fazla 1 video. Her dosya etiketlenir:
+ * Daire galerisi: fotoğraflar + en fazla 1 video. Her dosya etiketlenir:
  * bu oda tipindeki fiziksel oda adları (1. Sol Oda…), Mutfak, Banyo, Salon… veya özel etiket.
  * Odalardan birini seçen öğrenci o odanın etiketli fotoğraflarını görür (etiket anahtarı oda adından üretilir).
  */
-export default function GalleryDialog({ roomTypeId, onClose }) {
+export default function GalleryDialog({ apartmentId, onClose }) {
     const { state } = useAdmin();
     const { exec, busy } = useCommand();
     const fileRef = useRef(null);
@@ -31,17 +31,17 @@ export default function GalleryDialog({ roomTypeId, onClose }) {
     const [problem, setProblem] = useState("");
     const [removing, setRemoving] = useState(null);
 
-    const rt = state.roomTypes.find((r) => r.id === roomTypeId);
-    const gallery = rt?.gallery ?? [];
+    const apt = state.apartments.find((a) => a.id === apartmentId);
+    const gallery = apt?.gallery ?? [];
     const video = gallery.find((g) => g.type === "video");
 
-    // Bu oda tipindeki benzersiz fiziksel oda adları (tüm dairelerde aynı adlar tekrar eder)
-    const roomOptions = useMemo(() => {
-        const names = [...new Set(state.rooms.filter((r) => r.roomTypeId === roomTypeId).map((r) => r.name))];
-        return names.map(tagForRoom);
-    }, [state.rooms, roomTypeId]);
+    // Etiket seçenekleri: bu dairenin fiziksel odaları (etiket oda KİMLİĞİNE bağlanır; başka dairedeki aynı adlı oda karışmaz)
+    const roomOptions = useMemo(
+        () => state.rooms.filter((r) => r.apartmentId === apartmentId).map((r) => tagForRoom(r)),
+        [state.rooms, apartmentId]
+    );
 
-    if (!rt) return null;
+    if (!apt) return null;
 
     const tagValue = (tag) => (!tag ? NONE : tag.key);
     const allKnown = [...roomOptions, ...AREA_TAGS];
@@ -53,7 +53,7 @@ export default function GalleryDialog({ roomTypeId, onClose }) {
         if (!list.length) return;
         const bad = list.find((f) => !f.type.startsWith("image/") || f.size > IMAGE_MAX_BYTES);
         if (bad) return setProblem(`“${bad.name}” eklenemedi: yalnızca görsel dosyaları ve en fazla ${IMAGE_MAX_BYTES / 1024 / 1024} MB.`);
-        await exec(addGalleryItems, { roomTypeId, items: list.map((f) => ({ type: "image", url: URL.createObjectURL(f), name: f.name, size: f.size })) }, `${list.length} fotoğraf eklendi. Şimdi etiketleyin.`);
+        await exec(addGalleryItems, { apartmentId, items: list.map((f) => ({ type: "image", url: URL.createObjectURL(f), name: f.name, size: f.size })) }, `${list.length} fotoğraf eklendi. Şimdi etiketleyin.`);
     };
 
     const addVideo = async (file) => {
@@ -68,7 +68,7 @@ export default function GalleryDialog({ roomTypeId, onClose }) {
             const result = await compressVideo(file, { onProgress: (value) => setProgress({ value }) });
             const poster = await makeVideoPoster(result.file);
             const note = result.compressed ? `Video küçültülüp eklendi (${(file.size / 1048576).toFixed(1)} → ${(result.file.size / 1048576).toFixed(1)} MB).` : "Video eklendi.";
-            await exec(addGalleryItems, { roomTypeId, items: [{ type: "video", url: URL.createObjectURL(result.file), poster, name: result.file.name, size: result.file.size }] }, note);
+            await exec(addGalleryItems, { apartmentId, items: [{ type: "video", url: URL.createObjectURL(result.file), poster, name: result.file.name, size: result.file.size }] }, note);
         } catch (e) {
             setProblem(e?.message || "Video eklenemedi.");
         } finally {
@@ -78,20 +78,20 @@ export default function GalleryDialog({ roomTypeId, onClose }) {
     };
 
     const changeTag = (item, value) => {
-        if (value === CUSTOM) return exec(updateGalleryItem, { roomTypeId, id: item.id, tag: customTag("Özel etiket", "Custom label") });
+        if (value === CUSTOM) return exec(updateGalleryItem, { apartmentId, id: item.id, tag: customTag("Özel etiket", "Custom label") });
         const tag = value === NONE ? null : allKnown.find((t) => t.key === value);
-        return exec(updateGalleryItem, { roomTypeId, id: item.id, tag });
+        return exec(updateGalleryItem, { apartmentId, id: item.id, tag });
     };
 
     return (
-        <FormDialog open size="xl" title="Galeri" description={`${rt.name.tr} · ${gallery.length}/${GALLERY_MAX_ITEMS} dosya`} onClose={onClose} busy={busy || uploading} hideFooter={false}
+        <FormDialog open size="xl" title="Galeri" description={`${apt.name} · ${gallery.length}/${GALLERY_MAX_ITEMS} dosya`} onClose={onClose} busy={busy || uploading} hideFooter={false}
             saveLabel="Kapat" onSubmit={(e) => { e.preventDefault(); onClose(); }} columns={1}>
             <div className="rounded-2xl bg-ad-sunken p-4 text-sm text-ad-body">
                 <p className="font-semibold">Nasıl çalışır?</p>
                 <ul className="mt-1.5 list-disc space-y-1 ps-5 text-xs text-ad-muted">
-                    <li>Her fotoğrafı etiketleyin: <b>{roomOptions.map((r) => r.tr).join(", ") || "oda adları"}</b>, Mutfak, Banyo… Öğrenci bir odayı seçince o odanın fotoğrafları öne çıkar.</li>
+                    <li>Her fotoğrafı etiketleyin: <b>{roomOptions.map((r) => r.tr).join(", ") || "odaları önce ekleyin"}</b>, Mutfak, Banyo… Öğrenci bir odayı seçince o odanın fotoğrafları öne çıkar.</li>
                     <li>Video yüklenince tarayıcıda otomatik 720p / ~1,5 Mbps’e küçültülür (süre kadar bekler, sekmeyi kapatmayın; en fazla 3 dk).</li>
-                    <li>Her oda tipine <b>1 video</b> eklenebilir; sitede galerinin başında görünür. Uzaktan kayıtlarda fotoğraflar yanıltıcı olabildiği için video önerilir.</li>
+                    <li>Her daireye <b>1 video</b> eklenebilir; sitede galerinin başında görünür. Uzaktan kayıtlarda fotoğraflar yanıltıcı olabildiği için video önerilir.</li>
                     <li>Etiketsiz fotoğraf sitede “Fotoğraf” olarak görünür.</li>
                 </ul>
             </div>
@@ -126,8 +126,8 @@ export default function GalleryDialog({ roomTypeId, onClose }) {
                                     {item.type === "video" ? <Badge tone="accent">Video</Badge> : <Badge tone="neutral">Fotoğraf</Badge>}
                                     {!item.tag && item.type !== "video" && <span className="text-[11px] text-ad-warn">Etiketsiz</span>}
                                     <div className="ms-auto flex">
-                                        <button type="button" aria-label="Yukarı taşı" disabled={busy || index === 0} onClick={() => exec(moveGalleryItem, { roomTypeId, id: item.id, direction: "up" })} className="ad-btn ad-btn-icon !h-8 !w-8"><Icon name="arrow_upward" className="text-[16px]" /></button>
-                                        <button type="button" aria-label="Aşağı taşı" disabled={busy || index === gallery.length - 1} onClick={() => exec(moveGalleryItem, { roomTypeId, id: item.id, direction: "down" })} className="ad-btn ad-btn-icon !h-8 !w-8"><Icon name="arrow_downward" className="text-[16px]" /></button>
+                                        <button type="button" aria-label="Yukarı taşı" disabled={busy || index === 0} onClick={() => exec(moveGalleryItem, { apartmentId, id: item.id, direction: "up" })} className="ad-btn ad-btn-icon !h-8 !w-8"><Icon name="arrow_upward" className="text-[16px]" /></button>
+                                        <button type="button" aria-label="Aşağı taşı" disabled={busy || index === gallery.length - 1} onClick={() => exec(moveGalleryItem, { apartmentId, id: item.id, direction: "down" })} className="ad-btn ad-btn-icon !h-8 !w-8"><Icon name="arrow_downward" className="text-[16px]" /></button>
                                         <button type="button" aria-label="Sil" disabled={busy} onClick={() => setRemoving(item)} className="ad-btn ad-btn-icon ad-btn-danger-soft !h-8 !w-8"><Icon name="delete" className="text-[16px]" /></button>
                                     </div>
                                 </div>
@@ -137,7 +137,7 @@ export default function GalleryDialog({ roomTypeId, onClose }) {
                                     <optgroup label="Ortak alanlar">{AREA_TAGS.map((t) => <option key={t.key} value={t.key}>{t.tr}</option>)}</optgroup>
                                     <option value={CUSTOM}>Özel etiket…</option>
                                 </SelectInput>
-                                {isCustom(item.tag) && <CustomTag item={item} onSave={(tag) => exec(updateGalleryItem, { roomTypeId, id: item.id, tag })} busy={busy} />}
+                                {isCustom(item.tag) && <CustomTag item={item} onSave={(tag) => exec(updateGalleryItem, { apartmentId, id: item.id, tag })} busy={busy} />}
                             </div>
                         </li>
                     ))}
@@ -149,7 +149,7 @@ export default function GalleryDialog({ roomTypeId, onClose }) {
                 message="Sitedeki oda sayfasından kalkar."
                 confirmLabel="Sil"
                 onCancel={() => setRemoving(null)}
-                onConfirm={async () => { await exec(removeGalleryItem, { roomTypeId, id: removing.id }, "Silindi."); setRemoving(null); }}
+                onConfirm={async () => { await exec(removeGalleryItem, { apartmentId, id: removing.id }, "Silindi."); setRemoving(null); }}
             />
         </FormDialog>
     );
