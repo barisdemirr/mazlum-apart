@@ -3,10 +3,13 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using MazlumApart.Domain.Entities;
 using MazlumApart.Infrastructure.Auth;
 using MazlumApart.Infrastructure.Database;
+using MazlumApart.Infrastructure.Services;
 using MazlumApart.Shared;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,6 +42,10 @@ if (jwt is null || string.IsNullOrWhiteSpace(jwt.Key) || jwt.Key.Length < 32)
         "Jwt:Key tanımlı değil veya 32 karakterden kısa. appsettings.Development.json / appsettings.Production.json içine ekle.");
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
+builder.Services.AddSingleton<TokenService>();
+builder.Services.AddScoped<SessionValidator>();
+builder.Services.AddSingleton<IPasswordHasher<AdminUser>, PasswordHasher<AdminUser>>();
+builder.Services.AddSingleton<IPasswordHasher<Student>, PasswordHasher<Student>>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -57,7 +64,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             NameClaimType = AppClaims.Name,
             RoleClaimType = AppClaims.Role
         };
-        // Stage 2: OnTokenValidated ile kullanıcının hâlâ aktif olduğu ve şifresinin değişmediği (stamp) kontrol edilecek.
+        options.Events = new JwtBearerEvents
+        {
+            // İmza geçerli olsa bile: kullanıcı pasif/silinmişse ya da şifresi değişmişse (stamp) token reddedilir
+            OnTokenValidated = async context =>
+            {
+                var validator = context.HttpContext.RequestServices.GetRequiredService<SessionValidator>();
+                if (context.Principal is null || !await validator.IsValidAsync(context.Principal, context.HttpContext.RequestAborted))
+                    context.Fail("Oturum geçersiz.");
+            }
+        };
     });
 
 // ---- Yetkilendirme (RBAC) ----
@@ -76,6 +92,14 @@ builder.Services.AddAuthorizationBuilder()
     .SetDefaultPolicy(adminPolicy)
     .SetFallbackPolicy(adminPolicy);
 
+// ---- Ortak servisler ----
+builder.Services.AddHttpContextAccessor();
+builder.Services.Configure<UploadOptions>(builder.Configuration.GetSection("Uploads"));
+builder.Services.AddSingleton<ImageService>();
+builder.Services.AddSingleton<VideoService>();
+builder.Services.AddScoped<MediaUsageChecker>();
+builder.Services.AddScoped<AuditWriter>();
+
 // ---- Hız sınırı ----
 ClientIp.Configure(builder.Configuration["Frontend:ProxySecret"]);
 builder.Services.AddAppRateLimiting();
@@ -85,6 +109,9 @@ builder.Services.AddFeatures(typeof(Program).Assembly);
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// İlk yönetici (yalnızca hiç yönetici yoksa; ayar: "Seed")
+await AdminSeeder.SeedAsync(app.Services, app.Configuration);
 
 app.UseExceptionHandler(); // beklenmeyen hata: ayrıntı sızdırmadan problem+json 500
 app.UseStatusCodePages();

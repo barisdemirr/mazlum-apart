@@ -4,4 +4,38 @@
 GET {{api}}/health
 Accept: application/json
 
+### Yönetici girişi (ilk yönetici appsettings "Seed" bölümünden oluşur)
+# @name adminLogin
+POST {{api}}/api/admin/auth/login
+Content-Type: application/json
+
+{ "email": "yonetici@mazlumapart.com", "password": "Mazlum-Ilk-Sifre-2026" }
+
 ###
+@adminToken = {{adminLogin.response.body.accessToken}}
+
+### Ben kimim
+GET {{api}}/api/admin/me
+Authorization: Bearer {{adminToken}}
+
+### Yöneticiler
+GET {{api}}/api/admin/users
+Authorization: Bearer {{adminToken}}
+
+### Yeni yönetici (ilk şifre yanıtta döner)
+POST {{api}}/api/admin/users
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "name": "Deneme Yönetici", "email": "deneme@mazlumapart.com" }
+
+### Medya kitaplığı
+GET {{api}}/api/admin/media?kind=image
+Authorization: Bearer {{adminToken}}
+
+### İşlem geçmişi
+GET {{api}}/api/admin/audit
+Authorization: Bearer {{adminToken}}
+
+### Token olmadan yönetici ucu -> 401
+GET {{api}}/api/admin/users

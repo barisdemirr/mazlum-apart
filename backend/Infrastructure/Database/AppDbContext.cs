@@ -8,6 +8,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     // DbSet'ler her aşamada ilgili tablolarla birlikte eklenir.
 
+    // ---- Kimlik & sistem (aşama 2) ----
+    public DbSet<AdminUser> AdminUsers => Set<AdminUser>();
+    public DbSet<Student> Students => Set<Student>();
+    public DbSet<StudentGuardian> StudentGuardians => Set<StudentGuardian>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder builder)
     {
         // Para: her yerde decimal(18,2). Metin enum'lar string olarak saklanır (okunabilir, sıra değişse bozulmaz).
