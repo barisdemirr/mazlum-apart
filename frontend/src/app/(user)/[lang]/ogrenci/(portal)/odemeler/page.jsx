@@ -1,5 +1,7 @@
-import PageHeader from "@/components/portal/PageHeader";
-import ComingSoon from "@/components/portal/ComingSoon";
+import PaymentsView from "@/components/portal/payments/PaymentsView";
+import { buildLedger } from "@/lib/ledger";
+import { settle } from "@/lib/api";
+import { getStudentPayments } from "@/services";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export async function generateMetadata({ params }) {
@@ -7,14 +9,10 @@ export async function generateMetadata({ params }) {
     return { title: getDictionary(lang).studentPortal.nav.payments };
 }
 
-export default async function Page({ params }) {
-    const { lang } = await params;
-    const t = getDictionary(lang).studentPortal;
+export default async function PaymentsPage() {
+    const payments = await settle(getStudentPayments(), null);
+    if (!payments.data) return null;
 
-    return (
-        <>
-            <PageHeader title={t.nav.payments} />
-            <ComingSoon />
-        </>
-    );
+    const { charges, payments: records, period, bank } = payments.data;
+    return <PaymentsView ledger={buildLedger({ charges, payments: records })} period={period} bank={bank} />;
 }

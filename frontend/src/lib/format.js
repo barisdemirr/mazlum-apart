@@ -29,3 +29,8 @@ export function formatDate(value) {
     const pad = (n) => String(n).padStart(2, "0");
     return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
 }
+
+/** formatPercent(31, "tr") -> "%31", formatPercent(31, "en") -> "31%" */
+export function formatPercent(value, locale = "tr") {
+    return locale === "en" ? `${value}%` : `%${value}`;
+}

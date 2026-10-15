@@ -28,7 +28,7 @@ export default function PortalShell({ student, children }) {
     const room = student.room;
 
     return (
-        <div className="min-h-screen bg-orchid-white">
+        <div className="min-h-screen overflow-x-clip bg-orchid-white">
             {/* ───────── Masaüstü yan menü ───────── */}
             <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col border-r border-orchid-petal/25 bg-white/60 p-5 backdrop-blur-xl lg:flex">
                 <LocalizedLink href="/ogrenci" className="group flex items-center gap-3 px-2 pt-1">
@@ -132,7 +132,7 @@ export default function PortalShell({ student, children }) {
 
             {/* ───────── İçerik ───────── */}
             <main className="px-4 pb-32 pt-24 sm:px-6 lg:ml-72 lg:px-8 lg:pb-14 lg:pt-28">
-                <div className="mx-auto max-w-5xl">{children}</div>
+                <div className="mx-auto min-w-0 max-w-5xl">{children}</div>
             </main>
 
             {/* ───────── Mobil alt menü ───────── */}

@@ -16,7 +16,9 @@ const MOCK_STUDENT = {
         flat: "Daire 4",
         roomName: "Oda 2",
         bed: "Yatak B",
+        flatPeople: 4,
     },
+    entryDate: "2026-09-01",
     period: { id: "2026-2027", name: "2026–2027", start: "2026-09-01", end: "2027-06-30" },
 };
 

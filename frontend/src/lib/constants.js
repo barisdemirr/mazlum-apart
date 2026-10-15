@@ -10,6 +10,8 @@ export const SITE = {
     address: "",
     mapUrl: "",
     instagram: "",
+    // Banka hesabı: müşteri verene kadar boş. Dolunca Ödemeler sayfasında IBAN kartı görünür.
+    bank: { name: "", holder: "", iban: "" },
 };
 
 /** WhatsApp bağlantısı; numara yoksa null döner */
