@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ADMIN_COOKIE, ADMIN_LOGIN, validateAdminLogin } from "@/lib/admin/auth";
+import { STUDENT_COOKIE } from "@/lib/student/auth";
 import { cookieOptions } from "@/lib/admin/session";
 import { loginStatus } from "@/lib/api/auth-session";
 import { authenticateAdmin } from "@/services/adminAuth";
@@ -23,6 +24,7 @@ export async function POST(request) {
 
     const response = NextResponse.json({ ok: true }, { headers: noStore });
     response.cookies.set(ADMIN_COOKIE, result.token, cookieOptions(result.maxAge));
+    response.cookies.set(STUDENT_COOKIE, "", { path: "/", maxAge: 0 }); // yönetici girişi öğrenci oturumunu sonlandırır
     return response;
 }
 

@@ -13,7 +13,7 @@ import { ADMIN_COOKIE, ADMIN_HOME, ADMIN_LOGIN, readAdminToken } from "@/lib/adm
  *  1. Alanın giriş sayfası dışındaki her sayfa o ALANIN rolüyle oturum ister.
  *  2. Yanlış rolün oturumu "geçerli" sayılmaz; token'daki `typ` alanı beklenen rol değilse reddedilir.
  *     (Öğrenci token'ı ma_admin çerezine konsa bile yönetici olamaz, tersi de geçerli.)
- *  3. Karşı rolün geçerli oturumu varsa kişi giriş sayfasına değil KENDİ alanına gönderilir.
+ *  3. Karşı rolün geçerli oturumu varsa kişi bu alanın GİRİŞ sayfasına gönderilir; burada giriş yapınca karşı rolün oturumu kapanır.
  *  4. Giriş yapmış kişi kendi alanının giriş sayfasını görmez, kendi ana sayfasına gider.
  *  5. Süresi dolmuş çerez temizlenir ve girişe ?expired=1 ile yönlenir; dönüş adresi `from` ile taşınır.
  *  6. Yanıtlar önbelleğe alınmaz ve arama motorlarına kapatılır.
@@ -68,11 +68,11 @@ function handleArea(request, area, other, localePrefix, path) {
     const signedIn = Boolean(area.read(cookie));
     // Karşı rolün çerezi geçerli mi? (yalnızca yönlendirme kararı için; asla bu alana giriş hakkı vermez)
     const otherSignedIn = Boolean(other.read(request.cookies.get(other.cookie)?.value));
-    const otherHome = `${other.localized ? localePrefix : ""}${other.home}`;
 
-    // Kural 3: karşı rolün oturumu var, bu alanın yok -> kendi alanına
-    if (!signedIn && otherSignedIn) {
-        return privateHeaders(NextResponse.redirect(new URL(otherHome, request.url)));
+    // Kural 3: karşı rolün oturumu var, bu alanın yok -> bu alanın GİRİŞ sayfasına (giriş yapılınca karşı oturum kapanır)
+    if (!signedIn && otherSignedIn && !isLogin) {
+        const url = new URL(`${area.localized ? localePrefix : ""}${area.login}`, request.url);
+        return privateHeaders(NextResponse.redirect(url));
     }
 
     // Kural 4: giriş yapmış kişi giriş sayfasını görmez
