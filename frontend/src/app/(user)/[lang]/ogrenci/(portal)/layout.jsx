@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import PortalShell from "@/components/portal/PortalShell";
 import { getStudentSession } from "@/lib/student/session";
-import { getStudentProfile } from "@/services/student";
+import { getStudentProfile } from "@/services/studentData";
 
 export const dynamic = "force-dynamic"; // oturuma göre değişir, asla önbelleğe alınmaz
 
@@ -10,6 +10,6 @@ export default async function PortalLayout({ children }) {
     const session = await getStudentSession();
     if (!session) redirect("/ogrenci/giris");
 
-    const student = await getStudentProfile(session);
+    const student = await getStudentProfile();
     return <PortalShell student={student}>{children}</PortalShell>;
 }

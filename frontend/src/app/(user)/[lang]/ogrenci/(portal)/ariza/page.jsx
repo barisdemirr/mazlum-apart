@@ -1,6 +1,5 @@
 import MaintenanceView from "@/components/portal/maintenance/MaintenanceView";
-import { settle } from "@/lib/api";
-import { getMaintenanceRequests } from "@/services";
+import { getMaintenanceRequests } from "@/services/studentData";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export async function generateMetadata({ params }) {
@@ -9,6 +8,5 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function MaintenancePage() {
-    const requests = await settle(getMaintenanceRequests(), []);
-    return <MaintenanceView initial={requests.data} />;
+    return <MaintenanceView initial={await getMaintenanceRequests()} />;
 }

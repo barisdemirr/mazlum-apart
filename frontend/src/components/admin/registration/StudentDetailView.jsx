@@ -9,10 +9,10 @@ import WhatsAppButton from "@/components/admin/WhatsAppButton";
 import useCommand from "@/components/admin/useCommand";
 import { DateInput, Field, SelectInput } from "@/components/admin/fields";
 import { Avatar, Badge, Card, EmptyState, PageHeader, StatusBadge } from "@/components/admin/ui";
-import { describeCovered } from "@/lib/admin/domain/accounting";
-import { endEnrollment } from "@/lib/admin/domain/registration";
-import { enrollmentRow } from "@/lib/admin/domain/selectors";
+import { adaptRow, describeCovered } from "@/lib/admin/adapters";
+import { endEnrollment } from "@/lib/admin/commands/registration";
 import { CONTACT_PURPOSE, ENROLLMENT_STATUS, MAINT_STATUS, PAY_STATUS, PAY_WINDOW, TERM, date, money } from "@/lib/admin/labels";
+import { turkeyDate } from "@/lib/format";
 import { getProvinceName } from "@/lib/locations";
 import { GRADE_LABELS } from "./OfficeApplicationDialog";
 import PlacementDialog from "./PlacementDialog";
@@ -24,55 +24,42 @@ const Info = ({ label, children }) => (
     </div>
 );
 
-export default function StudentDetailView({ enrollmentId }) {
-    const { state, today, periodId, selectPeriod, periods } = useAdmin();
-    const enrollment = state.enrollments.find((e) => e.id === enrollmentId);
+/** detail: GET /enrollments/{id} · contacts: bu kayda yapılan iletişimler · maintenance: bu kaydın arıza bildirimleri */
+export default function StudentDetailView({ detail, contacts, maintenance }) {
+    const { today, periodId, selectPeriod, periods } = useAdmin();
+    const { exec, busy } = useCommand();
+    const [dialog, setDialog] = useState(null); // place | move | end
+
+    const enrollment = detail.enrollment;
+    const profile = detail.student;
+    const period = periods.find((p) => p.id === enrollment.periodId);
 
     // Başka dönemin kaydı açıldıysa panelin dönemi de o döneme geçer
     useEffect(() => {
-        if (enrollment && enrollment.periodId !== periodId) selectPeriod(enrollment.periodId);
-    }, [enrollment, periodId, selectPeriod]);
+        if (enrollment.periodId !== periodId) selectPeriod(enrollment.periodId);
+    }, [enrollment.periodId, periodId, selectPeriod]);
 
-    if (!enrollment) {
-        return (
-            <div>
-                <PageHeader title="Öğrenci bulunamadı" back={{ href: "/admin/ogrenciler", label: "Öğrenciler" }} />
-                <EmptyState icon="person_search" title="Bu kayıt yok" description="Bağlantı eski olabilir ya da kayıt silinmiş olabilir." />
-            </div>
-        );
-    }
-    return <Detail enrollment={enrollment} state={state} today={today} periods={periods} selectPeriod={selectPeriod} />;
-}
-
-function Detail({ enrollment, state, today, periods, selectPeriod }) {
-    const { exec, busy } = useCommand();
-    const [dialog, setDialog] = useState(null); // place | move | end
     const [endForm, setEndForm] = useState({ status: "left", date: today, reason: "" });
 
-    const row = useMemo(() => enrollmentRow(state, enrollment, today), [state, enrollment, today]);
-    const { student, summary, room, roomType } = row;
-    const period = periods.find((p) => p.id === enrollment.periodId);
-    const closedPeriod = period.status === "closed";
-    const ended = ["cancelled", "left"].includes(enrollment.status);
-    const canAct = !closedPeriod && !ended;
+    const row = useMemo(() => adaptRow(enrollment), [enrollment]);
+    const { summary, room, roomType } = row;
+    const student = { ...row.student, ...profile };
+    const e = row.enrollment;
+    const closedPeriod = period?.status === "closed";
+    const ended = ["cancelled", "left"].includes(e.status);
+    const canAct = !closedPeriod && !ended && Boolean(period);
     const fullName = `${student.firstName} ${student.lastName}`;
 
-    const placements = state.placements
-        .filter((p) => p.enrollmentId === enrollment.id)
+    const placements = detail.placements
+        .slice()
         .sort((a, b) => b.start.localeCompare(a.start))
-        .map((p) => {
-            const r = state.rooms.find((x) => x.id === p.roomId);
-            const a = state.apartments.find((x) => x.id === r?.apartmentId);
-            return { ...p, label: `${a?.name ?? ""} · ${r?.name ?? ""}`, current: p.start <= today && p.end >= today };
-        });
-    const contacts = state.contacts.filter((c) => c.enrollmentId === enrollment.id).sort((a, b) => b.at.localeCompare(a.at));
-    const maintenance = state.maintenance.filter((m) => m.enrollmentId === enrollment.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    const others = state.enrollments.filter((e) => e.studentId === student.id && e.id !== enrollment.id);
+        .map((p) => ({ ...p, id: p.placementId, current: p.start <= today && p.end >= today }));
+    const others = detail.others;
     const currentRoomId = placements.find((p) => p.current)?.roomId ?? null;
 
     const submitEnd = async (e) => {
         e.preventDefault();
-        const out = await exec(endEnrollment, { enrollmentId: enrollment.id, status: endForm.status, effectiveDate: endForm.date, reason: endForm.reason }, "Kayıt kapatıldı.");
+        const out = await exec(endEnrollment, { enrollmentId: e.id, status: endForm.status, effectiveDate: endForm.date, reason: endForm.reason }, "Kayıt kapatıldı.");
         if (out.ok) setDialog(null);
     };
 
@@ -80,13 +67,13 @@ function Detail({ enrollment, state, today, periods, selectPeriod }) {
         <div>
             <PageHeader
                 back={{ href: "/admin/ogrenciler", label: "Öğrenciler" }}
-                eyebrow={period.name}
+                eyebrow={period?.name}
                 title={fullName}
                 description={`${student.department || "Bölüm belirtilmemiş"} · ${student.school || "Okul belirtilmemiş"}`}
                 actions={
                     <>
-                        <WhatsAppButton row={row} item={summary.next} purpose={summary.status === "overdue" ? "payment_overdue" : "payment_reminder"} compact={false} label="WhatsApp" className="!h-10 !px-4" />
-                        <Link href={`/admin/hesaplar/${enrollment.id}`} className="ad-btn ad-btn-primary">
+                        <WhatsAppButton row={row} item={summary.next ?? undefined} purpose={summary.status === "overdue" ? "payment_overdue" : "payment_reminder"} compact={false} label="WhatsApp" className="!h-10 !px-4" />
+                        <Link href={`/admin/hesaplar/${e.id}`} className="ad-btn ad-btn-primary">
                             <Icon name="account_balance_wallet" className="text-[20px]" />
                             Hesabı aç
                         </Link>
@@ -95,10 +82,10 @@ function Detail({ enrollment, state, today, periods, selectPeriod }) {
             />
 
             <div className="mb-4 flex flex-wrap items-center gap-2">
-                <StatusBadge map={ENROLLMENT_STATUS} value={enrollment.status} />
+                <StatusBadge map={ENROLLMENT_STATUS} value={e.status} />
                 {!ended && <StatusBadge map={PAY_STATUS} value={summary.status} />}
                 {closedPeriod && <Badge tone="warn">Kapalı dönem: salt okunur</Badge>}
-                {ended && <span className="text-xs text-ad-muted">{date(enrollment.endedAt)} · {enrollment.endReason}</span>}
+                {ended && <span className="text-xs text-ad-muted">{date(e.endedAt)} · {e.endReason}</span>}
             </div>
 
             <div className="grid gap-5 xl:grid-cols-3">
@@ -108,7 +95,7 @@ function Detail({ enrollment, state, today, periods, selectPeriod }) {
                             <Info label="T.C. kimlik no"><span className="ad-num">{student.tc}</span></Info>
                             <Info label="Doğum tarihi">{student.birthDate ? date(student.birthDate) : "—"}</Info>
                             <Info label="Telefon"><span className="ad-num">+90 {student.phone}</span></Info>
-                            <Info label="İl / İlçe">{student.provinceId ? `${getProvinceName(student.provinceId)} / ${student.district}` : "—"}</Info>
+                            <Info label="İl / İlçe">{student.provinceId ? `${student.province || getProvinceName(student.provinceId)} / ${student.district}` : "—"}</Info>
                             <Info label="İkamet adresi">{student.address || "—"}</Info>
                             <Info label="Sınıf">{GRADE_LABELS[student.grade]}</Info>
                             <Info label="Okul">{student.school}</Info>
@@ -167,7 +154,7 @@ function Detail({ enrollment, state, today, periods, selectPeriod }) {
                                     {contacts.slice(0, 6).map((c) => (
                                         <li key={c.id} className="flex items-center justify-between gap-2 text-sm">
                                             <span className="flex items-center gap-2 font-semibold"><Icon name="chat" className="text-[16px] text-ad-accent" />{CONTACT_PURPOSE[c.purpose] ?? "Diğer"}</span>
-                                            <span className="ad-num text-xs text-ad-muted">{date(c.at.slice(0, 10))}</span>
+                                            <span className="ad-num text-xs text-ad-muted">{date(turkeyDate(c.at))}</span>
                                         </li>
                                     ))}
                                 </ul>
@@ -194,16 +181,16 @@ function Detail({ enrollment, state, today, periods, selectPeriod }) {
                     <Card title="Kayıt bilgileri">
                         <dl className="mt-4 grid grid-cols-2 gap-4">
                             <Info label="Oda tipi">{roomType?.name.tr}</Info>
-                            <Info label="Süre">{TERM[enrollment.term]}</Info>
-                            <Info label="Giriş">{date(enrollment.entryDate)}</Info>
-                            <Info label="Ödeme günü">{PAY_WINDOW[enrollment.payWindow]}</Info>
-                            <Info label="Aylık kira"><span className="ad-num">{money(enrollment.price.monthly)}</span></Info>
-                            <Info label="Depozito"><span className="ad-num">{money(enrollment.price.deposit ?? 0)}</span></Info>
+                            <Info label="Süre">{TERM[e.term]}</Info>
+                            <Info label="Giriş">{date(e.entryDate)}</Info>
+                            <Info label="Ödeme günü">{PAY_WINDOW[e.payWindow]}</Info>
+                            <Info label="Aylık kira"><span className="ad-num">{money(e.price.monthly)}</span></Info>
+                            <Info label="Depozito"><span className="ad-num">{money(e.price.deposit ?? 0)}</span></Info>
                         </dl>
                         <p className="mt-4 text-[11px] text-ad-muted">Fiyatlar kayıt anında sabitlenmiştir; sonradan fiyat listesi değişse de bu kaydı etkilemez.</p>
                     </Card>
 
-                    <Card title="Ödeme özeti" actions={<Link href={`/admin/hesaplar/${enrollment.id}`} className="text-xs font-bold text-ad-brand hover:underline">Ayrıntı</Link>}>
+                    <Card title="Ödeme özeti" actions={<Link href={`/admin/hesaplar/${e.id}`} className="text-xs font-bold text-ad-brand hover:underline">Ayrıntı</Link>}>
                         <dl className="mt-4 space-y-2.5 text-sm">
                             <div className="flex justify-between"><dt className="text-ad-muted">Toplam borç</dt><dd className="ad-num font-bold">{money(summary.charged)}</dd></div>
                             <div className="flex justify-between"><dt className="text-ad-muted">Ödenen</dt><dd className="ad-num font-bold text-ad-ok">{money(summary.allocated)}</dd></div>
@@ -217,11 +204,10 @@ function Detail({ enrollment, state, today, periods, selectPeriod }) {
                         <Card title="Diğer dönem kayıtları">
                             <ul className="mt-4 space-y-2">
                                 {others.map((o) => {
-                                    const p = periods.find((x) => x.id === o.periodId);
                                     return (
                                         <li key={o.id}>
-                                            <Link href={`/admin/ogrenciler/${o.id}`} onClick={() => selectPeriod(o.periodId)} className="flex items-center justify-between gap-2 rounded-xl bg-ad-sunken px-3 py-2.5 text-sm font-semibold transition-colors hover:bg-ad-brand-soft">
-                                                {p?.name}
+                                            <Link href={`/admin/ogrenciler/${o.id}`} className="flex items-center justify-between gap-2 rounded-xl bg-ad-sunken px-3 py-2.5 text-sm font-semibold transition-colors hover:bg-ad-brand-soft">
+                                                {o.periodName}
                                                 <StatusBadge map={ENROLLMENT_STATUS} value={o.status} />
                                             </Link>
                                         </li>
@@ -241,7 +227,7 @@ function Detail({ enrollment, state, today, periods, selectPeriod }) {
             </div>
 
             {(dialog === "place" || dialog === "move") && (
-                <PlacementDialog enrollment={enrollment} mode={dialog} currentRoomId={currentRoomId} onClose={() => setDialog(null)} />
+                <PlacementDialog enrollment={{ ...e, studentName: fullName }} period={period} mode={dialog} currentRoomId={currentRoomId} onClose={() => setDialog(null)} />
             )}
 
             {dialog === "end" && (

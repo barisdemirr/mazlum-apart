@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { STUDENT_COOKIE, normalizePhoneInput, validateLogin } from "@/lib/student/auth";
 import { cookieOptions } from "@/lib/student/session";
+import { loginStatus } from "@/lib/api/auth-session";
 import { authenticateStudent } from "@/services/studentAuth";
 
 const noStore = { "Cache-Control": "no-store" };
 
-/** Giriş: telefon + şifre doğrulanır, token httpOnly çerezde saklanır (tarayıcı JS'i göremez) */
+/** Giriş: telefon + şifre backend'de doğrulanır, token httpOnly çerezde saklanır (tarayıcı JS'i göremez). Hız sınırı backend'dedir. */
 export async function POST(request) {
     const body = await request.json().catch(() => null);
     const phone = normalizePhoneInput(body?.phone);
@@ -16,8 +17,8 @@ export async function POST(request) {
     }
 
     const result = await authenticateStudent({ phone, password, remember: Boolean(body?.remember) });
-    if (!result) {
-        return NextResponse.json({ error: "credentials" }, { status: 401, headers: noStore });
+    if (result.error) {
+        return NextResponse.json({ error: result.error }, { status: loginStatus[result.error], headers: noStore });
     }
 
     const response = NextResponse.json({ ok: true }, { headers: noStore });
@@ -29,5 +30,13 @@ export async function POST(request) {
 export async function DELETE() {
     const response = NextResponse.json({ ok: true }, { headers: noStore });
     response.cookies.set(STUDENT_COOKIE, "", { path: "/", maxAge: 0 });
+    return response;
+}
+
+/** Süresi dolmuş/geçersiz oturum: çerez silinir, giriş sayfasına yönlendirilir (sunucu bileşenleri ve vekil buraya yollar) */
+export async function GET(request) {
+    const response = NextResponse.redirect(new URL("/ogrenci/giris?expired=1", request.url));
+    response.cookies.set(STUDENT_COOKIE, "", { path: "/", maxAge: 0 });
+    response.headers.set("Cache-Control", "no-store");
     return response;
 }

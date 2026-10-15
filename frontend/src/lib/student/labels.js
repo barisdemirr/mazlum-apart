@@ -11,9 +11,10 @@ export function monthLabel(month, locale = "tr", { withYear = true } = {}) {
     return text.charAt(0).toLocaleUpperCase(locale) + text.slice(1);
 }
 
-/** Kalem başlığı: "Depozito" ya da "3. Ay · Kasım 2026 kirası" */
+/** Kalem başlığı: "Depozito", "3. Ay · Kasım 2026 kirası" ya da (ek konaklama/yaz/diğer) yöneticinin yazdığı açıklama */
 export function chargeLabel(item, copy, locale) {
     if (item.kind === "deposit") return copy.deposit;
+    if (item.kind !== "rent") return item.note || copy.kindLabels?.[item.kind] || copy.kindLabels?.other || "";
     return interpolate(copy.rentLabel, { index: item.index, month: monthLabel(item.month, locale) });
 }
 
@@ -28,6 +29,16 @@ export function formatDateTime(iso) {
     if (!iso) return "";
     const date = new Date(iso);
     if (Number.isNaN(date.getTime())) return "";
-    const pad = (n) => String(n).padStart(2, "0");
-    return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} · ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    // Türkiye saati: sunucuda (UTC) ve tarayıcıda aynı çıktı, hidrasyon farkı olmaz
+    const parts = Object.fromEntries(
+        new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Istanbul", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+            .formatToParts(date)
+            .map((part) => [part.type, part.value])
+    );
+    return `${parts.day}/${parts.month}/${parts.year} · ${parts.hour}:${parts.minute}`;
+}
+
+/** "Daire 4 · Oda 2 · Yatak B": boş parçalar atlanır (yatak etiketi backend'de her zaman olmayabilir) */
+export function placementText(room) {
+    return [room?.flat, room?.roomName, room?.bed].filter(Boolean).join(" · ");
 }

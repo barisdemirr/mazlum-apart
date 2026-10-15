@@ -2,18 +2,17 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAdmin } from "@/components/admin/data/AdminDataProvider";
 import DataTable from "@/components/admin/DataTable";
 import WhatsAppButton from "@/components/admin/WhatsAppButton";
 import { Avatar, Badge, Chips, PageHeader, StatusBadge } from "@/components/admin/ui";
 import { SelectInput } from "@/components/admin/fields";
-import { describeCovered } from "@/lib/admin/domain/accounting";
+import { adaptRow, describeCovered } from "@/lib/admin/adapters";
 import { ENROLLMENT_STATUS, PAY_STATUS, date, money } from "@/lib/admin/labels";
 
 /** Seçili dönemin kayıtlı öğrencileri. Satıra tıklayınca öğrenci detayı açılır. */
-export default function StudentsView() {
+export default function StudentsView({ enrollments, roomTypes }) {
     const router = useRouter();
-    const { state, view } = useAdmin();
+    const allRows = useMemo(() => enrollments.map(adaptRow), [enrollments]);
     const [tab, setTab] = useState("live");
     const [roomType, setRoomType] = useState("");
     const [pay, setPay] = useState("");
@@ -21,14 +20,14 @@ export default function StudentsView() {
     const isLive = (r) => !["cancelled", "left"].includes(r.enrollment.status);
     const counts = useMemo(
         () => ({
-            live: view.rows.filter(isLive).length,
-            unplaced: view.rows.filter((r) => isLive(r) && !r.room).length,
-            ended: view.rows.filter((r) => !isLive(r)).length,
+            live: allRows.filter(isLive).length,
+            unplaced: allRows.filter((r) => isLive(r) && !r.room).length,
+            ended: allRows.filter((r) => !isLive(r)).length,
         }),
-        [view.rows]
+        [allRows]
     );
 
-    const rows = view.rows.filter((r) => {
+    const rows = allRows.filter((r) => {
         if (tab === "live" && !isLive(r)) return false;
         if (tab === "unplaced" && !(isLive(r) && !r.room)) return false;
         if (tab === "ended" && isLive(r)) return false;
@@ -74,7 +73,7 @@ export default function StudentsView() {
         { key: "pay", header: "Ödeme", render: (r) => <StatusBadge map={PAY_STATUS} value={r.summary.status} />, export: { value: (r) => PAY_STATUS[r.summary.status].label } },
         {
             key: "act", header: "", align: "end",
-            render: (r) => isLive(r) && r.summary.remaining > 0 ? <span onClick={(e) => e.stopPropagation()}><WhatsAppButton row={r} item={r.summary.next} purpose={r.summary.status === "overdue" ? "payment_overdue" : "payment_reminder"} compact /></span> : null,
+            render: (r) => isLive(r) && r.summary.remaining > 0 ? <span onClick={(e) => e.stopPropagation()}><WhatsAppButton row={r} item={r.summary.next ?? undefined} purpose={r.summary.status === "overdue" ? "payment_overdue" : "payment_reminder"} compact /></span> : null,
         },
     ];
 
@@ -92,7 +91,7 @@ export default function StudentsView() {
                         { value: "live", label: "Konaklayanlar", count: counts.live },
                         { value: "unplaced", label: "Yerleşmeyi bekleyen", count: counts.unplaced },
                         { value: "ended", label: "Ayrılan / iptal", count: counts.ended },
-                        { value: "all", label: "Tümü", count: view.rows.length },
+                        { value: "all", label: "Tümü", count: allRows.length },
                     ]}
                 />
             </div>
@@ -107,7 +106,7 @@ export default function StudentsView() {
                         <div className="w-full sm:w-44">
                             <SelectInput value={roomType} onChange={(e) => setRoomType(e.target.value)}>
                                 <option value="">Tüm oda tipleri</option>
-                                {state.roomTypes.map((r) => <option key={r.id} value={r.id}>{r.name.tr}</option>)}
+                                {roomTypes.map((r) => <option key={r.id} value={r.id}>{r.name.tr}</option>)}
                             </SelectInput>
                         </div>
                         <div className="w-full sm:w-44">

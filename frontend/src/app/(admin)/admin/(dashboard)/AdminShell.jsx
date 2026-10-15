@@ -15,14 +15,7 @@ import { NAV_GROUPS, findNavItem, isActiveItem } from "@/lib/admin/nav";
 export default function AdminShell({ user, children }) {
     const pathname = usePathname();
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const { period: selected, periods, view } = useAdmin();
-
-    // Menü sayaçları: veri katmanından hesaplanır
-    const badges = {
-        newApplications: view.pendingApplications.length,
-        openMaintenance: view.openMaintenance.length,
-        dueBills: view.dueBills,
-    };
+    const { period: selected, periods, badges } = useAdmin();
 
     useEffect(() => {
         setDrawerOpen(false); // sayfa değişince çekmece kapanır
@@ -104,7 +97,7 @@ export default function AdminShell({ user, children }) {
 
                 <PwaBanner />
 
-                {selected.status !== "active" && <PastPeriodBanner selected={selected} periods={periods} />}
+                {selected && selected.status !== "active" && <PastPeriodBanner selected={selected} periods={periods} />}
 
                 <main className="min-w-0 flex-1 px-3 py-5 sm:px-6 sm:py-8 lg:px-8">
                     <ToastProvider>{children}</ToastProvider>

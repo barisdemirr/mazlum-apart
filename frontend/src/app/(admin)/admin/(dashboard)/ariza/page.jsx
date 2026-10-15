@@ -1,7 +1,7 @@
-import MaintenanceView from "@/components/admin/support/MaintenanceView";
+import ComingSoon from "@/components/admin/ComingSoon";
 
 export const metadata = { title: "Arıza Kayıtları" };
 
 export default function Page() {
-    return <MaintenanceView />;
+    return <ComingSoon title="Arıza Kayıtları" icon="build" />;
 }

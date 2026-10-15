@@ -1,7 +1,7 @@
-import AdminsView from "@/components/admin/system/AdminsView";
+import ComingSoon from "@/components/admin/ComingSoon";
 
 export const metadata = { title: "Yöneticiler" };
 
 export default function Page() {
-    return <AdminsView />;
+    return <ComingSoon title="Yöneticiler" icon="admin_panel_settings" />;
 }

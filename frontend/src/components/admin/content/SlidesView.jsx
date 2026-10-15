@@ -2,23 +2,28 @@
 
 import { useState } from "react";
 import Icon from "@/components/ui/Icon";
-import { useAdmin } from "@/components/admin/data/AdminDataProvider";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import FormDialog from "@/components/admin/FormDialog";
 import useCommand from "@/components/admin/useCommand";
 import LocalizedField, { TranslateAllButton, toLocalized } from "@/components/admin/LocalizedField";
 import { Badge, Card, EmptyState } from "@/components/admin/ui";
 import { Field, Switch } from "@/components/admin/fields";
-import { deleteSlide, moveSlide, saveSlide } from "@/lib/admin/domain/config";
+import { deleteSlide, reorderSlides, saveSlide } from "@/lib/admin/commands/content";
+import { mediaUrl } from "@/lib/media";
 import MediaPicker from "./MediaPicker";
 
 /** Ana sayfa slaytı: görsel + isteğe bağlı başlık. Sıralama oklarla, kapalı slayt sitede görünmez. */
-export default function SlidesView() {
-    const { state } = useAdmin();
+export default function SlidesView({ slides: initial }) {
     const { exec } = useCommand();
     const [editing, setEditing] = useState(null);
     const [removing, setRemoving] = useState(null);
-    const slides = [...state.slides].sort((a, b) => a.order - b.order);
+    const slides = [...initial].sort((a, b) => a.order - b.order);
+    const move = (index, direction) => {
+        const ids = slides.map((x) => x.id);
+        const target = direction === "up" ? index - 1 : index + 1;
+        [ids[index], ids[target]] = [ids[target], ids[index]];
+        return exec(reorderSlides, { ids });
+    };
 
     const confirmRemove = async () => {
         const out = await exec(deleteSlide, { id: removing.id }, "Slayt silindi.");
@@ -34,18 +39,17 @@ export default function SlidesView() {
             {slides.length === 0 ? <EmptyState icon="slideshow" title="Slayt yok" description="Slayt eklenmezse sitede varsayılan ana görsel kullanılır." /> : (
                 <ul className="space-y-3">
                     {slides.map((s, i) => {
-                        const media = state.media.find((m) => m.id === s.mediaId);
                         return (
                             <li key={s.id}>
                                 <Card padded={false}>
                                     <div className="flex flex-wrap items-center gap-4 p-4">
                                         <div className="flex flex-col gap-1">
-                                            <button type="button" disabled={i === 0} onClick={() => exec(moveSlide, { id: s.id, direction: "up" })} aria-label="Yukarı" className="ad-btn ad-btn-icon ad-btn-outline !h-7 !w-7 disabled:opacity-30"><Icon name="keyboard_arrow_up" className="text-[18px]" /></button>
-                                            <button type="button" disabled={i === slides.length - 1} onClick={() => exec(moveSlide, { id: s.id, direction: "down" })} aria-label="Aşağı" className="ad-btn ad-btn-icon ad-btn-outline !h-7 !w-7 disabled:opacity-30"><Icon name="keyboard_arrow_down" className="text-[18px]" /></button>
+                                            <button type="button" disabled={i === 0} onClick={() => move(i, "up")} aria-label="Yukarı" className="ad-btn ad-btn-icon ad-btn-outline !h-7 !w-7 disabled:opacity-30"><Icon name="keyboard_arrow_up" className="text-[18px]" /></button>
+                                            <button type="button" disabled={i === slides.length - 1} onClick={() => move(i, "down")} aria-label="Aşağı" className="ad-btn ad-btn-icon ad-btn-outline !h-7 !w-7 disabled:opacity-30"><Icon name="keyboard_arrow_down" className="text-[18px]" /></button>
                                         </div>
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        {media ? <img src={media.url} alt="" className="h-20 w-32 rounded-xl object-cover" /> : <div className="h-20 w-32 rounded-xl bg-ad-sunken" />}
-                                        <div className="min-w-0 flex-1"><p className="truncate font-bold">{s.title.tr || <span className="font-normal text-ad-muted">Başlıksız slayt</span>}</p><p className="truncate text-xs text-ad-muted">{s.subtitle.tr || media?.name}</p></div>
+                                        {s.url ? <img src={mediaUrl(s.url, "md")} alt="" className="h-20 w-32 rounded-xl object-cover" /> : <div className="h-20 w-32 rounded-xl bg-ad-sunken" />}
+                                        <div className="min-w-0 flex-1"><p className="truncate font-bold">{s.title.tr || <span className="font-normal text-ad-muted">Başlıksız slayt</span>}</p><p className="truncate text-xs text-ad-muted">{s.subtitle.tr}</p></div>
                                         <Badge tone={s.active ? "ok" : "neutral"}>{s.active ? "Yayında" : "Kapalı"}</Badge>
                                         <div className="flex gap-1.5"><button type="button" onClick={() => setEditing(s)} className="ad-btn ad-btn-outline ad-btn-sm">Düzenle</button><button type="button" onClick={() => setRemoving(s)} className="ad-btn ad-btn-danger-soft ad-btn-sm">Sil</button></div>
                                     </div>

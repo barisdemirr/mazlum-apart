@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Icon from "@/components/ui/Icon";
 import FormDialog from "@/components/admin/FormDialog";
 import { Field } from "@/components/admin/fields";
-import { useAdmin } from "@/components/admin/data/AdminDataProvider";
 import { useToast } from "@/components/admin/Toast";
-import { logContact, sendSms } from "@/lib/admin/domain/support";
+import { errorText } from "@/components/admin/useCommand";
+import { listTemplates, logContact, sendSms } from "@/lib/admin/commands/support";
+import { newIdempotencyKey } from "@/lib/api/bff";
 import { fillTemplate, hasUnfilled, messageVars, smsInfo, whatsappLink } from "@/lib/admin/messaging";
 import { CONTACT_PURPOSE } from "@/lib/admin/labels";
 
@@ -17,7 +18,6 @@ import { CONTACT_PURPOSE } from "@/lib/admin/labels";
  * row: enrollmentRow(...) | item: ilgili borç kalemi (isteğe bağlı) | purpose: iletişim amacı
  */
 export default function WhatsAppButton({ row, item, purpose = "payment_reminder", compact = true, label = "WhatsApp", extraVars = {}, defaultTemplate, className = "" }) {
-    const { state, run } = useAdmin();
     const toast = useToast();
     const [open, setOpen] = useState(false);
     const [lang, setLang] = useState("tr");
@@ -25,24 +25,32 @@ export default function WhatsAppButton({ row, item, purpose = "payment_reminder"
     const [text, setText] = useState("");
     const [busy, setBusy] = useState(false);
     const [channel, setChannel] = useState("whatsapp");
+    const [templates, setTemplates] = useState(null);
+    const sendKey = useRef(null);
 
     const defaultKey = defaultTemplate ?? (purpose === "payment_overdue" || item?.lateDays > 0 ? "payment_overdue" : purpose);
-    const templates = state.messageTemplates;
 
     const vars = useMemo(() => messageVars(row, item, extraVars), [row, item, extraVars]);
 
-    const pick = (id, language = lang) => {
-        const tpl = templates.find((t) => t.id === id);
+    const pick = (id, language = lang, list = templates) => {
+        const tpl = list?.find((t) => t.id === id);
         setTemplateId(id);
         setText(tpl ? fillTemplate(tpl[language], vars) : "");
     };
 
-    const openDialog = () => {
-        const tpl = templates.find((t) => t.key === defaultKey) ?? templates[0];
+    const openDialog = async () => {
         setLang("tr");
         setChannel("whatsapp");
+        sendKey.current = newIdempotencyKey();
         setOpen(true);
-        if (tpl) pick(tpl.id, "tr");
+        try {
+            const list = templates ?? (await listTemplates());
+            setTemplates(list);
+            const tpl = list.find((t) => t.key === defaultKey) ?? list[0];
+            if (tpl) pick(tpl.id, "tr", list);
+        } catch (e) {
+            toast.error(errorText(e));
+        }
     };
 
     const sms = smsInfo(text);
@@ -51,23 +59,33 @@ export default function WhatsAppButton({ row, item, purpose = "payment_reminder"
 
     const send = async () => {
         if (!text.trim()) return;
-        const tpl = templates.find((t) => t.id === templateId);
+        const tpl = templates?.find((t) => t.id === templateId);
         const key = tpl?.key ?? purpose;
         setBusy(true);
         try {
             if (channel === "sms") {
                 if (unfilled) throw new Error("Mesajda doldurulmamış değişken var.");
                 if (!phoneOk) throw new Error("Öğrencinin telefon numarası geçersiz.");
-                await run(sendSms, { messages: [{ enrollmentId: row.enrollment.id, text, purpose: key }] });
-                toast.success(`SMS gönderime alındı (${sms.parts} SMS).`);
+                // Şifre kayıtlara düz yazılmasın: metinde {sifre} bırakılır, değer ayrı gider (sunucu maskeleyerek kaydeder)
+                const secret = extraVars.sifre;
+                const body = secret ? text.split(secret).join("{sifre}") : text;
+                const res = await sendSms({
+                    purpose: key, text: body, lang,
+                    recipients: [{ enrollmentId: row.enrollment.id, chargeId: item?.id ?? null, vars: secret ? { sifre: secret } : undefined }],
+                    key: sendKey.current,
+                });
+                if (res.skipped?.length) throw new Error(res.skipped[0].reason);
+                if (res.error) throw new Error(res.error);
+                toast.success(`SMS gönderime alındı (${res.totalParts} SMS).`);
+                sendKey.current = newIdempotencyKey();
             } else {
                 window.open(whatsappLink(row.student.phone, text), "_blank", "noopener,noreferrer");
-                await run(logContact, { enrollmentId: row.enrollment.id, purpose: key });
+                await logContact({ enrollmentId: row.enrollment.id, purpose: key });
                 toast.success("İletişim kaydı eklendi.");
             }
             setOpen(false);
         } catch (e) {
-            toast.error(e.message);
+            toast.error(errorText(e));
         } finally {
             setBusy(false);
         }
@@ -110,7 +128,7 @@ export default function WhatsAppButton({ row, item, purpose = "payment_reminder"
                     ))}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    {templates.map((t) => (
+                    {(templates ?? []).map((t) => (
                         <button
                             key={t.id}
                             type="button"

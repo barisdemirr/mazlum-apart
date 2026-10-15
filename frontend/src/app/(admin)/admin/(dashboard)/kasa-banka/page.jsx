@@ -1,7 +1,7 @@
-import CashBankView from "@/components/admin/accounting/CashBankView";
+import ComingSoon from "@/components/admin/ComingSoon";
 
 export const metadata = { title: "Kasa & Banka" };
 
 export default function Page() {
-    return <CashBankView />;
+    return <ComingSoon title="Kasa & Banka" icon="account_balance" />;
 }

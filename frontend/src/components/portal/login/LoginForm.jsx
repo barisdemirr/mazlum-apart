@@ -8,7 +8,7 @@ import FloatingField from "@/components/apply/fields/FloatingField";
 import { Checkbox } from "@/components/apply/fields/Choice";
 import { formatPhone } from "@/lib/application";
 import { normalizePhoneInput, safeReturnPath, validateLogin } from "@/lib/student/auth";
-import { waHref } from "@/lib/constants";
+import { useSite } from "@/lib/site/SiteProvider";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { EASE_OUT } from "@/lib/motion";
 
@@ -31,7 +31,8 @@ export default function LoginForm({ from, expired }) {
 
     const busy = status !== "idle";
     const text = (code) => (code ? copy.errors[code] : null);
-    const help = waHref(copy.helpMessage);
+    const site = useSite();
+    const help = site.waHref(copy.helpMessage);
 
     async function onSubmit(event) {
         event.preventDefault();
@@ -60,7 +61,7 @@ export default function LoginForm({ from, expired }) {
                 return;
             }
 
-            setErrors({ password: res.status === 401 ? "credentials" : "network" });
+            setErrors({ password: res.status === 401 ? "credentials" : res.status === 429 ? "rate" : "network" });
         } catch {
             setErrors({ password: "network" });
         }

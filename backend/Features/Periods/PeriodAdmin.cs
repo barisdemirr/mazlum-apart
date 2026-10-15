@@ -20,16 +20,32 @@ public record PeriodDto(
 
 public static class GetPeriods
 {
+    /// <summary>Dönem + sayılar (dönemler sayfası kartları): iptal edilmemiş kayıt sayısı ve bekleyen başvuru sayısı</summary>
+    public record Item(PeriodDto Period, int Enrollments, int PendingApplications);
+
     public class Handler(AppDbContext db)
     {
         public async Task<List<PeriodDto>> Handle(CancellationToken ct) =>
             (await db.Periods.AsNoTracking().OrderByDescending(x => x.StartDate).ToListAsync(ct)).Select(PeriodDto.From).ToList();
+
+        public async Task<List<Item>> WithCounts(CancellationToken ct)
+        {
+            var periods = await Handle(ct);
+            var enrollments = await db.Enrollments.AsNoTracking().Where(x => x.Status != EnrollmentStatus.Cancelled)
+                .GroupBy(x => x.PeriodId).Select(g => new { PeriodId = g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.PeriodId, x => x.Count, ct);
+            var pending = await db.Applications.AsNoTracking().Where(x => x.Status == ApplicationStatus.Pending)
+                .GroupBy(x => x.PeriodId).Select(g => new { PeriodId = g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.PeriodId, x => x.Count, ct);
+            return periods.Select(p => new Item(p, enrollments.GetValueOrDefault(p.Id), pending.GetValueOrDefault(p.Id))).ToList();
+        }
     }
 
     public class Endpoint : IEndpoint
     {
-        public void MapEndpoint(IEndpointRouteBuilder app) =>
+        public void MapEndpoint(IEndpointRouteBuilder app)
+        {
             app.MapGet("/api/admin/periods", async (Handler handler, CancellationToken ct) => Results.Ok(await handler.Handle(ct)));
+            app.MapGet("/api/admin/periods/overview", async (Handler handler, CancellationToken ct) => Results.Ok(await handler.WithCounts(ct)));
+        }
     }
 }
 

@@ -6,14 +6,15 @@ import PaymentStats from "./PaymentStats";
 import PaymentPlanList from "./PaymentPlanList";
 import PaymentHistory from "./PaymentHistory";
 import BankCard from "./BankCard";
-import { waHref } from "@/lib/constants";
+import { useSite } from "@/lib/site/SiteProvider";
 import { formatPrice } from "@/lib/format";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 
 export default function PaymentsView({ ledger, period, bank }) {
     const { t, tpl, locale } = useLanguage();
     const copy = t.studentPortal.payments;
-    const help = waHref(copy.helpMessage);
+    const site = useSite();
+    const help = site.waHref(copy.helpMessage);
     const { totals } = ledger;
 
     return (

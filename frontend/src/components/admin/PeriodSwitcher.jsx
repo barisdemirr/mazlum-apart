@@ -35,6 +35,8 @@ export default function PeriodSwitcher() {
         selectPeriod(id);
     };
 
+    if (!selected) return null;
+
     return (
         <div ref={ref} className="relative">
             <button

@@ -60,7 +60,7 @@ export default function PaymentPlanList({ items }) {
                                             item.status === "paid" ? "bg-emerald-50 text-emerald-700" : "bg-orchid-lilac text-orchid-violet"
                                         }`}
                                     >
-                                        {item.status === "paid" ? <Icon name="check" className="text-[20px]" /> : item.kind === "deposit" ? <Icon name="shield" className="text-[19px]" /> : item.index}
+                                        {item.status === "paid" ? <Icon name="check" className="text-[20px]" /> : item.kind === "deposit" ? <Icon name="shield" className="text-[19px]" /> : (item.index ?? "•")}
                                     </span>
                                     <div className="min-w-0 flex-1">
                                         <p className="truncate text-sm font-bold text-orchid-dark">{chargeLabel(item, copy, locale)}</p>

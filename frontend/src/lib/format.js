@@ -34,3 +34,13 @@ export function formatDate(value) {
 export function formatPercent(value, locale = "tr") {
     return locale === "en" ? `${value}%` : `%${value}`;
 }
+
+const TR_ZONE = "Europe/Istanbul";
+
+/** Bir an (ISO, UTC) -> Türkiye saatiyle "YYYY-MM-DD" (sunucu hangi saat diliminde olursa olsun aynı sonuç) */
+export function turkeyDate(iso) {
+    if (!iso) return null;
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return null;
+    return new Intl.DateTimeFormat("en-CA", { timeZone: TR_ZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+}

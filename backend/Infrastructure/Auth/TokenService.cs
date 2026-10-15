@@ -18,6 +18,12 @@ public class TokenService(IOptions<JwtOptions> options)
         Create(user.Id, AppRoles.Admin, user.FullName, user.SecurityStamp, TimeSpan.FromMinutes(options.Value.AdminExpiresMinutes),
             [new Claim("email", user.Email)]);
 
+    /// <summary>Yükleme bileti: oturumdaki yöneticinin kimliği + stamp, ama "scope=upload" ve 10 dakika ömür</summary>
+    public (string Token, DateTime ExpiresAt) CreateUploadTicket(ClaimsPrincipal admin) =>
+        Create(admin.GetUserId(), AppRoles.Admin, admin.GetDisplayName(),
+            Guid.ParseExact(admin.FindFirstValue(AppClaims.Stamp)!, "N"), TimeSpan.FromMinutes(10),
+            [new Claim(AppClaims.Scope, AppScopes.Upload)]);
+
     public (string Token, DateTime ExpiresAt) CreateForStudent(Student student, bool remember)
     {
         var o = options.Value;

@@ -7,29 +7,35 @@ import { useAdmin } from "@/components/admin/data/AdminDataProvider";
 import DataTable from "@/components/admin/DataTable";
 import WhatsAppButton from "@/components/admin/WhatsAppButton";
 import { Avatar, Badge, Card, EmptyState, PageHeader, ProgressBar, StatusBadge } from "@/components/admin/ui";
-import { carriedOver } from "@/lib/admin/domain/selectors";
-import { diffDays, addDays } from "@/lib/admin/domain/dates";
+import { turkeyDate } from "@/lib/format";
+import { adaptDue } from "@/lib/admin/adapters";
+import { writePeriodCookie } from "@/lib/admin/client";
+import { diffDays, monthLabel } from "@/lib/admin/month";
 import { BILL_KIND, BILL_STATE, CHARGE_KIND, MAINT_STATUS, SOURCE, date, money } from "@/lib/admin/labels";
-import { monthLabel } from "@/lib/admin/domain/dates";
-import { sum } from "@/lib/admin/domain/accounting";
+
+const total = (list, pick) => list.reduce((s, x) => s + pick(x), 0);
 
 const itemLabel = (item) =>
     `${CHARGE_KIND[item.kind]}${item.kind === "rent" ? ` · ${monthLabel(item.month, { short: true })}` : ""}`;
 
-export default function DashboardView() {
-    const { view, state, period, periodId, today, selectPeriod } = useAdmin();
+/**
+ * Ana panel. Tüm rakamlar backend'in GET /api/admin/dashboard yanıtından gelir (defter kayıtlarından hesaplanır);
+ * doluluk GET /api/admin/occupancy'den. Burada hesap yapılmaz, yalnızca gösterilir.
+ */
+export default function DashboardView({ data, occupancy }) {
+    const { period, today } = useAdmin();
     const router = useRouter();
     const isActive = period.status === "active";
 
-    const weekAgo = addDays(today, -7);
-    const cashId = state.accounts.filter((a) => a.type === "cash").map((a) => a.id);
-    const weekCash = sum(
-        state.transactions.filter((t) => t.periodId === periodId && cashId.includes(t.accountId) && t.date > weekAgo && t.date <= today),
-        (t) => (t.direction === "in" ? t.amount : -t.amount)
-    );
-    const bankAccounts = view.balances.filter((b) => b.account.type === "bank");
-    const expenseCount = state.expenses.filter((e) => e.periodId === periodId && !e.cancelledAt).length;
-    const overdueTotal = sum(view.overdue, (r) => r.item.remaining);
+    const view = {
+        ...data,
+        overdue: data.overdue.map((d) => adaptDue(d, "overdue")),
+        upcoming: data.upcoming.map((d) => adaptDue(d, "upcoming")),
+    };
+    const weekCash = data.weekCash;
+    const bankAccounts = data.balances.filter((b) => b.type === "bank");
+    const expenseCount = data.expenseCount;
+    const overdueTotal = total(view.overdue, (r) => r.item.remaining);
 
     const open = (row) => router.push(`/admin/hesaplar/${row.enrollment.id}`);
 
@@ -44,7 +50,7 @@ export default function DashboardView() {
                     <div className="min-w-0">
                         <div className="truncate font-bold">{r.student.firstName} {r.student.lastName}</div>
                         <div className="text-[11px] font-normal text-ad-muted">
-                            {r.lastContact ? `Son iletişim: ${date(r.lastContact.at.slice(0, 10))}` : "Henüz iletişim yok"}
+                            {r.lastContact ? `Son iletişim: ${date(turkeyDate(r.lastContact.at))}` : "Henüz iletişim yok"}
                         </div>
                     </div>
                 </div>
@@ -84,10 +90,10 @@ export default function DashboardView() {
         },
     ];
 
-    const carried = isActive ? carriedOver(state, periodId, today) : [];
-    const dueBills = view.bills.filter((b) => b.state === "overdue" || b.state === "soon").sort((a, b) => a.bill.dueDate.localeCompare(b.bill.dueDate));
-    const latestApplications = view.pendingApplications.slice(0, 4);
-    const { totals: occ } = view.occupancy;
+    const carried = isActive ? data.carriedOver : [];
+    const dueBills = data.dueBills;
+    const latestApplications = data.latestApplications;
+    const occ = occupancy.totals;
 
     return (
         <div>
@@ -118,7 +124,7 @@ export default function DashboardView() {
                                 <Icon name="account_balance_wallet" className="text-[16px]" />
                                 Nakit Kasa
                             </span>
-                            <div className="ad-display ad-num mt-2 text-[52px] font-semibold leading-none">{money(view.cashBalance)}</div>
+                            <div className="ad-display ad-num mt-2 text-[52px] font-semibold leading-none">{money(data.cashBalance)}</div>
                         </div>
                     </div>
                     <div className="relative mt-6 flex items-center justify-between border-t border-white/20 pt-3 text-xs">
@@ -130,9 +136,9 @@ export default function DashboardView() {
                     </div>
                 </div>
 
-                <StatCard icon="account_balance" label="Banka Hesapları" value={money(view.bankBalance)}
+                <StatCard icon="account_balance" label="Banka Hesapları" value={money(data.bankBalance)}
                     badge={`${bankAccounts.length} hesap`}
-                    foot={<span className="truncate">{bankAccounts.map((b) => b.account.name).join(", ") || "Hesap yok"}</span>} />
+                    foot={<span className="truncate">{bankAccounts.map((b) => b.name).join(", ") || "Hesap yok"}</span>} />
 
                 <StatCard icon="savings" label="Dönem Tahsilatı" value={money(view.totals.collected)}
                     badge={`%${Math.round(view.collectionRate * 100)}`}
@@ -193,21 +199,21 @@ export default function DashboardView() {
                 >
                     <ul className="divide-y divide-ad-line px-5 pb-2 pt-3 sm:px-6">
                         {carried.map((c) => (
-                            <li key={c.kind === "student" ? c.row.enrollment.id : c.bill.id}>
+                            <li key={c.kind === "student" ? c.enrollmentId : c.bill.id}>
                                 <button
                                     type="button"
                                     onClick={() => {
-                                        selectPeriod(c.period.id);
-                                        router.push(c.kind === "student" ? `/admin/hesaplar/${c.row.enrollment.id}` : "/admin/faturalar");
+                                        writePeriodCookie(c.periodId); // tahsilat o eski döneme yazılır
+                                        router.push(c.kind === "student" ? `/admin/hesaplar/${c.enrollmentId}` : "/admin/faturalar");
                                     }}
                                     className="flex w-full items-center gap-3 py-3 text-start transition-colors hover:text-ad-brand"
                                 >
-                                    {c.kind === "student" ? <Avatar name={`${c.row.student.firstName} ${c.row.student.lastName}`} /> : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ad-warn-soft text-ad-warn"><Icon name="description" className="text-[17px]" /></span>}
+                                    {c.kind === "student" ? <Avatar name={`${c.student.firstName} ${c.student.lastName}`} /> : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ad-warn-soft text-ad-warn"><Icon name="description" className="text-[17px]" /></span>}
                                     <span className="min-w-0 flex-1">
                                         <span className="block truncate text-sm font-bold">
-                                            {c.kind === "student" ? `${c.row.student.firstName} ${c.row.student.lastName}` : `${BILL_KIND[c.bill.kind]} faturası (${monthLabel(c.bill.month, { short: true })})`}
+                                            {c.kind === "student" ? `${c.student.firstName} ${c.student.lastName}` : `${BILL_KIND[c.bill.kind]} faturası (${monthLabel(c.bill.month, { short: true })})`}
                                         </span>
-                                        <span className="text-xs text-ad-muted">{c.period.name} · {c.kind === "student" ? "Öğrenci borcu" : "Ödenmemiş fatura"}</span>
+                                        <span className="text-xs text-ad-muted">{c.periodName} · {c.kind === "student" ? "Öğrenci borcu" : "Ödenmemiş fatura"}</span>
                                     </span>
                                     <span className="ad-num text-sm font-bold text-ad-danger">{money(c.amount)}</span>
                                     <Icon name="chevron_right" className="text-[18px] text-ad-faint" />
@@ -224,14 +230,14 @@ export default function DashboardView() {
                         <EmptyState icon="task_alt" title="Bekleyen fatura yok" description="Vadesi yaklaşan ya da geçen fatura görünmüyor." />
                     ) : (
                         <ul className="divide-y divide-ad-line px-5 pb-2 pt-3 sm:px-6">
-                            {dueBills.map(({ bill, state: s }) => (
+                            {dueBills.map((bill) => (
                                 <li key={bill.id} className="flex items-center gap-3 py-3">
                                     <span className="min-w-0 flex-1">
                                         <span className="block text-sm font-bold">{BILL_KIND[bill.kind]} · {monthLabel(bill.month, { short: true })}</span>
-                                        <span className="text-xs text-ad-muted">Son ödeme: {date(bill.dueDate)}{s === "overdue" ? ` · ${diffDays(today, bill.dueDate)} gün gecikti` : ""}</span>
+                                        <span className="text-xs text-ad-muted">Son ödeme: {date(bill.dueDate)}{bill.state === "overdue" ? ` · ${diffDays(today, bill.dueDate)} gün gecikti` : ""}</span>
                                     </span>
                                     <span className="ad-num text-sm font-bold">{money(bill.amount)}</span>
-                                    <StatusBadge map={BILL_STATE} value={s} />
+                                    <StatusBadge map={BILL_STATE} value={bill.state} />
                                 </li>
                             ))}
                         </ul>
@@ -246,12 +252,12 @@ export default function DashboardView() {
                             {latestApplications.map((a) => (
                                 <li key={a.id}>
                                     <Link href="/admin/basvurular" className="flex items-center gap-3 py-3 hover:text-ad-brand">
-                                        <Avatar name={`${a.student.firstName} ${a.student.lastName}`} />
+                                        <Avatar name={a.fullName} />
                                         <span className="min-w-0 flex-1">
-                                            <span className="block truncate text-sm font-bold">{a.student.firstName} {a.student.lastName}</span>
-                                            <span className="text-xs text-ad-muted">{state.roomTypes.find((r) => r.id === a.roomTypeId)?.name.tr} · {SOURCE[a.source]}</span>
+                                            <span className="block truncate text-sm font-bold">{a.fullName}</span>
+                                            <span className="text-xs text-ad-muted">{a.roomTypeName} · {SOURCE[a.source]}</span>
                                         </span>
-                                        <span className="text-xs text-ad-muted">{date(a.createdAt.slice(0, 10))}</span>
+                                        <span className="text-xs text-ad-muted">{date(turkeyDate(a.createdAt))}</span>
                                     </Link>
                                 </li>
                             ))}
@@ -259,7 +265,7 @@ export default function DashboardView() {
                     )}
                 </Card>
 
-                <Card title="Doluluk ve Arıza" description={`Doluluk ${view.occupancyDay === today ? "bugüne" : "dönem başına"} göre hesaplanır.`} actions={<Link href="/admin/yerlesim" className="text-xs font-bold text-ad-brand hover:underline">Yerleşim</Link>}>
+                <Card title="Doluluk ve Arıza" description={`Doluluk ${occupancy.day === today ? "bugüne" : "dönem başına"} göre hesaplanır.`} actions={<Link href="/admin/yerlesim" className="text-xs font-bold text-ad-brand hover:underline">Yerleşim</Link>}>
                     <div className="flex items-end justify-between">
                         <div>
                             <div className="ad-display ad-num text-[40px] font-semibold leading-none">{occ.taken}<span className="text-xl text-ad-muted"> / {occ.beds}</span></div>
@@ -274,11 +280,11 @@ export default function DashboardView() {
                             <span className="text-xs font-bold uppercase tracking-wider text-ad-muted">Açık arıza kayıtları</span>
                             <Link href="/admin/ariza" className="text-xs font-bold text-ad-brand hover:underline">Tümü</Link>
                         </div>
-                        {view.openMaintenance.length === 0 ? (
+                        {data.openMaintenance.length === 0 ? (
                             <p className="text-sm text-ad-muted">Açık arıza kaydı yok.</p>
                         ) : (
                             <ul className="space-y-2.5">
-                                {view.openMaintenance.slice(0, 3).map((m) => (
+                                {data.openMaintenance.map((m) => (
                                     <li key={m.id} className="flex items-center gap-2.5">
                                         <span className="min-w-0 flex-1">
                                             <span className="block truncate text-sm font-semibold">{m.title}</span>

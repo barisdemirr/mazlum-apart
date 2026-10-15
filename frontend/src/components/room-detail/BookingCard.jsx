@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import LocalizedLink from "@/components/ui/LocalizedLink";
 import Icon from "@/components/ui/Icon";
 import { APPLY_HREF } from "@/components/layout/navigation";
-import { waHref } from "@/lib/constants";
+import { useSite } from "@/lib/site/SiteProvider";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { localized } from "@/lib/i18n/localized";
 import { formatPrice } from "@/lib/format";
@@ -16,7 +16,7 @@ export function buildApplyHref(slug, bed) {
     return `${APPLY_HREF}?${params.toString()}`;
 }
 
-function whatsappFor(t, tpl, locale, room, bed) {
+function whatsappFor(site, t, tpl, locale, room, bed) {
     const name = localized(room.name, locale);
     const message = bed
         ? tpl(t.roomDetail.booking.askBedMessage, {
@@ -26,7 +26,7 @@ function whatsappFor(t, tpl, locale, room, bed) {
               bed: localized(bed.bedLabel, locale),
           })
         : tpl(t.roomDetail.booking.askMessage, { room: name });
-    return waHref(message);
+    return site.waHref(message);
 }
 
 function Row({ label, children }) {
@@ -41,10 +41,11 @@ function Row({ label, children }) {
 /** Sağdaki yapışkan (sticky) başvuru kartı + mobil alt çubuk */
 export default function BookingCard({ room, summary, selectedBed, onClear }) {
     const { t, tpl, locale } = useLanguage();
+    const site = useSite();
     const b = t.roomDetail.booking;
     const hasFree = summary.free > 0;
     const applyHref = buildApplyHref(room.slug, selectedBed);
-    const ask = whatsappFor(t, tpl, locale, room, selectedBed);
+    const ask = whatsappFor(site, t, tpl, locale, room, selectedBed);
     const price = formatPrice(room.monthlyPrice, room.currency, locale);
 
     const applyLabel = !hasFree ? b.applyAnyway : selectedBed ? b.applyBed : b.applyRoom;

@@ -9,7 +9,8 @@ export const AREAS = [
 export const STATUSES = ["received", "in_progress", "done"];
 
 export const MAX_PHOTOS = 3;
-export const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 MB
+/** Seçilebilecek en büyük ham dosya; yüklemeden önce küçültülür (lib/image/compress.js), bu yüzden backend sınırından (5 MB) yüksektir */
+export const MAX_PHOTO_BYTES = 25 * 1024 * 1024;
 
 export const emptyRequest = () => ({ area: "room", title: "", description: "", photos: [] });
 

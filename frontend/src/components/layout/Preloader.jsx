@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PRELOADER_DURATION, PRELOADER_STORAGE_KEY, SITE } from "@/lib/constants";
+import { PRELOADER_DURATION, PRELOADER_STORAGE_KEY, BRAND_NAME } from "@/lib/constants";
 
-const LETTERS = Array.from(SITE.name);
+const LETTERS = Array.from(BRAND_NAME);
 
 /**
  * ~1 sn'lik açılış: harfler belirir, eğri bir perde yukarı çekilir.

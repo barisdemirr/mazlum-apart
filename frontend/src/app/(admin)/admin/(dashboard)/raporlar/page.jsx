@@ -1,7 +1,7 @@
-import ReportsView from "@/components/admin/support/ReportsView";
+import ComingSoon from "@/components/admin/ComingSoon";
 
 export const metadata = { title: "Raporlar" };
 
 export default function Page() {
-    return <ReportsView />;
+    return <ComingSoon title="Raporlar" icon="bar_chart" />;
 }

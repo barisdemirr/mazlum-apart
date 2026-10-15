@@ -176,6 +176,31 @@ export function validateStep(step, form, { period, rooms, terms }) {
     return errors;
 }
 
+/**
+ * Backend doğrulama hatalarını (problem+json `errors`: { alan: [mesaj] }) form alanlarına ve adıma çevirir.
+ * Dönüş: { errors: { alan: kod }, step } ya da eşleşen alan yoksa null.
+ */
+const SERVER_FIELD_STEP = { roomSlug: 1, term: 1, entryDate: 1, payDay: 1, bedId: 1, firstName: 2, lastName: 2, tc: 2, birthDate: 2, phone: 2, address: 2, provinceId: 2, district: 2, school: 3, faculty: 3, department: 3, grade: 3 };
+const SERVER_FIELD_CODE = { tc: "tc", phone: "phone", birthDate: "birthDate", entryDate: "dateInvalid" };
+
+export function mapServerErrors(serverErrors, guardians = []) {
+    const errors = {};
+    let step = null;
+    for (const key of Object.keys(serverErrors ?? {})) {
+        const field = key.replace(/^\w/, (c) => c.toLowerCase());
+        const guardian = field.match(/^guardians\[(\d+)\]\.(name|phone)$/);
+        if (guardian) {
+            const target = guardians[Number(guardian[1])];
+            if (target) errors[`guardian-${target.id}-${guardian[2]}`] = guardian[2] === "phone" ? "phone" : "required";
+            step = Math.min(step ?? 4, 4);
+        } else if (SERVER_FIELD_STEP[field]) {
+            errors[field] = SERVER_FIELD_CODE[field] ?? "required";
+            step = Math.min(step ?? 5, SERVER_FIELD_STEP[field]);
+        }
+    }
+    return Object.keys(errors).length ? { errors, step } : null;
+}
+
 /* ───────────────────────── Ödeme planı ─────────────────────────
  * Kural (müşteri): kayıtta 1 depozito + 1 aylık kira peşin; sonraki aylar seçilen ödeme gününe göre.
  * TEYİT BEKLİYOR: depozito tutarı. Müşteriden gelene kadar bir aylık kira kabul edilir;

@@ -8,8 +8,8 @@ import LogoutDialog from "@/components/portal/LogoutDialog";
 import PwaPanel from "@/components/portal/pwa/PwaPanel";
 import { formatPhone, GRADES } from "@/lib/application";
 import { formatDate } from "@/lib/format";
-import { maskTc } from "@/lib/student/labels";
-import { waHref } from "@/lib/constants";
+import { maskTc, placementText } from "@/lib/student/labels";
+import { useSite } from "@/lib/site/SiteProvider";
 import { localized } from "@/lib/i18n/localized";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { EASE_OUT } from "@/lib/motion";
@@ -52,7 +52,8 @@ export default function ProfileView({ student, period, provinceName }) {
     const copy = t.studentPortal.profile;
     const f = copy.fields;
     const [logoutOpen, setLogoutOpen] = useState(false);
-    const help = waHref(copy.changeMessage);
+    const site = useSite();
+    const help = site.waHref(copy.changeMessage);
     const room = student.room;
     const gradeIndex = GRADES.indexOf(student.grade);
     const grade = gradeIndex >= 0 ? t.apply.school.grades[gradeIndex] : student.grade;
@@ -112,8 +113,8 @@ export default function ProfileView({ student, period, provinceName }) {
                 <Section icon="apartment" title={copy.stay} index={3} badge={lock}>
                     <dl className="grid gap-4 sm:grid-cols-2">
                         <Field label={f.roomType}>{localized(room.typeName, locale)}</Field>
-                        <Field label={f.placement}>{`${room.flat} · ${room.roomName} · ${room.bed}`}</Field>
-                        <Field label={f.term}>{student.term === "full" ? f.termFull : student.term}</Field>
+                        <Field label={f.placement}>{placementText(room) || "—"}</Field>
+                        <Field label={f.term}>{{ full: f.termFull, first: f.termFirst, second: f.termSecond }[student.term] ?? student.term}</Field>
                         <Field label={f.period}>{`${formatDate(period.start)} – ${formatDate(period.end)}`}</Field>
                         <Field label={f.entryDate}>{formatDate(student.entryDate)}</Field>
                         <Field label={f.registeredAt}>{formatDate(student.registeredAt)}</Field>

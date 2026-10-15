@@ -6,7 +6,7 @@ import Icon from "@/components/ui/Icon";
 import LocalizedLink from "@/components/ui/LocalizedLink";
 import Magnetic from "@/components/ui/Magnetic";
 import PetalConfetti from "./PetalConfetti";
-import { waHref } from "@/lib/constants";
+import { useSite } from "@/lib/site/SiteProvider";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { EASE_OUT, SPRING_BOUNCY } from "@/lib/motion";
 
@@ -78,7 +78,8 @@ export default function SuccessScreen({ applicationNo }) {
     const s = t.apply.success;
     const [copied, setCopied] = useState(false);
     const number = `#${applicationNo}`;
-    const wa = waHref(tpl(s.whatsappMessage, { no: number }));
+    const site = useSite();
+    const wa = site.waHref(tpl(s.whatsappMessage, { no: number }));
 
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: "smooth" });

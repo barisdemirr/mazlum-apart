@@ -7,7 +7,7 @@ import PageHeader from "@/components/portal/PageHeader";
 import RequestCard from "./RequestCard";
 import RequestForm from "./RequestForm";
 import { STATUSES } from "@/lib/maintenance";
-import { waHref } from "@/lib/constants";
+import { useSite } from "@/lib/site/SiteProvider";
 import { interpolate } from "@/lib/i18n/dictionaries";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { SPRING_SOFT } from "@/lib/motion";
@@ -20,9 +20,10 @@ export default function MaintenanceView({ initial }) {
     const [formOpen, setFormOpen] = useState(false);
     const [freshId, setFreshId] = useState(null);
     const [toast, setToast] = useState("");
-    const emergency = waHref(copy.emergencyMessage);
+    const site = useSite();
+    const emergency = site.waHref(copy.emergencyMessage);
 
-    const sorted = useMemo(() => [...requests].sort((a, b) => b.createdAt.localeCompare(a.createdAt)), [requests]);
+    const sorted = useMemo(() => [...requests].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)), [requests]);
     const shown = filter === "all" ? sorted : sorted.filter((r) => r.status === filter);
     const count = (status) => (status === "all" ? requests.length : requests.filter((r) => r.status === status).length);
 

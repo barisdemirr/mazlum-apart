@@ -1,4 +1,5 @@
-import { SITE } from "@/lib/constants";
+/* GEÇİCİ: panel verisi aşama 2'de API'ye bağlanınca bu dosya silinir */
+const SITE = { phone: "0 (555) 000 00 00", whatsapp: "905550000000", bank: { holder: "Örnek Hesap Sahibi", iban: "TR88 0099 9000 0000 0012 3456 78" } };
 import { MOCK_HERO, MOCK_ROOM_TYPES, getMockFlatGallery, getMockRoomFeatures, getMockRoomNames, getMockSharedAreas } from "@/lib/mockData";
 import { MOCK_PERIODS } from "./periods";
 import { addBill, addExpense, addCharge, payBill, recordPayment, refundAdvance, reverseCharge, transfer } from "@/lib/admin/domain/ledger";

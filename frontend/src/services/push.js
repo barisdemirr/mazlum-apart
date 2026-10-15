@@ -1,26 +1,29 @@
+import { bffDelete, bffPost } from "@/lib/api/bff";
+
 /**
- * Bildirim (Web Push) abonelikleri. Şimdilik MOCK: abonelik bu tarayıcıda saklanır.
- *
- * Gerçek istekler (backend hazır olunca, çerezdeki oturumla):
- *   Öğrenci:  POST   /student/push/subscriptions   { endpoint, keys: { p256dh, auth }, lang }
- *             DELETE /student/push/subscriptions   { endpoint }
- *   Yönetici: POST   /admin/push/subscriptions     { endpoint, keys: { p256dh, auth } }
- *             DELETE /admin/push/subscriptions     { endpoint }
- * Sunucu her cihazı (endpoint) o kullanıcıya bağlı saklar; bildirim gönderirken abonelikteki `lang` ile TR/EN seçer.
- * Süresi dolan (404/410 dönen) abonelikleri sunucu siler.
+ * Bildirim (Web Push) abonelikleri: cihaz, oturumdaki kullanıcıya bağlanır (vekil üzerinden, rol çerezi ile).
+ *   Öğrenci:  POST/DELETE /api/student/push/subscriptions
+ *   Yönetici: POST/DELETE /api/admin/push/subscriptions
+ * Sunucu bildirimi abonelikteki `lang` ile TR/EN seçer; süresi dolan (404/410) abonelikleri kendisi siler.
  */
-const keyOf = (app) => `ma-push-subscription-${app}`;
+const base = (app) => (app === "admin" ? "/admin/push/subscriptions" : "/student/push/subscriptions");
 
 export async function registerPushSubscription(app, subscription, meta = {}) {
-    try {
-        localStorage.setItem(keyOf(app), JSON.stringify({ subscription, ...meta, savedAt: new Date().toISOString() }));
-    } catch {}
+    await bffPost(base(app), {
+        endpoint: subscription.endpoint,
+        keys: { p256dh: subscription.keys?.p256dh, auth: subscription.keys?.auth },
+        lang: meta.lang === "en" ? "en" : "tr",
+        userAgent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+    });
     return { ok: true };
 }
 
-export async function removePushSubscription(app) {
+/** Cihazdaki abonelik zaten kaldırıldı; sunucu kaydı silinemese bile kullanıcı akışı bozulmaz (ölü abonelik sunucuda temizlenir) */
+export async function removePushSubscription(app, endpoint) {
     try {
-        localStorage.removeItem(keyOf(app));
-    } catch {}
+        if (endpoint) await bffDelete(base(app), { endpoint });
+    } catch (error) {
+        console.error("[push]", error?.message ?? error);
+    }
     return { ok: true };
 }

@@ -1,44 +1,26 @@
-// import { apiGet, buildQuery } from "@/lib/api";
-import { MOCK_ROOM_TYPES, getMockApartment, getMockApartments, getMockAvailability, getMockRoomTypeDetail } from "@/lib/mockData";
+import { apiGet } from "@/lib/api";
+import { orNull } from "@/lib/api/nullable";
 
 /**
- * Oda tipleri.
- * Backend hazır olunca: return apiGet(`/api/room-types${buildQuery(params)}`);
+ * Oda tipleri ve doluluk: herkese açık uçlar (token gerekmez). Sunucu bileşenlerinde çalışır, Next önbelleği ile
+ * 60 sn tutulur; yönetici panelden değişiklik yapınca en geç 1 dk içinde sitede görünür.
  */
-export async function getRoomTypes(params) {
-    void params;
-    return MOCK_ROOM_TYPES;
-}
+const enc = encodeURIComponent;
+const CACHE = { revalidate: 60, tags: ["catalog"] };
+// Doluluk daha sık değişir: kısa önbellek
+const FRESH = { revalidate: 20, tags: ["catalog"] };
 
-/**
- * Oda tipi detayı (galeri, açıklama, özellik listeleri dahil).
- * Backend hazır olunca: return apiGet(`/api/room-types/${encodeURIComponent(slug)}`); (404 -> null)
- */
-export async function getRoomTypeBySlug(slug) {
-    return getMockRoomTypeDetail(slug);
-}
+/** GET /api/room-types */
+export const getRoomTypes = () => apiGet("/api/room-types", CACHE);
 
-/**
- * Bu oda tipinin daire / oda / yatak bazlı doluluğu (seçili dönem için).
- * Halka açıktır ve hiçbir öğrenci bilgisi içermez; yalnızca yatak durumunu verir.
- * Backend hazır olunca: return apiGet(`/api/room-types/${encodeURIComponent(slug)}/availability`);
- */
-export async function getRoomTypeAvailability(slug) {
-    return getMockAvailability(slug);
-}
+/** GET /api/room-types/{slug} (404 -> null) */
+export const getRoomTypeBySlug = (slug) => orNull(apiGet(`/api/room-types/${enc(slug)}`, CACHE));
 
-/**
- * Bu tipteki daireler (özet kartlar: kapak, boş yatak, kişi sayıları). Galeri DAİREYE aittir.
- * Backend hazır olunca: return apiGet(`/api/room-types/${encodeURIComponent(slug)}/apartments`);
- */
-export async function getRoomTypeApartments(slug) {
-    return getMockApartments(slug);
-}
+/** GET /api/room-types/{slug}/availability: daire / oda / yatak bazlı doluluk, öğrenci bilgisi içermez (404 -> null) */
+export const getRoomTypeAvailability = (slug) => orNull(apiGet(`/api/room-types/${enc(slug)}/availability`, FRESH));
 
-/**
- * Tek daire: galeri (video + etiketli fotoğraflar), odalar ve yataklar.
- * Backend hazır olunca: return apiGet(`/api/room-types/${encodeURIComponent(slug)}/apartments/${encodeURIComponent(apartmentSlug)}`); (404 -> null)
- */
-export async function getApartment(slug, apartmentSlug) {
-    return getMockApartment(slug, apartmentSlug);
-}
+/** GET /api/room-types/{slug}/apartments: daire özet kartları (404 -> null) */
+export const getRoomTypeApartments = (slug) => orNull(apiGet(`/api/room-types/${enc(slug)}/apartments`, FRESH));
+
+/** GET /api/room-types/{slug}/apartments/{apartmentSlug}: galeri, odalar, yataklar (404 -> null) */
+export const getApartment = (slug, apartmentSlug) => orNull(apiGet(`/api/room-types/${enc(slug)}/apartments/${enc(apartmentSlug)}`, FRESH));

@@ -60,6 +60,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         // Para: her yerde decimal(18,2). Metin enum'lar string olarak saklanır (okunabilir, sıra değişse bozulmaz).
         builder.Properties<decimal>().HavePrecision(18, 2);
         builder.Properties<decimal?>().HavePrecision(18, 2);
+
+        // Tarih-saat: veritabanında UTC saklanır; okunurken Kind=Utc verilir ki JSON'a "Z" ile yazılsın
+        // (aksi halde tarayıcı saati yerel sanır ve 3 saat kayar). Gösterimde Türkiye saatine çevrilir.
+        builder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+        builder.Properties<DateTime?>().HaveConversion<NullableUtcDateTimeConverter>();
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -124,3 +129,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         }
     }
 }
+
+/// <summary>Yazarken UTC'ye çevirir, okurken Kind=Utc işaretler</summary>
+public class UtcDateTimeConverter() : Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>(
+    v => v.Kind == DateTimeKind.Utc ? v : v.ToUniversalTime(),
+    v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+public class NullableUtcDateTimeConverter() : Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime?, DateTime?>(
+    v => v == null ? v : (v.Value.Kind == DateTimeKind.Utc ? v : v.Value.ToUniversalTime()),
+    v => v == null ? v : DateTime.SpecifyKind(v.Value, DateTimeKind.Utc));

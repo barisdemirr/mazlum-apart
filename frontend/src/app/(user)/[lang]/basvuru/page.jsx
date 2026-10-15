@@ -4,6 +4,9 @@ import { settle } from "@/lib/api";
 import { findBed, BED_STATUS } from "@/lib/availability";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 
+// Oda/yatak doluluğu ve dönem durumu her ziyarette güncel okunur (searchParams ile zaten dinamiktir; burada açıkça belirtildi)
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({ params }) {
     const { lang } = await params;
     const t = getDictionary(lang);

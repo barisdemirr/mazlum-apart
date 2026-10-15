@@ -1,5 +1,5 @@
 import { CHARGE_KIND, date, money } from "@/lib/admin/labels";
-import { monthLabel } from "@/lib/admin/domain/dates";
+import { monthLabel } from "@/lib/admin/month";
 
 /**
  * Mesajlaşma yardımcıları (WhatsApp bağlantısı + SMS). Saf fonksiyonlar, ağ yok.

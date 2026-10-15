@@ -1,7 +1,7 @@
-import BulkPushView from "@/components/admin/support/BulkPushView";
+import ComingSoon from "@/components/admin/ComingSoon";
 
 export const metadata = { title: "Toplu Bildirim" };
 
 export default function Page() {
-    return <BulkPushView />;
+    return <ComingSoon title="Toplu Bildirim" icon="notifications" />;
 }

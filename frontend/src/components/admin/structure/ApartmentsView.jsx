@@ -2,33 +2,30 @@
 
 import { useState } from "react";
 import Icon from "@/components/ui/Icon";
-import { useAdmin } from "@/components/admin/data/AdminDataProvider";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import FormDialog from "@/components/admin/FormDialog";
 import useCommand from "@/components/admin/useCommand";
 import { Badge, Card, EmptyState, PageHeader, StatusBadge } from "@/components/admin/ui";
 import { Field, NumberInput, SelectInput, Switch, TextInput } from "@/components/admin/fields";
-import { deleteApartment, deleteRoom, flatCapacity, saveApartment, saveRoom } from "@/lib/admin/domain/config";
+import { deleteApartment, deleteRoom, saveApartment, saveRoom } from "@/lib/admin/commands/structure";
 import { TranslateAllButton } from "@/components/admin/LocalizedField";
 import ListEditor from "./ListEditor";
-import { occupancyOn } from "@/lib/admin/domain/registration";
 import { ROOM_STATUS } from "@/lib/admin/labels";
 import ExportButton from "@/components/admin/ExportButton";
 import GalleryDialog from "./GalleryDialog";
 
-export default function ApartmentsView() {
-    const { state, period, today } = useAdmin();
+export default function ApartmentsView({ apartments, roomTypes, occupancy }) {
     const { exec } = useCommand();
     const [dialog, setDialog] = useState(null); // {type:"apt"|"room"|"gallery", item?, apartmentId?}
     const [removing, setRemoving] = useState(null); // {type, item}
 
-    const day = today >= period.start && today <= period.end ? today : period.start;
-    const occ = occupancyOn(state, period.id, day);
-    const typeName = (id) => state.roomTypes.find((r) => r.id === id)?.name.tr ?? "";
-    const taken = (roomId) => occ.rooms.find((r) => r.room.id === roomId)?.occupants.length ?? 0;
-    const totalBeds = state.rooms.filter((r) => r.status === "active").reduce((s, r) => s + r.beds, 0);
+    const allRooms = apartments.flatMap((a) => a.rooms.map((r) => ({ ...r, apartmentId: a.id })));
+    const typeName = (id) => roomTypes.find((r) => r.id === id)?.name.tr ?? "";
+    const takenByRoom = new Map(occupancy.apartments.flatMap((a) => a.rooms.map((r) => [r.id, r.occupants.length])));
+    const taken = (roomId) => takenByRoom.get(roomId) ?? 0;
+    const totalBeds = allRooms.filter((r) => r.status === "active").reduce((s, r) => s + r.beds, 0);
 
-    const exportRows = state.rooms.map((r) => ({ r, apt: state.apartments.find((a) => a.id === r.apartmentId) }));
+    const exportRows = apartments.flatMap((apt) => apt.rooms.map((r) => ({ r, apt })));
     const exportColumns = [
         { key: "apt", header: "Daire", export: { value: ({ apt }) => apt?.name ?? "" } },
         { key: "room", header: "Oda", export: { value: ({ r }) => r.name } },
@@ -47,22 +44,22 @@ export default function ApartmentsView() {
         <div>
             <PageHeader
                 title="Daireler & Odalar"
-                description={`${state.apartments.length} daire · ${state.rooms.length} oda · ${totalBeds} kullanılabilir yatak. Doluluk bugünkü yerleşimlerden hesaplanır. Fotoğraf ve video her dairenin “Galeri” düğmesinden eklenir.`}
+                description={`${apartments.length} daire · ${allRooms.length} oda · ${totalBeds} kullanılabilir yatak. Doluluk bugünkü yerleşimlerden hesaplanır. Fotoğraf ve video her dairenin “Galeri” düğmesinden eklenir.`}
                 actions={<><ExportButton name="daire-oda-listesi" columns={exportColumns} rows={exportRows} /><button type="button" onClick={() => setDialog({ type: "apt" })} className="ad-btn ad-btn-primary"><Icon name="add" className="text-[20px]" />Daire ekle</button></>}
             />
-            {state.apartments.length === 0 ? <EmptyState icon="holiday_village" title="Daire yok" description="İlk daireyi ekleyerek başlayın." /> : (
+            {apartments.length === 0 ? <EmptyState icon="holiday_village" title="Daire yok" description="İlk daireyi ekleyerek başlayın." /> : (
                 <div className="space-y-5">
-                    {state.apartments.map((apt) => {
-                        const rooms = state.rooms.filter((r) => r.apartmentId === apt.id);
-                        const cap = flatCapacity(state, apt.id);
+                    {apartments.map((apt) => {
+                        const rooms = apt.rooms;
+                        const cap = apt.capacity;
                         return (
                             <Card key={apt.id} title={apt.name} description={[apt.floor ? `${apt.floor}. kat` : "", `${apt.kitchens} mutfak`, `${apt.bathrooms} banyo`, apt.note].filter(Boolean).join(" · ")}
                                 actions={<div className="flex gap-1.5"><button type="button" onClick={() => setDialog({ type: "gallery", apartmentId: apt.id })} className="ad-btn ad-btn-soft ad-btn-sm"><Icon name="photo_library" className="text-[16px]" />Galeri</button><button type="button" onClick={() => setDialog({ type: "room", apartmentId: apt.id })} className="ad-btn ad-btn-soft ad-btn-sm"><Icon name="add" className="text-[16px]" />Oda</button><button type="button" onClick={() => setDialog({ type: "apt", item: apt })} className="ad-btn ad-btn-outline ad-btn-sm"><Icon name="edit" className="text-[16px]" />Düzenle</button>{rooms.length === 0 && <button type="button" onClick={() => setRemoving({ type: "apt", item: apt })} className="ad-btn ad-btn-danger-soft ad-btn-sm">Sil</button>}</div>}>
                                 <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ad-muted" data-gallery-count={apt.id}>
                                     <span data-flat-capacity>Dairede {cap.beds} kişi{cap.perKitchen ? ` · mutfağı ${cap.perKitchen} kişi` : ""}{cap.perBathroom ? ` · banyoyu ${cap.perBathroom} kişi paylaşır` : ""} <span className="text-ad-faint">(yataklardan otomatik)</span></span>
                                     <span>{(apt.sharedAreas ?? []).length} ortak alan</span>
-                                    <span>{(apt.gallery ?? []).filter((g) => g.type !== "video").length} fotoğraf · {(apt.gallery ?? []).some((g) => g.type === "video") ? "1 video" : <span className="text-ad-warn">video yok</span>}</span>
-                                    {(apt.gallery ?? []).some((g) => g.type !== "video" && !g.tag) && <span className="text-ad-warn">etiketsiz fotoğraf var</span>}
+                                    <span>{apt.gallery.photos} fotoğraf · {apt.gallery.hasVideo ? "1 video" : <span className="text-ad-warn">video yok</span>}</span>
+                                    {apt.gallery.untagged > 0 && <span className="text-ad-warn">{apt.gallery.untagged} etiketsiz fotoğraf var</span>}
                                     {apt.published === false ? <Badge tone="neutral">Sitede gizli</Badge> : <Badge tone="ok">Sitede görünür</Badge>}
                                 </p>
                                 <div className="ad-scroll mt-4 overflow-x-auto">
@@ -90,8 +87,8 @@ export default function ApartmentsView() {
                 </div>
             )}
             {dialog?.type === "apt" && <ApartmentDialog apartment={dialog.item} onClose={() => setDialog(null)} />}
-            {dialog?.type === "gallery" && <GalleryDialog apartmentId={dialog.apartmentId} onClose={() => setDialog(null)} />}
-            {dialog?.type === "room" && <RoomDialog room={dialog.item} apartmentId={dialog.apartmentId} onClose={() => setDialog(null)} />}
+            {dialog?.type === "gallery" && <GalleryDialog apartment={apartments.find((a) => a.id === dialog.apartmentId)} onClose={() => setDialog(null)} />}
+            {dialog?.type === "room" && <RoomDialog room={dialog.item} apartmentId={dialog.apartmentId} apartments={apartments} roomTypes={roomTypes} onClose={() => setDialog(null)} />}
             <ConfirmDialog open={!!removing} title={removing?.type === "apt" ? "Daire silinsin mi?" : "Oda silinsin mi?"} message={removing ? `${removing.item.name} kalıcı olarak silinecek.${removing.type === "room" ? " Geçmişte yerleşim kaydı varsa silinemez; bu durumda odayı “Kapalı” yapın." : ""}` : ""} confirmLabel="Sil" onConfirm={confirmRemove} onCancel={() => setRemoving(null)} />
         </div>
     );
@@ -99,7 +96,7 @@ export default function ApartmentsView() {
 
 function ApartmentDialog({ apartment, onClose }) {
     const { exec, busy } = useCommand();
-    const [f, setF] = useState({ name: apartment?.name ?? "", floor: apartment?.floor ?? "", kitchens: apartment?.kitchens ?? 1, bathrooms: apartment?.bathrooms ?? 1, note: apartment?.note ?? "", published: apartment?.published ?? true, sharedAreas: apartment?.sharedAreas ?? [] });
+    const [f, setF] = useState({ slug: apartment?.slug, order: apartment?.order, name: apartment?.name ?? "", floor: apartment?.floor ?? "", kitchens: apartment?.kitchens ?? 1, bathrooms: apartment?.bathrooms ?? 1, note: apartment?.note ?? "", published: apartment?.published ?? true, sharedAreas: apartment?.sharedAreas ?? [] });
     const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
     const translatable = f.sharedAreas.map((it, i) => ({ name: `shared-${i}`, label: "Ortak alan", value: it.text, set: (v) => setF((x) => ({ ...x, sharedAreas: x.sharedAreas.map((s, idx) => (idx === i ? { ...s, text: v } : s)) })) }));
     const submit = async (e) => {
@@ -120,10 +117,9 @@ function ApartmentDialog({ apartment, onClose }) {
     );
 }
 
-function RoomDialog({ room, apartmentId, onClose }) {
-    const { state } = useAdmin();
+function RoomDialog({ room, apartmentId, apartments, roomTypes, onClose }) {
     const { exec, busy } = useCommand();
-    const [f, setF] = useState({ apartmentId: room?.apartmentId ?? apartmentId, name: room?.name ?? "", roomTypeId: room?.roomTypeId ?? state.roomTypes[0]?.id ?? "", beds: room?.beds ?? 1, status: room?.status ?? "active", features: room?.features ?? [] });
+    const [f, setF] = useState({ order: room?.order, apartmentId: room?.apartmentId ?? apartmentId, name: room?.name ?? "", roomTypeId: room?.roomTypeId ?? roomTypes[0]?.id ?? "", beds: room?.beds ?? 1, status: room?.status ?? "active", features: room?.features ?? [] });
     const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
     const translatable = f.features.map((it, i) => ({ name: `feat-${i}`, label: "Özellik", value: it.text, set: (v) => setF((x) => ({ ...x, features: x.features.map((s, idx) => (idx === i ? { ...s, text: v } : s)) })) }));
     const submit = async (e) => {
@@ -133,9 +129,9 @@ function RoomDialog({ room, apartmentId, onClose }) {
     };
     return (
         <FormDialog open size="lg" title={room ? "Odayı düzenle" : "Oda ekle"} onClose={onClose} onSubmit={submit} busy={busy} saveLabel="Kaydet" footer={<div className="me-auto"><TranslateAllButton fields={translatable} /></div>}>
-            <Field label="Daire" required><SelectInput value={f.apartmentId} onChange={set("apartmentId")}>{state.apartments.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</SelectInput></Field>
+            <Field label="Daire" required><SelectInput value={f.apartmentId} onChange={set("apartmentId")}>{apartments.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</SelectInput></Field>
             <Field label="Oda adı" required><TextInput value={f.name} onChange={set("name")} placeholder="Örn. 1. Sol Oda" autoFocus /></Field>
-            <Field label="Oda tipi" required><SelectInput value={f.roomTypeId} onChange={set("roomTypeId")}>{state.roomTypes.map((r) => <option key={r.id} value={r.id}>{r.name.tr}</option>)}</SelectInput></Field>
+            <Field label="Oda tipi" required><SelectInput value={f.roomTypeId} onChange={set("roomTypeId")}>{roomTypes.map((r) => <option key={r.id} value={r.id}>{r.name.tr}</option>)}</SelectInput></Field>
             <Field label="Yatak sayısı" required><NumberInput min="1" value={f.beds} onChange={set("beds")} /></Field>
             <Field label="Durum" required hint="Kapalı ya da bakımdaki oda yerleşime açılmaz ve kapasiteye sayılmaz." className="sm:col-span-2"><SelectInput value={f.status} onChange={set("status")}>{Object.entries(ROOM_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</SelectInput></Field>
             <div className="sm:col-span-2"><ListEditor title="Oda özellikleri" hint="Bu odanın donanımı: yatak, çalışma masası, gardırop… Daire sayfasında bu odanın altında görünür. Boş bırakılırsa gösterilmez." prefix="feat" items={f.features} onChange={(v) => setF((x) => ({ ...x, features: v }))} /></div>

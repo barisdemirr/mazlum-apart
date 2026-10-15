@@ -1,19 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Icon from "@/components/ui/Icon";
 import FormDialog from "@/components/admin/FormDialog";
 import { Field } from "@/components/admin/fields";
 import { Badge, StatusBadge } from "@/components/admin/ui";
 import WhatsAppButton from "@/components/admin/WhatsAppButton";
 import { useAdmin } from "@/components/admin/data/AdminDataProvider";
-import useCommand from "@/components/admin/useCommand";
-import { approveApplication, rejectApplication } from "@/lib/admin/domain/registration";
-import { generateCharges } from "@/lib/admin/domain/plan";
-import { monthLabel } from "@/lib/admin/domain/dates";
+import useCommand, { errorText } from "@/components/admin/useCommand";
+import { approveApplication, getApplication, rejectApplication } from "@/lib/admin/commands/registration";
+import { monthLabel } from "@/lib/admin/month";
+import { turkeyDate } from "@/lib/format";
 import { APPLICATION_STATUS, PAY_WINDOW, SOURCE, TERM, date, money } from "@/lib/admin/labels";
 import { getProvinceName } from "@/lib/locations";
-import { enrollmentRow } from "@/lib/admin/domain/selectors";
 import { GRADE_LABELS } from "./OfficeApplicationDialog";
 
 const Info = ({ label, children }) => (
@@ -23,31 +22,28 @@ const Info = ({ label, children }) => (
     </div>
 );
 
-/** Başvuru incelemesi: bilgiler + ödeme planı önizlemesi + onay/ret */
+/** Başvuru incelemesi: bilgiler + ödeme planı önizlemesi (backend hesaplar) + onay/ret */
 export default function ApplicationDialog({ application, onClose }) {
-    const { state, period, today } = useAdmin();
+    const { period } = useAdmin();
     const { exec, busy } = useCommand();
     const [mode, setMode] = useState("view"); // view | reject | approved
     const [reason, setReason] = useState("");
     const [approved, setApproved] = useState(null);
+    const [detail, setDetail] = useState(null);
+    const [loadError, setLoadError] = useState("");
 
-    const app = application;
-    const roomType = state.roomTypes.find((r) => r.id === app?.roomTypeId);
-    const periodOfApp = state.periods.find((p) => p.id === app?.periodId);
-    const readOnlyPeriod = periodOfApp?.status === "closed";
+    useEffect(() => {
+        let alive = true;
+        getApplication({ id: application.id })
+            .then((d) => alive && setDetail(d))
+            .catch((e) => alive && setLoadError(errorText(e)));
+        return () => { alive = false; };
+    }, [application.id]);
 
-    const plan = useMemo(() => {
-        if (!app) return [];
-        return generateCharges({ entryDate: app.entryDate, payWindow: app.payWindow, price: app.priceSnapshot, periodEnd: periodOfApp.end });
-    }, [app, periodOfApp]);
-
-    if (!app) return null;
-
-    const total = plan.reduce((s, c) => s + c.amount, 0);
-    const atRegistration = plan.filter((c) => c.dueDate === app.entryDate).reduce((s, c) => s + c.amount, 0);
+    const readOnlyPeriod = period.status === "closed";
 
     const approve = async () => {
-        const out = await exec(approveApplication, { applicationId: app.id }, "Başvuru onaylandı, ödeme planı oluşturuldu.");
+        const out = await exec(approveApplication, { id: application.id }, "Başvuru onaylandı, ödeme planı oluşturuldu.");
         if (out.ok) {
             setApproved(out.result);
             setMode("approved");
@@ -56,30 +52,43 @@ export default function ApplicationDialog({ application, onClose }) {
 
     const reject = async (e) => {
         e.preventDefault();
-        const out = await exec(rejectApplication, { applicationId: app.id, reason }, "Başvuru reddedildi.");
+        const out = await exec(rejectApplication, { id: application.id, reason }, "Başvuru reddedildi.");
         if (out.ok) onClose();
     };
 
     /* Onay sonrası: şifre + WhatsApp */
     if (mode === "approved" && approved) {
-        const row = enrollmentRow(state, state.enrollments.find((e) => e.id === approved.enrollment.id) ?? approved.enrollment, today);
-        row.student = approved.student;
+        const a = detail?.applicant;
+        const row = {
+            enrollment: { id: approved.enrollmentId },
+            student: { firstName: a?.firstName ?? application.fullName, lastName: a?.lastName ?? "", phone: approved.phone },
+            room: null,
+            summary: { remaining: detail?.periodTotal ?? 0 },
+        };
         return (
-            <FormDialog open title="Kayıt oluşturuldu" description={`${approved.student.firstName} ${approved.student.lastName}`} onClose={onClose} hideFooter columns={1}>
+            <FormDialog open title="Kayıt oluşturuldu" description={application.fullName} onClose={onClose} hideFooter columns={1}>
                 <div className="rounded-2xl bg-ad-ok-soft p-4 text-sm text-ad-ok">
-                    <p className="flex items-center gap-2 font-bold"><Icon name="check_circle" filled className="text-[20px]" /> Ödeme planı {plan.length} kalemle hazırlandı.</p>
+                    <p className="flex items-center gap-2 font-bold"><Icon name="check_circle" filled className="text-[20px]" /> Ödeme planı {approved.charges} kalemle hazırlandı.</p>
                     <p className="mt-1 text-xs">Öğrenci şimdi "Onaylı kayıt" durumunda. Odaya yerleştirmek için Yerleşim sayfasını kullanın.</p>
                 </div>
                 <div className="rounded-2xl border border-ad-line p-4">
                     <p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Öğrenci alanı giriş bilgileri</p>
-                    <dl className="mt-2 grid grid-cols-2 gap-3 text-sm">
-                        <Info label="Telefon">+90 {approved.student.phone}</Info>
-                        <Info label="İlk şifre"><code className="rounded bg-ad-sunken px-2 py-0.5 text-base tracking-widest">{approved.initialPassword}</code></Info>
-                    </dl>
-                    <p className="mt-3 text-xs text-ad-warn">Bu şifre yalnızca şimdi gösterilir. WhatsApp ile öğrenciye iletin.</p>
+                    {approved.initialPassword ? (
+                        <>
+                            <dl className="mt-2 grid grid-cols-2 gap-3 text-sm">
+                                <Info label="Telefon">+90 {approved.phone}</Info>
+                                <Info label="İlk şifre"><code className="rounded bg-ad-sunken px-2 py-0.5 text-base tracking-widest">{approved.initialPassword}</code></Info>
+                            </dl>
+                            <p className="mt-3 text-xs text-ad-warn">Bu şifre yalnızca şimdi gösterilir. WhatsApp ile öğrenciye iletin.</p>
+                        </>
+                    ) : (
+                        <p className="mt-2 text-sm text-ad-body">Bu öğrencinin portal şifresi daha önce oluşturulmuş: önceki dönemden kayıtlı. Telefonu <b>+90 {approved.phone}</b>; şifresini unuttuysa Öğrenci Hesapları’ndan sıfırlanır.</p>
+                    )}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    <WhatsAppButton row={row} purpose="enrollment_approved" defaultTemplate="enrollment_approved" extraVars={{ sifre: approved.initialPassword }} compact={false} label="Giriş bilgisini WhatsApp ile gönder" className="!h-11 !px-4" />
+                    {approved.initialPassword && (
+                        <WhatsAppButton row={row} purpose="enrollment_approved" defaultTemplate="enrollment_approved" extraVars={{ sifre: approved.initialPassword }} compact={false} label="Giriş bilgisini WhatsApp ile gönder" className="!h-11 !px-4" />
+                    )}
                     <button type="button" onClick={onClose} className="ad-btn ad-btn-outline">Kapat</button>
                 </div>
             </FormDialog>
@@ -88,7 +97,7 @@ export default function ApplicationDialog({ application, onClose }) {
 
     if (mode === "reject") {
         return (
-            <FormDialog open title="Başvuruyu reddet" description={`${app.student.firstName} ${app.student.lastName}`} onClose={() => setMode("view")} onSubmit={reject} busy={busy} saveLabel="Reddet" danger columns={1}>
+            <FormDialog open title="Başvuruyu reddet" description={application.fullName} onClose={() => setMode("view")} onSubmit={reject} busy={busy} saveLabel="Reddet" danger columns={1}>
                 <Field label="Ret nedeni" required hint="Öğrenciye iletilmez, işlem geçmişinde kayıtlı kalır.">
                     <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} className="ad-field resize-y" autoFocus />
                 </Field>
@@ -96,74 +105,81 @@ export default function ApplicationDialog({ application, onClose }) {
         );
     }
 
-    const s = app.student;
+    const s = detail?.applicant;
+    const pending = application.status === "pending" && !readOnlyPeriod;
+    const plan = detail?.plan ?? [];
+
     return (
         <FormDialog
             open
             size="lg"
-            title={`${s.firstName} ${s.lastName}`}
-            description={`${periodOfApp.name} · ${SOURCE[app.source]} başvurusu · ${date(app.createdAt.slice(0, 10))}`}
+            title={application.fullName}
+            description={`${period.name} · ${SOURCE[application.source]} başvurusu · ${application.no} · ${date(turkeyDate(application.createdAt))}`}
             onClose={onClose}
-            hideFooter={app.status !== "pending" || readOnlyPeriod}
+            hideFooter={!pending || !detail}
             columns={1}
-            footer={
-                app.status === "pending" && !readOnlyPeriod ? (
-                    <>
-                        <button type="button" onClick={() => setMode("reject")} disabled={busy} className="ad-btn ad-btn-danger-soft me-auto">Reddet</button>
-                    </>
-                ) : null
-            }
-            onSubmit={app.status === "pending" && !readOnlyPeriod ? (e) => { e.preventDefault(); approve(); } : undefined}
+            footer={pending ? <button type="button" onClick={() => setMode("reject")} disabled={busy} className="ad-btn ad-btn-danger-soft me-auto">Reddet</button> : null}
+            onSubmit={pending ? (e) => { e.preventDefault(); approve(); } : undefined}
             saveLabel="Onayla ve plan oluştur"
             busy={busy}
         >
             <div className="flex flex-wrap items-center gap-2">
-                <StatusBadge map={APPLICATION_STATUS} value={app.status} />
-                {readOnlyPeriod && app.status === "pending" && <Badge tone="warn">Kapalı dönem: onaylanamaz</Badge>}
-                {app.status === "rejected" && <span className="text-xs text-ad-muted">Neden: {app.rejectReason}</span>}
+                <StatusBadge map={APPLICATION_STATUS} value={application.status} />
+                {readOnlyPeriod && application.status === "pending" && <Badge tone="warn">Kapalı dönem: onaylanamaz</Badge>}
+                {application.status === "rejected" && detail?.rejectReason && <span className="text-xs text-ad-muted">Neden: {detail.rejectReason}</span>}
             </div>
 
-            <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                <Info label="T.C. kimlik no">{s.tc}</Info>
-                <Info label="Doğum tarihi">{s.birthDate ? date(s.birthDate) : "—"}</Info>
-                <Info label="Telefon">+90 {s.phone}</Info>
-                <Info label="İl / İlçe">{s.provinceId ? `${getProvinceName(s.provinceId)} / ${s.district}` : "—"}</Info>
-                <Info label="İkamet adresi">{s.address || "—"}</Info>
-                <Info label="Sınıf">{GRADE_LABELS[s.grade]}</Info>
-                <Info label="Okul">{s.school}</Info>
-                <Info label="Fakülte">{s.faculty || "—"}</Info>
-                <Info label="Bölüm">{s.department}</Info>
-                <Info label="Oda tipi">{roomType?.name.tr}</Info>
-                <Info label="Giriş tarihi">{date(app.entryDate)}</Info>
-                <Info label="Ödeme penceresi">{PAY_WINDOW[app.payWindow]}</Info>
-                <Info label="Süre">{TERM[app.term]}</Info>
-            </dl>
+            {loadError && <p role="alert" className="rounded-2xl bg-ad-danger-soft p-4 text-sm text-ad-danger">{loadError}</p>}
+            {!detail && !loadError && <p className="rounded-2xl bg-ad-sunken p-6 text-center text-sm text-ad-muted">Başvuru bilgileri yükleniyor…</p>}
 
-            <div className="rounded-2xl border border-ad-line p-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Veli bilgileri</p>
-                <ul className="mt-2 space-y-1 text-sm">
-                    {s.guardians?.map((g, i) => <li key={i} className="font-semibold">{g.name} <span className="font-normal text-ad-muted">· +90 {g.phone}{g.relation ? ` · ${g.relation}` : ""}</span></li>)}
-                </ul>
-            </div>
+            {detail && (
+                <>
+                    <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                        <Info label="T.C. kimlik no">{s.tc}</Info>
+                        <Info label="Doğum tarihi">{s.birthDate ? date(s.birthDate) : "—"}</Info>
+                        <Info label="Telefon">+90 {s.phone}</Info>
+                        <Info label="İl / İlçe">{s.provinceId ? `${s.province || getProvinceName(s.provinceId)} / ${s.district}` : "—"}</Info>
+                        <Info label="İkamet adresi">{s.address || "—"}</Info>
+                        <Info label="Sınıf">{GRADE_LABELS[s.grade]}</Info>
+                        <Info label="Okul">{s.school}</Info>
+                        <Info label="Fakülte">{s.faculty || "—"}</Info>
+                        <Info label="Bölüm">{s.department}</Info>
+                        <Info label="Oda tipi">{application.roomTypeName}</Info>
+                        <Info label="Tercih edilen oda">{application.preferredRoom}</Info>
+                        <Info label="Giriş tarihi">{date(application.entryDate)}</Info>
+                        <Info label="Ödeme penceresi">{PAY_WINDOW[application.payWindow]}</Info>
+                        <Info label="Süre">{TERM[application.term]}</Info>
+                    </dl>
 
-            <div className="rounded-2xl bg-ad-sunken p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Ödeme planı{app.status === "pending" ? " (onayda oluşur)" : ""}</p>
-                    <span className="text-xs text-ad-muted">Başvurudaki fiyat sabitlenmiştir</span>
-                </div>
-                <div className="mt-2 grid grid-cols-3 gap-3 text-sm">
-                    <Info label="Kayıtta ödenecek">{money(atRegistration)}</Info>
-                    <Info label="Aylık kira">{money(app.priceSnapshot.monthly)}</Info>
-                    <Info label="Dönem toplamı">{money(total)}</Info>
-                </div>
-                <ul className="mt-3 flex flex-wrap gap-1.5">
-                    {plan.slice(0, 14).map((c, i) => (
-                        <li key={i} className="rounded-full bg-ad-surface px-2.5 py-1 text-[11px] font-semibold text-ad-body ring-1 ring-ad-line">
-                            {c.kind === "deposit" ? "Depozito" : monthLabel(c.month, { short: true })} · {date(c.dueDate).slice(0, 5)}
-                        </li>
-                    ))}
-                </ul>
-            </div>
+                    {detail.note && <p className="rounded-2xl bg-ad-sunken p-4 text-sm"><b>Not:</b> {detail.note}</p>}
+
+                    <div className="rounded-2xl border border-ad-line p-4">
+                        <p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Veli bilgileri</p>
+                        <ul className="mt-2 space-y-1 text-sm">
+                            {s.guardians?.map((g, i) => <li key={i} className="font-semibold">{g.name} <span className="font-normal text-ad-muted">· +90 {g.phone}</span></li>)}
+                        </ul>
+                    </div>
+
+                    <div className="rounded-2xl bg-ad-sunken p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Ödeme planı{application.status === "pending" ? " (onayda oluşur)" : ""}</p>
+                            <span className="text-xs text-ad-muted">Başvurudaki fiyat sabitlenmiştir</span>
+                        </div>
+                        <div className="mt-2 grid grid-cols-3 gap-3 text-sm">
+                            <Info label="Kayıtta ödenecek">{money(detail.dueAtRegistration)}</Info>
+                            <Info label="Aylık kira">{money(application.priceMonthly)}</Info>
+                            <Info label="Dönem toplamı">{money(detail.periodTotal)}</Info>
+                        </div>
+                        <ul className="mt-3 flex flex-wrap gap-1.5">
+                            {plan.slice(0, 14).map((c, i) => (
+                                <li key={i} className="rounded-full bg-ad-surface px-2.5 py-1 text-[11px] font-semibold text-ad-body ring-1 ring-ad-line">
+                                    {c.kind === "deposit" ? "Depozito" : monthLabel(c.month, { short: true })} · {date(c.dueDate).slice(0, 5)}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </>
+            )}
         </FormDialog>
     );
 }

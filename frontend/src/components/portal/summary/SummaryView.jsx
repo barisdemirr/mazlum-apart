@@ -7,7 +7,7 @@ import AnimatedNumber from "@/components/ui/AnimatedNumber";
 import PageHeader from "@/components/portal/PageHeader";
 import InstallmentStrip from "./InstallmentStrip";
 import { formatDate, formatPercent, formatPrice } from "@/lib/format";
-import { chargeLabel } from "@/lib/student/labels";
+import { chargeLabel, placementText } from "@/lib/student/labels";
 import { localized } from "@/lib/i18n/localized";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { EASE_OUT } from "@/lib/motion";
@@ -112,7 +112,7 @@ export default function SummaryView({ student, ledger, period }) {
                     </p>
                     <p className="mt-3 font-display text-2xl font-semibold text-orchid-dark">{localized(room.typeName, locale)}</p>
                     <p className="mt-1 text-sm text-orchid-muted">
-                        {room.flat} · {room.roomName} · {room.bed}
+                        {placementText(room)}
                     </p>
                     <dl className="mt-5 grid grid-cols-2 gap-3 text-sm">
                         <div className="rounded-2xl bg-orchid-powder/60 p-3">

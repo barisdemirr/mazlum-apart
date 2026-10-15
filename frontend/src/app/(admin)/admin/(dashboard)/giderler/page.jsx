@@ -1,7 +1,7 @@
-import ExpensesView from "@/components/admin/accounting/ExpensesView";
+import ComingSoon from "@/components/admin/ComingSoon";
 
 export const metadata = { title: "Giderler" };
 
 export default function Page() {
-    return <ExpensesView />;
+    return <ComingSoon title="Giderler" icon="payments" />;
 }

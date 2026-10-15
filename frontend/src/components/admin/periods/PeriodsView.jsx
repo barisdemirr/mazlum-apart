@@ -8,20 +8,23 @@ import FormDialog from "@/components/admin/FormDialog";
 import useCommand from "@/components/admin/useCommand";
 import { Badge, Card, PageHeader } from "@/components/admin/ui";
 import { DateInput, Field, NumberInput, SelectInput, Switch, TextInput } from "@/components/admin/fields";
-import { closePeriod, createPeriod, savePrice, updatePeriod } from "@/lib/admin/domain/config";
+import { closePeriod, createPeriod, savePrice, updatePeriod } from "@/lib/admin/commands/periods";
 import { date, money } from "@/lib/admin/labels";
 
 const TYPE = { academic: "Akademik", summer: "Yaz" };
 
-export default function PeriodsView() {
-    const { state, period, periods, selectPeriod } = useAdmin();
+export default function PeriodsView({ overview, roomTypes }) {
+    const { period, periods, selectPeriod } = useAdmin();
     const { exec } = useCommand();
     const [dialog, setDialog] = useState(null); // "new" | {edit} | {price}
     const [closing, setClosing] = useState(null);
     const closed = period.status === "closed";
 
     const sorted = [...periods].sort((a, b) => b.start.localeCompare(a.start));
-    const counts = (id) => ({ enrollments: state.enrollments.filter((e) => e.periodId === id && !["cancelled"].includes(e.status)).length, apps: state.applications.filter((a) => a.periodId === id && a.status === "pending").length });
+    const counts = (id) => {
+        const item = overview.find((o) => o.period.id === id);
+        return { enrollments: item?.enrollments ?? 0, apps: item?.pendingApplications ?? 0 };
+    };
 
     const confirmClose = async () => {
         const out = await exec(closePeriod, { id: closing.id }, "Dönem kapatıldı.");
@@ -63,8 +66,8 @@ export default function PeriodsView() {
                     <table className="ad-table">
                         <thead><tr><th>Oda tipi</th><th className="!text-end">Aylık kira</th><th className="!text-end">Depozito</th><th /></tr></thead>
                         <tbody>
-                            {state.roomTypes.map((rt) => {
-                                const price = state.roomTypePrices.find((p) => p.periodId === period.id && p.roomTypeId === rt.id);
+                            {roomTypes.map((rt) => {
+                                const price = rt.monthly != null ? { monthly: rt.monthly, deposit: rt.deposit } : null;
                                 return (
                                     <tr key={rt.id}>
                                         <td className="font-bold">{rt.name.tr}</td>
@@ -88,19 +91,19 @@ export default function PeriodsView() {
 }
 
 function NewPeriodDialog({ onClose }) {
-    const { state, period, periods, selectPeriod } = useAdmin();
+    const { period, periods, selectPeriod } = useAdmin();
     const { exec, busy } = useCommand();
     const latest = [...periods].filter((p) => p.type === "academic").sort((a, b) => b.start.localeCompare(a.start))[0];
     const nextYear = latest ? Number(latest.start.slice(0, 4)) + 1 : new Date().getFullYear();
-    const [f, setF] = useState({ type: "academic", name: `${nextYear}–${nextYear + 1} Akademik`, start: `${nextYear}-09-01`, end: `${nextYear + 1}-06-30`, copyFromPeriodId: period.id });
+    const [f, setF] = useState({ type: "academic", name: `${nextYear}–${nextYear + 1} Akademik`, start: `${nextYear}-09-01`, end: `${nextYear + 1}-06-30`, copyFromPeriodId: period?.id ?? "" });
     const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
     const active = periods.filter((p) => p.status === "active");
 
     const submit = async (e) => {
         e.preventDefault();
-        const out = await exec(createPeriod, f, "Yeni dönem başlatıldı.");
+        const out = await exec(createPeriod, f, "Yeni dönem başlatıldı.", { refresh: false });
         if (out.ok) {
-            selectPeriod(out.result.id);
+            selectPeriod(out.result.id); // çerezi yazar ve sayfayı yeni dönemle yeniler
             onClose();
         }
     };

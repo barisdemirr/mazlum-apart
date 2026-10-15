@@ -9,6 +9,7 @@ import LanguageSwitch from "@/components/layout/LanguageSwitch";
 import LogoutDialog from "./LogoutDialog";
 import PwaBanner from "./pwa/PwaBanner";
 import { PORTAL_NAV, getActivePortalHref } from "@/lib/student/nav";
+import { placementText } from "@/lib/student/labels";
 import { localized } from "@/lib/i18n/localized";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { SPRING_SOFT } from "@/lib/motion";
@@ -75,7 +76,7 @@ export default function PortalShell({ student, children }) {
                         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orchid-pink">{copy.shell.yourRoom}</p>
                         <p className="mt-1 font-display text-lg font-semibold text-orchid-dark">{localized(room.typeName, locale)}</p>
                         <p className="mt-0.5 text-xs text-orchid-muted">
-                            {room.flat} · {room.roomName} · {room.bed}
+                            {placementText(room)}
                         </p>
                     </div>
                     <LocalizedLink

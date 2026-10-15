@@ -9,9 +9,9 @@ import SummaryCard, { SummarySheet } from "./SummaryCard";
 import SuccessScreen from "./SuccessScreen";
 import StepReview from "./StepReview";
 import { StepGuardians, StepPersonal, StepRoom, StepSchool } from "./StepsForm";
-import { submitApplication } from "@/services";
+import { submitApplication } from "@/services/applications";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import { buildPaymentPlan, clampEntry, earliestEntry, emptyForm, termOptions, termRange, validateStep } from "@/lib/application";
+import { buildPaymentPlan, clampEntry, earliestEntry, emptyForm, mapServerErrors, termOptions, termRange, validateStep } from "@/lib/application";
 import { formatDate, formatPrice } from "@/lib/format";
 import { EASE_OUT } from "@/lib/motion";
 
@@ -190,9 +190,22 @@ export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }
             });
             setApplicationNo(result.applicationNo);
             setStatus("done");
-        } catch {
+        } catch (error) {
             setStatus("idle");
-            setSubmitError(a.errors.submit);
+            // Alan hatası: ilgili adıma dön, alanları işaretle. Çakışma (yatak/T.C.) ve limit: sunucunun mesajı gösterilir.
+            const mapped = error?.status === 400 ? mapServerErrors(error.errors, form.guardians) : null;
+            if (mapped) {
+                setDirection(-1);
+                setStep(mapped.step);
+                showErrors(mapped.errors);
+                setSubmitError(a.errors.fixAbove);
+            } else if (error?.status === 429) {
+                setSubmitError(a.errors.rate);
+            } else if (error?.status === 409 || error?.status === 400) {
+                setSubmitError(error.getAllMessages?.()[0] || a.errors.submit);
+            } else {
+                setSubmitError(a.errors.submit);
+            }
         }
     };
 

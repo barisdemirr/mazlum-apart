@@ -1,7 +1,7 @@
-import AuditView from "@/components/admin/accounting/AuditView";
+import ComingSoon from "@/components/admin/ComingSoon";
 
 export const metadata = { title: "İşlem Geçmişi" };
 
 export default function Page() {
-    return <AuditView />;
+    return <ComingSoon title="İşlem Geçmişi" icon="history" />;
 }

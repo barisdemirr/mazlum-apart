@@ -1,7 +1,6 @@
 import ProfileView from "@/components/portal/profile/ProfileView";
-import { settle } from "@/lib/api";
 import { getProvinceName } from "@/lib/locations";
-import { getStudentProfile } from "@/services";
+import { getStudentProfile } from "@/services/studentData";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export async function generateMetadata({ params }) {

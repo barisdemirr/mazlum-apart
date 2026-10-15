@@ -8,7 +8,7 @@ import Magnetic from "@/components/ui/Magnetic";
 import Reveal from "@/components/ui/Reveal";
 import RoomListCard from "./RoomListCard";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import { waHref } from "@/lib/constants";
+import { useSite } from "@/lib/site/SiteProvider";
 import { EASE_OUT, SPRING_SOFT } from "@/lib/motion";
 
 const SORTS = ["recommended", "priceAsc", "priceDesc"];
@@ -44,7 +44,8 @@ export default function RoomsList({ rooms, children }) {
         return compare ? [...rooms].sort(compare) : rooms;
     }, [rooms, sort]);
 
-    const whatsapp = waHref(t.whatsapp.defaultMessage);
+    const site = useSite();
+    const whatsapp = site.waHref(t.whatsapp.defaultMessage);
 
     return (
         <>

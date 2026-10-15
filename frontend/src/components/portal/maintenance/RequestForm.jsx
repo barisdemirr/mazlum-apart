@@ -11,8 +11,8 @@ import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { interpolate } from "@/lib/i18n/dictionaries";
 
 /**
- * Yeni arıza kaydı penceresi (mobilde alttan açılır). Fotoğraflar yalnızca bu cihazda önizlenir;
- * backend gelince multipart olarak yüklenir.
+ * Yeni arıza kaydı penceresi (mobilde alttan açılır). Fotoğraflar önizlenir, gönderirken küçültülüp
+ * multipart olarak yüklenir.
  */
 export default function RequestForm({ open, onClose, onCreated }) {
     const { t } = useLanguage();
@@ -84,15 +84,17 @@ export default function RequestForm({ open, onClose, onCreated }) {
 
         setBusy(true);
         try {
-            const created = await createMaintenanceRequest({ ...form, photoCount: form.photos.length });
+            const created = await createMaintenanceRequest(form);
             onCreated(created);
-        } catch {
-            setErrors({ form: "network" });
+        } catch (error) {
+            // Sunucunun doğrulama/çakışma mesajı (örn. "Çok sayıda açık arıza kaydınız var") olduğu gibi gösterilir
+            const serverMessage = error?.status >= 400 && error?.status < 500 && error?.status !== 429 ? error.getAllMessages?.()[0] : null;
+            setErrors({ form: error?.name === "ApiError" ? serverMessage || "network" : "photoType" });
             setBusy(false);
         }
     }
 
-    const text = (code) => (code ? f.errors[code] : null);
+    const text = (code) => (code ? (f.errors[code] ?? code) : null);
 
     return (
         <AnimatePresence>

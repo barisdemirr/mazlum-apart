@@ -11,14 +11,14 @@ import { settle } from "@/lib/api";
 export default async function HomePage() {
     // Bölümler birbirinden bağımsız yüklenir; biri başarısız olursa diğerleri görünmeye devam eder
     const [hero, rooms, map] = await Promise.all([
-        settle(getHeroMedia(), null),
+        settle(getHeroMedia(), { image: null, videoUrl: null }),
         settle(getRoomTypes(), []),
         settle(getMapImage(), ""),
     ]);
 
     return (
         <main>
-            <Hero media={hero.data} />
+            <Hero media={{ ...hero.data, image: hero.data?.image ?? rooms.data?.[0]?.image ?? null }} />
             <BillsStrip />
             {rooms.data?.length > 0 && <RoomsShowcase rooms={rooms.data} />}
             <HowItWorks />

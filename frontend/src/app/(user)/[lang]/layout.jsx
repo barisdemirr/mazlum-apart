@@ -6,6 +6,7 @@ import UserShell from "@/components/layout/UserShell";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 import { LOCALES, OG_LOCALES, isLocale } from "@/lib/i18n/config";
 import { PRELOADER_STORAGE_KEY } from "@/lib/constants";
+import { getSiteSettingsSafe } from "@/services/siteSettings";
 
 const fraunces = Fraunces({
     subsets: ["latin", "latin-ext"],
@@ -56,6 +57,8 @@ export default async function LangLayout({ children, params }) {
     const { lang } = await params;
     if (!isLocale(lang)) notFound();
 
+    const site = await getSiteSettingsSafe();
+
     return (
         <html lang={lang} className={`${fraunces.variable} ${manrope.variable}`} suppressHydrationWarning>
             <head>
@@ -75,7 +78,7 @@ export default async function LangLayout({ children, params }) {
                 />
             </head>
             <body>
-                <Providers locale={lang}>
+                <Providers locale={lang} site={site}>
                     <UserShell>{children}</UserShell>
                 </Providers>
             </body>

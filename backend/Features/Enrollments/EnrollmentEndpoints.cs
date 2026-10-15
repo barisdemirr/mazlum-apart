@@ -44,8 +44,12 @@ public record StudentProfileDto(
 
 public record ApplicationRef(Guid Id, string No, ApplicationSource Source, DateTime CreatedAt);
 
-/// <summary>Öğrenci detay sayfası: kayıt + öğrenci profili + başvuru + yerleşim geçmişi + kalem kalem hesap</summary>
-public record EnrollmentDetail(EnrollmentRow Enrollment, StudentProfileDto Student, ApplicationRef? Application, List<RoomRef> Placements, List<LedgerItem> Items);
+/// <summary>Aynı öğrencinin başka dönemlerdeki kayıtları (detay sayfasındaki "Diğer dönem kayıtları")</summary>
+public record OtherEnrollment(Guid Id, Guid PeriodId, string PeriodName, EnrollmentStatus Status);
+
+/// <summary>Öğrenci detay sayfası: kayıt + öğrenci profili + başvuru + yerleşim geçmişi + kalem kalem hesap + diğer dönem kayıtları</summary>
+public record EnrollmentDetail(
+    EnrollmentRow Enrollment, StudentProfileDto Student, ApplicationRef? Application, List<RoomRef> Placements, List<LedgerItem> Items, List<OtherEnrollment> Others);
 
 public static class GetEnrollment
 {
@@ -72,7 +76,14 @@ public static class GetEnrollment
                 s.Guardians.OrderBy(g => g.OrderIndex).Select(g => new GuardianDto(g.Name, g.Phone)).ToList(),
                 s.PasswordHash is not null, s.LastLoginAt);
 
-            return new EnrollmentDetail(row, profile, app, placements.Select(EnrollmentQueryHandler.ToRef).ToList(), ledger.Items);
+            var others = await (
+                from e in db.Enrollments.AsNoTracking()
+                join p in db.Periods.AsNoTracking() on e.PeriodId equals p.Id
+                where e.StudentId == enrollment.StudentId && e.Id != id
+                orderby p.StartDate descending
+                select new OtherEnrollment(e.Id, p.Id, p.Name, e.Status)).ToListAsync(ct);
+
+            return new EnrollmentDetail(row, profile, app, placements.Select(EnrollmentQueryHandler.ToRef).ToList(), ledger.Items, others);
         }
     }
 
@@ -80,5 +91,51 @@ public static class GetEnrollment
     {
         public void MapEndpoint(IEndpointRouteBuilder app) =>
             app.MapGet("/api/admin/enrollments/{id:guid}", async (Guid id, Handler handler, CancellationToken ct) => (await handler.Handle(id, ct)).ToOk());
+    }
+}
+
+/// <summary>
+/// Yerleştirme / oda değiştirme için uygun odalar: öğrencinin oda tipindeki odalar ve [from, to] aralığındaki en yoğun doluluk.
+/// from boşsa giriş tarihi, to boşsa dönem sonu. excludeRoomId: oda değiştirmede mevcut oda listede çıkmaz.
+/// </summary>
+public static class GetRoomOptions
+{
+    public record Option(Guid RoomId, Guid ApartmentId, string ApartmentName, string Name, int Beds, RoomStatus Status, int Taken, int Free, bool Available);
+
+    public class Handler(AppDbContext db)
+    {
+        public async Task<Result<List<Option>>> Handle(Guid enrollmentId, DateOnly? from, DateOnly? to, Guid? excludeRoomId, CancellationToken ct)
+        {
+            var enrollment = await db.Enrollments.AsNoTracking().FirstOrDefaultAsync(x => x.Id == enrollmentId, ct);
+            if (enrollment is null) return Error.NotFound("Kayıt bulunamadı.");
+            var period = await db.Periods.AsNoTracking().FirstAsync(x => x.Id == enrollment.PeriodId, ct);
+
+            var start = from ?? enrollment.EntryDate;
+            var end = to ?? period.EndDate;
+            if (start > end) return Error.Field("from", "Başlangıç tarihi bitişten sonra olamaz.");
+
+            var rooms = await db.Rooms.AsNoTracking().Include(x => x.Apartment)
+                .Where(x => x.RoomTypeId == enrollment.RoomTypeId && x.Id != excludeRoomId)
+                .ToListAsync(ct);
+            var roomIds = rooms.Select(x => x.Id).ToList();
+            var placements = await db.Placements.AsNoTracking().Where(x => roomIds.Contains(x.RoomId)).ToListAsync(ct);
+
+            return rooms
+                .OrderBy(r => r.Apartment?.Name).ThenBy(r => r.OrderIndex).ThenBy(r => r.Name)
+                .Select(r =>
+                {
+                    var active = r.Status == RoomStatus.Active;
+                    var taken = active ? PlacementRules.Peak(placements, r.Id, start, end) : 0;
+                    var free = active ? Math.Max(0, r.Beds - taken) : 0;
+                    return new Option(r.Id, r.ApartmentId, r.Apartment?.Name ?? "", r.Name, r.Beds, r.Status, taken, free, active && free > 0);
+                }).ToList();
+        }
+    }
+
+    public class Endpoint : IEndpoint
+    {
+        public void MapEndpoint(IEndpointRouteBuilder app) =>
+            app.MapGet("/api/admin/enrollments/{id:guid}/room-options", async (Guid id, DateOnly? from, DateOnly? to, Guid? excludeRoomId, Handler handler, CancellationToken ct) =>
+                (await handler.Handle(id, from, to, excludeRoomId, ct)).ToOk());
     }
 }

@@ -29,7 +29,7 @@ function loadMeta(file) {
     });
 }
 
-/** @returns {Promise<{file: File, compressed: boolean, width?: number, height?: number, duration: number}>} */
+/** @returns {Promise<{file: File, compressed: boolean, width: number, height: number, duration: number}>} */
 export async function compressVideo(file, { onProgress } = {}) {
     const { video, url } = await loadMeta(file);
     const duration = video.duration;
@@ -42,7 +42,7 @@ export async function compressVideo(file, { onProgress } = {}) {
         const bitrate = (file.size * 8) / duration;
         const small = Math.min(sw, sh) <= VIDEO_TARGET_HEIGHT && bitrate <= VIDEO_TARGET_BITRATE * 1.15;
         const mime = pickMime();
-        if (small || !mime) return { file, compressed: false, duration };
+        if (small || !mime) return { file, compressed: false, width: sw, height: sh, duration };
 
         // Kısa kenar 720'ye indirilir (dikey videoda da 720x1280 gibi); yukarı ölçeklenmez. Boyutlar çift sayı olmalı.
         const scale = Math.min(1, VIDEO_TARGET_HEIGHT / Math.min(sw, sh));
@@ -79,7 +79,7 @@ export async function compressVideo(file, { onProgress } = {}) {
         const type = mime.split(";")[0];
         const ext = type === "video/mp4" ? "mp4" : "webm";
         const blob = new Blob(chunks, { type });
-        if (!blob.size || blob.size >= file.size) return { file, compressed: false, duration };
+        if (!blob.size || blob.size >= file.size) return { file, compressed: false, width: sw, height: sh, duration };
         onProgress?.(1);
         const name = `${file.name.replace(/\.[^.]+$/, "")}-720p.${ext}`;
         return { file: new File([blob], name, { type }), compressed: true, width: w, height: h, duration };

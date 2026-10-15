@@ -6,10 +6,29 @@ import FormDialog from "@/components/admin/FormDialog";
 import { DateInput, Field, SelectInput, TextInput } from "@/components/admin/fields";
 import { useAdmin } from "@/components/admin/data/AdminDataProvider";
 import useCommand from "@/components/admin/useCommand";
-import { createApplication } from "@/lib/admin/domain/registration";
+import { createApplication } from "@/lib/admin/commands/registration";
 import { GRADES, isValidPhone, isValidTc, newGuardian, onlyDigits } from "@/lib/application";
 import { getDistricts, getProvinces } from "@/lib/locations";
 import { PAY_WINDOW, TERM, money } from "@/lib/admin/labels";
+
+/** Sunucu doğrulama anahtarlarını form alanlarına çevirir (guardians[0].name -> g-<id>-name, roomSlug -> roomTypeId ...) */
+function mapServerErrors(error, form) {
+    const out = {};
+    const fields = error?.errors;
+    if (!fields) return out;
+    for (const [key, messages] of Object.entries(fields)) {
+        const message = Array.isArray(messages) ? messages[0] : messages;
+        const guardian = key.match(/^guardians\[(\d+)\]\.(name|phone)$/i);
+        if (guardian) {
+            const g = form.guardians[Number(guardian[1])];
+            if (g) out[`g-${g.id}-${guardian[2].toLowerCase()}`] = message;
+            continue;
+        }
+        const name = key.charAt(0).toLowerCase() + key.slice(1);
+        out[name === "roomSlug" ? "roomTypeId" : name === "payDay" ? "payWindow" : name] = message;
+    }
+    return out;
+}
 
 export const GRADE_LABELS = { prep: "Hazırlık", 1: "1. sınıf", 2: "2. sınıf", 3: "3. sınıf", 4: "4. sınıf", 5: "5. sınıf", 6: "6. sınıf" };
 
@@ -26,14 +45,13 @@ const empty = () => ({
  * Alanlar müşterinin kayıt formu listesidir: ad, soyad, T.C., doğum tarihi, ikamet adresi, il, ilçe, okul, fakülte,
  * bölüm, sınıf, veli bilgileri (en az 1), oda tipi, giriş tarihi, ödeme günü; yarım dönem açıksa kayıt süresi.
  */
-export default function OfficeApplicationDialog({ open, onClose, onCreated }) {
-    const { state, period, today } = useAdmin();
+export default function OfficeApplicationDialog({ open, roomTypes, onClose, onCreated }) {
+    const { period, today } = useAdmin();
     const { exec, busy } = useCommand();
     const [form, setForm] = useState(empty);
     const [errors, setErrors] = useState({});
 
     const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
-    const prices = state.roomTypePrices.filter((p) => p.periodId === period.id);
     const provinces = useMemo(() => getProvinces().slice().sort((a, b) => a.name.localeCompare(b.name, "tr")), []);
     const districts = useMemo(() => getDistricts(form.provinceId), [form.provinceId]);
 
@@ -77,25 +95,17 @@ export default function OfficeApplicationDialog({ open, onClose, onCreated }) {
 
         const out = await exec(
             createApplication,
-            {
-                periodId: period.id,
-                source: "office",
-                student: {
-                    firstName: form.firstName, lastName: form.lastName, tc: form.tc, birthDate: form.birthDate, phone: form.phone,
-                    address: form.address, provinceId: form.provinceId, district: form.district,
-                    school: form.school, faculty: form.faculty, department: form.department, grade: form.grade,
-                    guardians: form.guardians.map(({ name, phone }) => ({ name, phone })),
-                },
-                roomTypeId: form.roomTypeId, term: form.term, entryDate: form.entryDate, payWindow: form.payWindow,
-            },
+            { ...form, periodId: period.id },
             "Başvuru kaydedildi. Onaylamak için listeden açın."
         );
-        if (out.ok) {
-            setForm(empty());
-            setErrors({});
-            onCreated?.(out.result);
-            onClose();
+        if (!out.ok) {
+            setErrors(mapServerErrors(out.error, form));
+            return;
         }
+        setForm(empty());
+        setErrors({});
+        onCreated?.(out.result);
+        onClose();
     };
 
     const phoneInput = (value, onChange, error) => (
@@ -176,10 +186,9 @@ export default function OfficeApplicationDialog({ open, onClose, onCreated }) {
             <Field label="Oda tipi" required error={errors.roomTypeId} className="sm:col-span-2">
                 <SelectInput value={form.roomTypeId} error={errors.roomTypeId} onChange={set("roomTypeId")}>
                     <option value="">Seçin</option>
-                    {state.roomTypes.map((r) => {
-                        const price = prices.find((p) => p.roomTypeId === r.id);
-                        return <option key={r.id} value={r.id} disabled={!price}>{r.name.tr}{price ? ` · ${money(price.monthly)}/ay` : " · fiyat tanımlı değil"}</option>;
-                    })}
+                    {roomTypes.filter((r) => r.active).map((r) => (
+                        <option key={r.id} value={r.id} disabled={r.monthly == null}>{r.name.tr}{r.monthly != null ? ` · ${money(r.monthly)}/ay` : " · fiyat tanımlı değil"}</option>
+                    ))}
                 </SelectInput>
             </Field>
             {halfOpen && (

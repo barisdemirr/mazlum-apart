@@ -150,6 +150,26 @@ public static class GetDashboard
     }
 }
 
+/// <summary>Menü sayaçları (kenar çubuğu rozetleri): bekleyen başvuru, açık arıza, vadesi geçmiş/yaklaşan fatura</summary>
+public static class GetBadges
+{
+    public record Response(int NewApplications, int OpenMaintenance, int DueBills);
+
+    public class Endpoint : IEndpoint
+    {
+        public void MapEndpoint(IEndpointRouteBuilder app) =>
+            app.MapGet("/api/admin/badges", async (Guid periodId, AppDbContext db, CancellationToken ct) =>
+            {
+                var today = TurkeyClock.Today;
+                var applications = await db.Applications.CountAsync(x => x.PeriodId == periodId && x.Status == ApplicationStatus.Pending, ct);
+                var maintenance = await db.MaintenanceRequests.CountAsync(x => x.PeriodId == periodId && x.Status != MaintenanceStatus.Done, ct);
+                var soonLimit = today.AddDays(BillRules.SoonDays);
+                var bills = await db.Bills.CountAsync(x => x.PeriodId == periodId && x.Status == BillStatus.Unpaid && x.DueDate <= soonLimit, ct);
+                return Results.Ok(new Response(applications, maintenance, bills));
+            });
+    }
+}
+
 /// <summary>
 /// Raporlar: seçili dönemde, tarih aralığına göre tahsilat / iade / gider, yönteme–hesaba–kategoriye göre dağılım ve aylık tablo.
 /// Transferler gelir ya da gider sayılmaz. from/to verilmezse tüm dönem.

@@ -82,13 +82,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // ---- Yetkilendirme (RBAC) ----
 // Varsayılan politika YÖNETİCİ: bir endpoint'e politika yazmayı unutmak onu herkese değil yalnızca yöneticiye açar.
 // Öğrenci uçları .RequireAuthorization(AppPolicies.Student), herkese açık uçlar .AllowAnonymous() ile işaretlenir.
+// Yükleme bileti (scope claim'i olan token) yönetici uçlarının hiçbirine giremez; yalnızca AdminUpload politikasına.
 var adminPolicy = new AuthorizationPolicyBuilder()
     .RequireAuthenticatedUser()
     .RequireClaim(AppClaims.Role, AppRoles.Admin)
+    .RequireAssertion(context => !context.User.HasClaim(c => c.Type == AppClaims.Scope))
+    .Build();
+
+var adminUploadPolicy = new AuthorizationPolicyBuilder()
+    .RequireAuthenticatedUser()
+    .RequireClaim(AppClaims.Role, AppRoles.Admin)
+    .RequireAssertion(context => context.User.FindFirst(AppClaims.Scope) is not { } scope || scope.Value == AppScopes.Upload)
     .Build();
 
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(AppPolicies.Admin, adminPolicy)
+    .AddPolicy(AppPolicies.AdminUpload, adminUploadPolicy)
     .AddPolicy(AppPolicies.Student, policy => policy
         .RequireAuthenticatedUser()
         .RequireClaim(AppClaims.Role, AppRoles.Student))

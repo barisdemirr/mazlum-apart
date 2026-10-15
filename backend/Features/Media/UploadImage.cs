@@ -75,6 +75,7 @@ public static class UploadImage
                 })
                 .DisableAntiforgery() // kimlik doğrulama Authorization başlığıyla, çerez yok: CSRF söz konusu değil
                 .WithMetadata(new RequestSizeLimitAttribute(limits.MaxImageBytes + 1024 * 1024))
+                .RequireAuthorization(AppPolicies.AdminUpload) // oturum token'ı ya da yükleme bileti
                 .RequireRateLimiting(RatePolicies.Upload);
         }
     }

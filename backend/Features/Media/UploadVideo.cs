@@ -112,6 +112,7 @@ public static class UploadVideo
                 })
                 .DisableAntiforgery()
                 .WithMetadata(new RequestSizeLimitAttribute(limits.MaxVideoBytes + limits.MaxImageBytes + 1024 * 1024))
+                .RequireAuthorization(AppPolicies.AdminUpload) // oturum token'ı ya da yükleme bileti
                 .RequireRateLimiting(RatePolicies.Upload);
         }
 

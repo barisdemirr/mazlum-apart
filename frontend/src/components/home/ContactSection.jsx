@@ -3,7 +3,8 @@
 import Icon from "@/components/ui/Icon";
 import Reveal from "@/components/ui/Reveal";
 import SafeImage from "@/components/ui/SafeImage";
-import { SITE, waHref } from "@/lib/constants";
+import { useSite } from "@/lib/site/SiteProvider";
+import { mediaUrl } from "@/lib/media";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 
 function Row({ icon, label, children }) {
@@ -22,14 +23,15 @@ function Row({ icon, label, children }) {
 
 /**
  * İletişim ve konum. Henüz gelmeyen bilgiler (adres, telefon, WhatsApp, harita) gösterilmez;
- * hiçbiri yoksa bölüm hiç çizilmez. Bilgiler SITE sabitlerine girildiğinde kendiliğinden belirir.
+ * hiçbiri yoksa bölüm hiç çizilmez. Bilgiler yönetim panelinden (Site Ayarları) girildiğinde kendiliğinden belirir.
  */
 export default function ContactSection({ mapImage }) {
     const { t } = useLanguage();
-    const whatsapp = waHref(t.whatsapp.defaultMessage);
-    const hasMap = Boolean(SITE.mapUrl);
+    const site = useSite();
+    const whatsapp = site.waHref(t.whatsapp.defaultMessage);
+    const hasMap = Boolean(site.mapUrl);
 
-    if (!SITE.address && !SITE.phone && !whatsapp && !SITE.instagram && !hasMap) return null;
+    if (!site.address && !site.phone && !whatsapp && !site.instagram && !hasMap) return null;
 
     return (
         <section id="iletisim" className="relative w-full bg-orchid-powder/35 px-4 py-24 sm:px-8 lg:px-12">
@@ -44,22 +46,22 @@ export default function ContactSection({ mapImage }) {
                             </div>
 
                             <div className="flex flex-col gap-5 pt-2">
-                                {SITE.address && (
+                                {site.address && (
                                     <Row icon="location_on" label={t.contact.address}>
-                                        {SITE.address}
+                                        {site.address}
                                     </Row>
                                 )}
-                                {SITE.phone && (
+                                {site.phone && (
                                     <Row icon="call" label={t.contact.phone}>
-                                        <a href={SITE.phoneHref || undefined} className="hover:text-orchid-pink">
-                                            {SITE.phone}
+                                        <a href={site.phoneHref || undefined} className="hover:text-orchid-pink">
+                                            {site.phone}
                                         </a>
                                     </Row>
                                 )}
-                                {SITE.instagram && (
+                                {site.instagram && (
                                     <Row icon="photo_camera" label={t.contact.instagram}>
-                                        <a href={SITE.instagram} target="_blank" rel="noopener noreferrer" className="hover:text-orchid-pink">
-                                            {SITE.instagram.replace(/^https?:\/\/(www\.)?/, "")}
+                                        <a href={site.instagram} target="_blank" rel="noopener noreferrer" className="hover:text-orchid-pink">
+                                            {site.instagram.replace(/^https?:\/\/(www\.)?/, "")}
                                         </a>
                                     </Row>
                                 )}
@@ -84,14 +86,14 @@ export default function ContactSection({ mapImage }) {
                 {hasMap && (
                     <Reveal delay={0.1} className="lg:col-span-7">
                         <a
-                            href={SITE.mapUrl}
+                            href={site.mapUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             data-cursor={t.contact.openMap}
                             className="group relative block min-h-[420px] h-full overflow-hidden rounded-[36px] border border-orchid-petal/40 bg-orchid-lilac shadow-xl"
                         >
                             <SafeImage
-                                src={mapImage}
+                                src={mediaUrl(mapImage)}
                                 alt=""
                                 loading="lazy"
                                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
@@ -109,7 +111,7 @@ export default function ContactSection({ mapImage }) {
                                     <Icon name="open_in_new" className="text-[20px]" />
                                 </span>
                                 <span className="flex flex-col">
-                                    <span className="text-xs font-bold text-orchid-dark">{SITE.name}</span>
+                                    <span className="text-xs font-bold text-orchid-dark">{site.name}</span>
                                     <span className="text-[11px] text-orchid-muted">{t.contact.openMap}</span>
                                 </span>
                             </div>

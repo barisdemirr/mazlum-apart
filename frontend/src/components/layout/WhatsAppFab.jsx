@@ -2,14 +2,15 @@
 
 import { motion } from "framer-motion";
 import Icon from "@/components/ui/Icon";
-import { waHref } from "@/lib/constants";
+import { useSite } from "@/lib/site/SiteProvider";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { SPRING_BOUNCY } from "@/lib/motion";
 
 /** Sağ altta sabit WhatsApp butonu. Numara tanımlı değilse hiç çizilmez. */
 export default function WhatsAppFab() {
     const { t } = useLanguage();
-    const href = waHref(t.whatsapp.defaultMessage);
+    const site = useSite();
+    const href = site.waHref(t.whatsapp.defaultMessage);
     if (!href) return null;
 
     return (

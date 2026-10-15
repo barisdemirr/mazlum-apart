@@ -1,7 +1,5 @@
 import SummaryView from "@/components/portal/summary/SummaryView";
-import { buildLedger } from "@/lib/ledger";
-import { settle } from "@/lib/api";
-import { getStudentPayments, getStudentProfile } from "@/services";
+import { getStudentLedger, getStudentProfile } from "@/services/studentData";
 import { getDictionary } from "@/lib/i18n/getDictionary";
 
 export async function generateMetadata({ params }) {
@@ -10,9 +8,6 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function SummaryPage() {
-    const [student, payments] = await Promise.all([getStudentProfile(), settle(getStudentPayments(), null)]);
-    if (!payments.data) return null;
-
-    const ledger = buildLedger({ charges: payments.data.charges, payments: payments.data.payments });
-    return <SummaryView student={student} ledger={ledger} period={payments.data.period} />;
+    const [student, { ledger, period }] = await Promise.all([getStudentProfile(), getStudentLedger()]);
+    return <SummaryView student={student} ledger={ledger} period={period} />;
 }

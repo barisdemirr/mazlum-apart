@@ -1,7 +1,7 @@
-import ContactsView from "@/components/admin/support/ContactsView";
+import ComingSoon from "@/components/admin/ComingSoon";
 
 export const metadata = { title: "İletişim Geçmişi" };
 
 export default function Page() {
-    return <ContactsView />;
+    return <ComingSoon title="İletişim Geçmişi" icon="chat" />;
 }

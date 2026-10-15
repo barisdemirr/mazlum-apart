@@ -24,9 +24,13 @@ public static class GetStudentPayments
     public record EnrollmentOption(Guid Id, Guid PeriodId, string PeriodName, EnrollmentStatus Status, decimal Remaining);
 
     /// <summary>status: paid | overdue | partial | upcoming (frontend lib/ledger.js)</summary>
-    public record ChargeRow(Guid Id, ChargeKind Kind, string Month, DateOnly DueDate, string? Note, decimal Amount, decimal Paid, decimal Remaining, string Status, int DaysUntilDue);
+    /// <summary>index: kira kalemlerinin dönem içindeki sırası (1. ay, 2. ay…); diğer kalemlerde null</summary>
+    public record ChargeRow(Guid Id, ChargeKind Kind, int? Index, string Month, DateOnly DueDate, string? Note, decimal Amount, decimal Paid, decimal Remaining, string Status, int DaysUntilDue);
 
-    public record PaymentRow(Guid Id, PaymentKind Kind, DateOnly Date, decimal Amount, PaymentMethod Method);
+    /// <summary>allocations: bu tahsilatın hangi kalemlere sayıldığı (yalnızca öğrenciye görünen kalemler)</summary>
+    public record AllocationRow(Guid ChargeId, decimal Amount);
+
+    public record PaymentRow(Guid Id, PaymentKind Kind, DateOnly Date, decimal Amount, PaymentMethod Method, List<AllocationRow> Allocations);
 
     public record Totals(decimal Total, decimal Paid, decimal Remaining, decimal Overdue, decimal Credit, decimal Progress, int RentCount, int RentsPaid);
 
@@ -63,15 +67,36 @@ public static class GetStudentPayments
                     var daysUntilDue = i.DueDate.DayNumber - today.DayNumber;
                     var status = i.Remaining <= 0 ? "paid" : daysUntilDue < 0 ? "overdue" : paid > 0 ? "partial" : "upcoming";
                     var note = i.Kind is ChargeKind.ExtraStay or ChargeKind.Summer or ChargeKind.Other ? i.Note : null;
-                    return new ChargeRow(i.Id, i.Kind, i.Month, i.DueDate, note, amount, paid, i.Remaining, status, daysUntilDue);
+                    return new ChargeRow(i.Id, i.Kind, null, i.Month, i.DueDate, note, amount, paid, i.Remaining, status, daysUntilDue);
                 })
                 .ToList();
 
-            var payments = await db.Payments.AsNoTracking()
-                .Where(x => x.EnrollmentId == selected.e.Id && x.CancelledAt == null)
+            // Kira sırası: aylara göre 1, 2, 3… (arayüz "3. Ay · Kasım kirası" yazar)
+            var rentOrder = charges.Where(c => c.Kind == ChargeKind.Rent).OrderBy(c => c.Month, StringComparer.Ordinal).Select((c, n) => (c.Id, Index: n + 1)).ToDictionary(x => x.Id, x => x.Index);
+            charges = charges.Select(c => rentOrder.TryGetValue(c.Id, out var n) ? c with { Index = n } : c).ToList();
+
+            var paymentList = await db.Payments.AsNoTracking()
+                .Where(x => x.EnrollmentId == selected.e.Id && x.CancelledAt == null && x.Kind == PaymentKind.Collection)
                 .OrderByDescending(x => x.Date).ThenByDescending(x => x.CreatedAt)
-                .Select(x => new PaymentRow(x.Id, x.Kind, x.Date, x.Amount, x.Method))
                 .ToListAsync(ct);
+
+            // Hangi tahsilat hangi kaleme sayıldı: ters kayıtlar (iptal) toplamdan düşer, yalnızca görünen kalemler listelenir
+            var paymentIds = paymentList.Select(p => p.Id).ToList();
+            var visibleCharges = charges.Select(c => c.Id).ToHashSet();
+            var allocationRows = await db.PaymentAllocations.AsNoTracking()
+                .Where(a => a.EnrollmentId == selected.e.Id && paymentIds.Contains(a.PaymentId))
+                .Select(a => new { a.PaymentId, a.ChargeId, a.Amount })
+                .ToListAsync(ct);
+            var allocationsByPayment = allocationRows
+                .Where(a => visibleCharges.Contains(a.ChargeId))
+                .GroupBy(a => (a.PaymentId, a.ChargeId))
+                .Select(g => (g.Key.PaymentId, g.Key.ChargeId, Amount: LedgerMath.Round(g.Sum(x => x.Amount))))
+                .Where(x => x.Amount > 0)
+                .ToLookup(x => x.PaymentId, x => new AllocationRow(x.ChargeId, x.Amount));
+
+            var payments = paymentList
+                .Select(x => new PaymentRow(x.Id, x.Kind, x.Date, x.Amount, x.Method, allocationsByPayment[x.Id].ToList()))
+                .ToList();
 
             var total = LedgerMath.Round(charges.Sum(c => c.Amount));
             var paidTotal = LedgerMath.Round(charges.Sum(c => c.Paid));

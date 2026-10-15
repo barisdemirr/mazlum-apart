@@ -4,21 +4,23 @@ import { motion } from "framer-motion";
 import LocalizedLink from "@/components/ui/LocalizedLink";
 import Icon from "@/components/ui/Icon";
 import { APPLY_HREF, NAV_ITEMS, STUDENT_LOGIN_HREF } from "./navigation";
-import { SITE, waHref } from "@/lib/constants";
+import { BRAND_NAME } from "@/lib/constants";
+import { useSite } from "@/lib/site/SiteProvider";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { EASE_OUT } from "@/lib/motion";
 
-const GIANT_LETTERS = Array.from(SITE.name);
+const GIANT_LETTERS = Array.from(BRAND_NAME);
 
 const socialClass =
     "flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-orchid-petal transition-colors hover:bg-orchid-pink hover:text-white";
 
 export default function SiteFooter() {
     const { t } = useLanguage();
-    const whatsapp = waHref(t.whatsapp.defaultMessage);
+    const site = useSite();
+    const whatsapp = site.waHref(t.whatsapp.defaultMessage);
 
     // Henüz gelmeyen iletişim bilgileri gösterilmez
-    const hasContact = Boolean(SITE.phone || SITE.address || whatsapp);
+    const hasContact = Boolean(site.phone || site.address || whatsapp);
 
     return (
         <footer className="relative mt-24 w-full overflow-hidden rounded-t-[48px] bg-orchid-dark pb-10 pt-20 text-white">
@@ -41,10 +43,10 @@ export default function SiteFooter() {
                         </div>
                         <p className="max-w-sm text-sm leading-relaxed text-orchid-lilac/70">{t.footer.about}</p>
 
-                        {(SITE.instagram || whatsapp) && (
+                        {(site.instagram || whatsapp) && (
                             <div className="flex items-center gap-3 pt-2">
-                                {SITE.instagram && (
-                                    <a href={SITE.instagram} target="_blank" rel="noopener noreferrer" aria-label={t.footer.instagram} className={socialClass}>
+                                {site.instagram && (
+                                    <a href={site.instagram} target="_blank" rel="noopener noreferrer" aria-label={t.footer.instagram} className={socialClass}>
                                         <Icon name="photo_camera" className="text-[18px]" />
                                     </a>
                                 )}
@@ -93,10 +95,10 @@ export default function SiteFooter() {
                         <div className="flex flex-col gap-4">
                             <span className="text-xs font-bold uppercase tracking-[0.25em] text-orchid-petal">{t.footer.contact}</span>
                             <div className="flex flex-col gap-2.5 text-sm text-orchid-lilac/70">
-                                {SITE.address && <p className="leading-relaxed">{SITE.address}</p>}
-                                {SITE.phone && (
-                                    <a href={SITE.phoneHref || undefined} className="font-semibold text-white">
-                                        {SITE.phone}
+                                {site.address && <p className="leading-relaxed">{site.address}</p>}
+                                {site.phone && (
+                                    <a href={site.phoneHref || undefined} className="font-semibold text-white">
+                                        {site.phone}
                                     </a>
                                 )}
                             </div>
@@ -129,7 +131,7 @@ export default function SiteFooter() {
 
                 <div className="flex flex-col items-center justify-between gap-4 border-t border-white/5 pt-6 text-xs text-orchid-lilac/60 sm:flex-row">
                     <p>
-                        © {new Date().getFullYear()} {SITE.name}. {t.footer.rights}
+                        © {new Date().getFullYear()} {site.name}. {t.footer.rights}
                     </p>
                     <span>{t.footer.location}</span>
                 </div>

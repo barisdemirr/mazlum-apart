@@ -1,8 +1,7 @@
-import StudentAccountView from "@/components/admin/accounting/StudentAccountView";
+import ComingSoon from "@/components/admin/ComingSoon";
 
 export const metadata = { title: "Öğrenci Hesabı" };
 
-export default async function StudentAccountPage({ params }) {
-    const { id } = await params;
-    return <StudentAccountView enrollmentId={id} />;
+export default function Page() {
+    return <ComingSoon title="Öğrenci Hesabı" icon="account_balance_wallet" />;
 }

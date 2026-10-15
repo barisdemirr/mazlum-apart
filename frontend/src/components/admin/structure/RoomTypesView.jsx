@@ -2,25 +2,19 @@
 
 import { useState } from "react";
 import Icon from "@/components/ui/Icon";
-import { useAdmin } from "@/components/admin/data/AdminDataProvider";
 import FormDialog from "@/components/admin/FormDialog";
 import useCommand from "@/components/admin/useCommand";
 import LocalizedField, { TranslateAllButton, toLocalized } from "@/components/admin/LocalizedField";
 import MediaPicker from "@/components/admin/content/MediaPicker";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/admin/ui";
 import { Field, Switch } from "@/components/admin/fields";
-import { saveRoomType } from "@/lib/admin/domain/config";
+import { saveRoomType } from "@/lib/admin/commands/structure";
+import { mediaUrl } from "@/lib/media";
 import { money } from "@/lib/admin/labels";
 
 /** Oda tipleri: sitede görünen tanıtım içeriği. Fiyatlar dönemden döneme değiştiği için Dönemler & Fiyatlar sayfasındadır. */
-export default function RoomTypesView() {
-    const { state, period } = useAdmin();
+export default function RoomTypesView({ roomTypes }) {
     const [editing, setEditing] = useState(null); // null | "new" | roomType
-
-    const info = (rt) => {
-        const rooms = state.rooms.filter((r) => r.roomTypeId === rt.id);
-        return { rooms: rooms.length, beds: rooms.filter((r) => r.status === "active").reduce((s, r) => s + r.beds, 0), price: state.roomTypePrices.find((p) => p.periodId === period.id && p.roomTypeId === rt.id) };
-    };
 
     return (
         <div>
@@ -29,15 +23,14 @@ export default function RoomTypesView() {
                 description="Kategori düzeyinde içerik: ad, açıklama, özellikler, kapak görseli. Fotoğraf ve video DAİRELERE eklenir (Daireler & Odalar sayfası); çünkü aynı tipte birden fazla daire olabilir. Boş bırakılan bölümler sitede gösterilmez."
                 actions={<button type="button" onClick={() => setEditing("new")} className="ad-btn ad-btn-primary"><Icon name="add" className="text-[20px]" />Oda tipi ekle</button>}
             />
-            {state.roomTypes.length === 0 ? <EmptyState icon="meeting_room" title="Oda tipi yok" description="İlk oda tipini ekleyin." /> : (
+            {roomTypes.length === 0 ? <EmptyState icon="meeting_room" title="Oda tipi yok" description="İlk oda tipini ekleyin." /> : (
                 <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                    {state.roomTypes.map((rt) => {
-                        const i = info(rt);
+                    {roomTypes.map((rt) => {
                         return (
                             <Card key={rt.id} padded={false} className="overflow-hidden">
                                 <div className="aspect-[16/9] bg-ad-sunken">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    {rt.image?.url ? <img src={rt.image.url} alt={rt.name.tr} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-ad-faint"><Icon name="image" className="text-[40px]" /></div>}
+                                    {rt.coverUrl ? <img src={mediaUrl(rt.coverUrl, "md")} alt={rt.name.tr} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-ad-faint"><Icon name="image" className="text-[40px]" /></div>}
                                 </div>
                                 <div className="p-5">
                                     <div className="flex items-start justify-between gap-2">
@@ -45,11 +38,11 @@ export default function RoomTypesView() {
                                         {!rt.active && <Badge tone="neutral">Pasif</Badge>}
                                     </div>
                                     <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
-                                        <div className="rounded-xl bg-ad-sunken py-2"><dd className="ad-num text-base font-extrabold">{i.rooms}</dd><dt className="text-[10px] font-bold uppercase text-ad-muted">Oda</dt></div>
-                                        <div className="rounded-xl bg-ad-sunken py-2"><dd className="ad-num text-base font-extrabold">{i.beds}</dd><dt className="text-[10px] font-bold uppercase text-ad-muted">Yatak</dt></div>
-                                        <div className="rounded-xl bg-ad-sunken py-2"><dd className="ad-num text-base font-extrabold">{i.price ? money(i.price.monthly) : "—"}</dd><dt className="text-[10px] font-bold uppercase text-ad-muted">Aylık</dt></div>
+                                        <div className="rounded-xl bg-ad-sunken py-2"><dd className="ad-num text-base font-extrabold">{rt.rooms}</dd><dt className="text-[10px] font-bold uppercase text-ad-muted">Oda</dt></div>
+                                        <div className="rounded-xl bg-ad-sunken py-2"><dd className="ad-num text-base font-extrabold">{rt.beds}</dd><dt className="text-[10px] font-bold uppercase text-ad-muted">Yatak</dt></div>
+                                        <div className="rounded-xl bg-ad-sunken py-2"><dd className="ad-num text-base font-extrabold">{rt.monthly != null ? money(rt.monthly) : "—"}</dd><dt className="text-[10px] font-bold uppercase text-ad-muted">Aylık</dt></div>
                                     </dl>
-                                    <p className="mt-3 text-xs text-ad-muted">{rt.description?.tr ? "Açıklama girildi" : "Açıklama yok"} · {rt.image?.url ? "kapak görseli var" : "kapak görseli yok"}</p>
+                                    <p className="mt-3 text-xs text-ad-muted">{rt.description?.tr ? "Açıklama girildi" : "Açıklama yok"} · {rt.coverUrl ? "kapak görseli var" : "kapak görseli yok"}</p>
                                     <button type="button" onClick={() => setEditing(rt)} className="ad-btn ad-btn-outline mt-4 w-full"><Icon name="edit" className="text-[18px]" />Düzenle</button>
                                 </div>
                             </Card>
@@ -63,18 +56,16 @@ export default function RoomTypesView() {
 }
 
 function RoomTypeDialog({ roomType, onClose }) {
-    const { state } = useAdmin();
     const { exec, busy } = useCommand();
     const [f, setF] = useState(() => ({
         name: toLocalized(roomType?.name), description: toLocalized(roomType?.description),
-        mediaId: roomType?.image?.mediaId ?? null, active: roomType?.active ?? true,
+        mediaId: roomType?.coverMediaId ?? null, active: roomType?.active ?? true,
     }));
     const set = (k) => (v) => setF((x) => ({ ...x, [k]: v }));
 
     const submit = async (e) => {
         e.preventDefault();
-        const media = state.media.find((m) => m.id === f.mediaId);
-        const out = await exec(saveRoomType, { id: roomType?.id, ...f, image: media ? { mediaId: media.id, url: media.url } : null }, "Oda tipi kaydedildi.");
+        const out = await exec(saveRoomType, { id: roomType?.id, slug: roomType?.slug, order: roomType?.order, ...f }, "Oda tipi kaydedildi.");
         if (out.ok) onClose();
     };
 
