@@ -101,6 +101,7 @@ builder.Services.AddSingleton<VideoService>();
 builder.Services.AddScoped<MediaUsageChecker>();
 builder.Services.AddScoped<AvailabilityService>();
 builder.Services.AddScoped<LedgerService>();
+builder.Services.AddSingleton<NumberGenerator>();
 builder.Services.AddScoped<AuditWriter>();
 
 // ---- Hız sınırı ----

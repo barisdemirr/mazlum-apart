@@ -15,7 +15,7 @@ namespace MazlumApart.Features.Applications;
 ///  - Aynı dönemde aynı T.C. ile reddedilmemiş ikinci başvuru olamaz.
 ///  - Seçilen yatak (bedId) hâlâ boş olmalı; doluysa 409 ve form yeniden seçtirir.
 /// </summary>
-public class ApplicationCreateHandler(AppDbContext db, AvailabilityService availability, AuditWriter audit)
+public class ApplicationCreateHandler(AppDbContext db, AvailabilityService availability, NumberGenerator numbers, AuditWriter audit)
 {
     public record Created(Guid Id, string ApplicationNo);
 
@@ -88,10 +88,11 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
             preferredRoom = room.Id;
         }
 
-        var number = await AppSequences.NextAsync(db, AppSequences.ApplicationNumbers, ct);
+        var year = TurkeyClock.Today.Year;
+        var number = await numbers.NextAsync(NumberGenerator.ApplicationKey(year), ct);
         var application = new Application
         {
-            No = $"MA-{TurkeyClock.Today.Year}-{number:D4}",
+            No = $"MA-{year}-{number:D4}",
             PeriodId = period.Id,
             Source = source,
             Applicant = applicant!,

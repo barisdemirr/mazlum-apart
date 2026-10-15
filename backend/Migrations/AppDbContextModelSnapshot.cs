@@ -22,8 +22,6 @@ namespace MazlumApart.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.HasSequence<int>("ApplicationNumbers");
-
             modelBuilder.Entity("MazlumApart.Domain.Entities.Account", b =>
                 {
                     b.Property<Guid>("Id")
@@ -764,6 +762,24 @@ namespace MazlumApart.Migrations
                         .HasFilter("[DeletedAt] IS NULL");
 
                     b.ToTable("MessageTemplates", (string)null);
+                });
+
+            modelBuilder.Entity("MazlumApart.Domain.Entities.NumberCounter", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("Value")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("NumberCounters", (string)null);
                 });
 
             modelBuilder.Entity("MazlumApart.Domain.Entities.Payment", b =>

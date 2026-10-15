@@ -11,9 +11,6 @@ namespace MazlumApart.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateSequence<int>(
-                name: "ApplicationNumbers");
-
             migrationBuilder.CreateTable(
                 name: "Accounts",
                 columns: table => new
@@ -85,6 +82,19 @@ namespace MazlumApart.Migrations
                         column: x => x.PreferredRoomId,
                         principalTable: "Rooms",
                         principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "NumberCounters",
+                columns: table => new
+                {
+                    Key = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    Value = table.Column<int>(type: "int", nullable: false),
+                    Version = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_NumberCounters", x => x.Key);
                 });
 
             migrationBuilder.CreateTable(
@@ -475,6 +485,9 @@ namespace MazlumApart.Migrations
                 name: "AccountTransactions");
 
             migrationBuilder.DropTable(
+                name: "NumberCounters");
+
+            migrationBuilder.DropTable(
                 name: "PaymentAllocations");
 
             migrationBuilder.DropTable(
@@ -494,9 +507,6 @@ namespace MazlumApart.Migrations
 
             migrationBuilder.DropTable(
                 name: "Applications");
-
-            migrationBuilder.DropSequence(
-                name: "ApplicationNumbers");
         }
     }
 }
