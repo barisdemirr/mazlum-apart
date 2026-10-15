@@ -1,0 +1,25 @@
+{
+  "id": "/ogrenci",
+  "name": "Mazlum Apart Öğrenci Portalı",
+  "short_name": "Mazlum Apart",
+  "description": "Ödeme planın, ödemelerin ve arıza taleplerin tek yerde.",
+  "lang": "tr",
+  "dir": "ltr",
+  "start_url": "/ogrenci",
+  "scope": "/ogrenci",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#fff6f9",
+  "theme_color": "#b4398f",
+  "categories": ["lifestyle", "education"],
+  "icons": [
+    { "src": "/pwa/student-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/pwa/student-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/pwa/student-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Ödemeler", "short_name": "Ödemeler", "url": "/ogrenci/odemeler" },
+    { "name": "Arıza bildir", "short_name": "Arıza", "url": "/ogrenci/ariza" }
+  ]
+}

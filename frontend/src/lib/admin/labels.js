@@ -70,13 +70,15 @@ export const CONTACT_PURPOSE = {
     application_received: "Başvuru bilgilendirme",
     enrollment_approved: "Kayıt onayı",
     maintenance_update: "Arıza durumu",
+    announcement: "Duyuru",
     other: "Diğer",
 };
 
-export const CONTACT_CHANNEL = { whatsapp: "WhatsApp", sms: "SMS" };
+export const CONTACT_CHANNEL = { whatsapp: "WhatsApp", sms: "SMS", push: "Bildirim" };
 
 export const AUDIT_ACTION = {
     "sms.bulk": "Toplu SMS gönderildi",
+    "push.bulk": "Toplu bildirim gönderildi",
     "payment.create": "Tahsilat girildi",
     "payment.cancel": "Tahsilat iptal edildi",
     "payment.refund": "Avans iadesi",

@@ -51,3 +51,39 @@ export function sendSms(state, { messages }, ctx) {
     }
     return { state: s, result: { sent, skipped } };
 }
+
+/**
+ * Toplu bildirim (Web Push) gönderimi. Şimdilik MOCK: bildirimi AÇIK olan öğrencilere "kuyruğa alındı" kaydı düşer.
+ * Gerçekte backend her öğrencinin cihaz aboneliklerine, abonelikteki dilde (TR/EN) iletir.
+ * Bildirimi kapalı olan öğrenciye ulaşılamaz; arayüz bunları ayrı gösterir ve SMS önerir.
+ *
+ * input: { messages: [{ enrollmentId, title: {tr,en}, body: {tr,en} }], url, purpose }
+ *   url: bildirime dokununca açılacak portal sayfası (/ogrenci…)
+ */
+export function sendPush(state, { messages, url = "/ogrenci", purpose = "announcement" }, ctx) {
+    if (!Array.isArray(messages) || messages.length === 0) fail("Alıcı seçilmedi.");
+    if (!/^\/ogrenci(\/[\w-]+)*$/.test(url)) fail("Bağlantı öğrenci portalında bir sayfa olmalı.");
+
+    let s = state;
+    const sent = [];
+    const skipped = [];
+    for (const m of messages) {
+        const enrollment = find(s.enrollments, m.enrollmentId, "Kayıt");
+        const student = s.students.find((x) => x.id === enrollment.studentId);
+        const name = studentName(student);
+        const title = { tr: m.title?.tr?.trim() ?? "", en: m.title?.en?.trim() ?? "" };
+        const body = { tr: m.body?.tr?.trim() ?? "", en: m.body?.en?.trim() ?? "" };
+        if (!title.tr || !body.tr) { skipped.push({ name, reason: "Başlık ya da mesaj boş" }); continue; }
+        if (title.tr.length > 65 || title.en.length > 65) { skipped.push({ name, reason: "Başlık 65 karakteri aşıyor" }); continue; }
+        if (body.tr.length > 240 || body.en.length > 240) { skipped.push({ name, reason: "Mesaj 240 karakteri aşıyor" }); continue; }
+        if (/\{\w+\}/.test(title.tr + body.tr + title.en + body.en)) { skipped.push({ name, reason: "Doldurulmamış değişken var" }); continue; }
+        if (!student?.pushEnabled) { skipped.push({ name, reason: "Bildirimi kapalı" }); continue; }
+        const made = nextId(s, "ctc");
+        const entry = { id: made.id, periodId: enrollment.periodId, enrollmentId: enrollment.id, purpose, channel: "push", note: `${title.tr} — ${body.tr}`, delivery: "queued", at: ctx.now, by: ctx.by };
+        s = { ...made.state, contacts: [entry, ...made.state.contacts] };
+        sent.push(entry);
+    }
+    if (sent.length === 0) fail(`Hiçbir bildirim gönderilemedi: ${skipped[0]?.reason ?? "geçersiz mesaj"}.`);
+    s = withAudit(s, ctx, { action: "push.bulk", entity: "sms", entityId: sent[0].id, periodId: sent[0].periodId, after: { count: sent.length, skipped: skipped.length, title: messages[0].title?.tr } });
+    return { state: s, result: { sent, skipped } };
+}

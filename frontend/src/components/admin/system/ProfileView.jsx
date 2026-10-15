@@ -5,6 +5,7 @@ import { useAdmin } from "@/components/admin/data/AdminDataProvider";
 import useCommand from "@/components/admin/useCommand";
 import { Field, FormSection, TextInput } from "@/components/admin/fields";
 import Icon from "@/components/ui/Icon";
+import PwaPanel from "@/components/admin/system/PwaPanel";
 import { changePassword, updateProfile } from "@/lib/admin/domain/config";
 
 export default function ProfileView() {
@@ -30,7 +31,8 @@ export default function ProfileView() {
     };
 
     return (
-        <div className="max-w-2xl space-y-5">
+        <div className="max-w-3xl space-y-5">
+            <PwaPanel />
             <form onSubmit={saveName} noValidate>
                 <FormSection title="Profilim" columns={1}>
                     <Field label="E-posta"><TextInput value={me?.email ?? user?.email ?? ""} disabled readOnly /></Field>

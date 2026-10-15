@@ -119,7 +119,7 @@ export function Included({ room }) {
 
     return (
         <Reveal className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-orchid-dark via-orchid-violet to-orchid-pink p-6 text-white shadow-xl sm:p-8 lg:p-10">
-            <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-2xl animate-blob" />
+            <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 soft-blob animate-blob" />
             <div className="relative flex flex-col justify-between gap-6 md:flex-row md:items-center">
                 <div>
                     <span className="mb-2 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.25em] text-orchid-petal">

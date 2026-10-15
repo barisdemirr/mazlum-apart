@@ -39,10 +39,10 @@ export default function Hero({ media }) {
             className="relative flex min-h-screen w-full items-center justify-center overflow-hidden px-4 pb-20 pt-32 sm:px-8 lg:px-12"
         >
             {/* Aurora lekeleri */}
-            <motion.div style={{ y: blobY }} aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
-                <div className="absolute -left-32 -top-32 h-[650px] w-[650px] rounded-full bg-gradient-to-br from-orchid-powder via-orchid-petal/30 to-transparent blur-[130px] animate-blob" />
-                <div className="absolute -right-28 top-1/4 h-[580px] w-[580px] rounded-full bg-gradient-to-bl from-orchid-lilac via-orchid-violet/25 to-transparent blur-[140px] animate-blob [animation-delay:4s]" />
-                <div className="absolute -bottom-20 left-1/3 h-[520px] w-[520px] rounded-full bg-gradient-to-t from-orchid-powder/60 via-orchid-pink/20 to-transparent blur-[120px] animate-blob [animation-delay:8s]" />
+            <motion.div style={{ y: blobY, willChange: "transform" }} aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
+                <div className="absolute -left-32 -top-32 h-[650px] w-[650px] rounded-full bg-gradient-to-br from-orchid-powder via-orchid-petal/30 to-transparent soft-blob animate-blob" />
+                <div className="absolute -right-28 top-1/4 h-[580px] w-[580px] rounded-full bg-gradient-to-bl from-orchid-lilac via-orchid-violet/25 to-transparent soft-blob animate-blob [animation-delay:4s]" />
+                <div className="absolute -bottom-20 left-1/3 h-[520px] w-[520px] rounded-full bg-gradient-to-t from-orchid-powder/60 via-orchid-pink/20 to-transparent soft-blob animate-blob [animation-delay:8s]" />
             </motion.div>
 
             <div className="z-10 mx-auto grid w-full max-w-[1340px] grid-cols-1 items-center gap-14 lg:grid-cols-12 lg:gap-8">
@@ -116,7 +116,7 @@ export default function Hero({ media }) {
                     transition={{ duration: 1.1, delay: 0.8, ease: EASE_OUT }}
                     className="relative flex items-center justify-center lg:col-span-5"
                 >
-                    <div aria-hidden="true" className="absolute -inset-4 rounded-full bg-gradient-to-tr from-orchid-petal via-orchid-violet to-orchid-pink opacity-40 blur-2xl animate-pulse-glow" />
+                    <div aria-hidden="true" className="absolute -inset-14 rounded-full bg-gradient-to-tr from-orchid-petal via-orchid-violet to-orchid-pink opacity-60 animate-pulse-glow will-change-transform" style={{ WebkitMaskImage: "radial-gradient(closest-side, transparent 58%, rgb(0 0 0 / 0.9) 80%, transparent 100%)", maskImage: "radial-gradient(closest-side, transparent 58%, rgb(0 0 0 / 0.9) 80%, transparent 100%)" }} />
 
                     <motion.div style={{ y: imageY }} className="relative">
                         <div className="group relative h-[380px] w-[320px] overflow-hidden border-4 border-white/70 shadow-[0_30px_70px_rgba(180,57,143,0.3)] animate-morph sm:h-[480px] sm:w-[420px] lg:h-[520px] lg:w-[460px]">

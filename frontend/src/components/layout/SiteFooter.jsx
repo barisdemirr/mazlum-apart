@@ -24,7 +24,7 @@ export default function SiteFooter() {
         <footer className="relative mt-24 w-full overflow-hidden rounded-t-[48px] bg-orchid-dark pb-10 pt-20 text-white">
             <div
                 aria-hidden="true"
-                className="pointer-events-none absolute left-1/2 top-0 h-[200px] w-[700px] max-w-full -translate-x-1/2 rounded-full bg-orchid-pink/20 blur-[100px]"
+                className="pointer-events-none absolute left-1/2 top-0 h-[200px] w-[700px] max-w-full -translate-x-1/2 rounded-full bg-orchid-pink/20 soft-blob"
             />
 
             <div className="relative z-10 mx-auto flex max-w-[1340px] flex-col gap-16 px-4 sm:px-8 lg:px-12">

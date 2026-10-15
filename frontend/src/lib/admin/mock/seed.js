@@ -246,6 +246,9 @@ export function buildSeed() {
 
     // Eski dönemler kapatılır
     state = { ...state, periods: state.periods.map((p) => MOCK_PERIODS.find((m) => m.id === p.id) ?? p) };
+    // Bildirim (push) aboneliği: öğrenci portalını yükleyip bildirimi açan öğrenciler. Gerçekte öğrencinin kendi
+    // cihazı sunucuya abone olur; burada örnek olarak dört öğrenciden üçü abonedir.
+    state = { ...state, students: state.students.map((s, i) => ({ ...s, pushEnabled: i % 4 !== 3 })) };
     // Seed denetim kayıtları "yönetici" adına zaten yazıldı
     return state;
 }

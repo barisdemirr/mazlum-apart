@@ -8,7 +8,7 @@ export default function AdminLoader({ label = "Veriler hazırlanıyor" }) {
         <div role="status" aria-live="polite" className="flex min-h-[65vh] w-full items-center justify-center p-6">
             <div className="flex flex-col items-center text-center">
                 <div className="relative h-32 w-32">
-                    <div className="admin-loader-pulse absolute -inset-4 rounded-full bg-ad-brand/15 blur-2xl" />
+                    <div className="admin-loader-pulse absolute -inset-4 rounded-full bg-ad-brand/15 soft-blob" />
                     <div className="admin-loader-ring absolute inset-0 rounded-full" />
                     <div className="absolute inset-[7px] rounded-full bg-ad-surface shadow-[inset_0_2px_10px_rgba(11,28,48,0.08)]" />
                     <div className="admin-loader-spin-rev absolute inset-[18px] rounded-full border-2 border-dashed border-ad-brand/25" />

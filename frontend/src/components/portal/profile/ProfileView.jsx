@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import Icon from "@/components/ui/Icon";
 import PageHeader from "@/components/portal/PageHeader";
 import LogoutDialog from "@/components/portal/LogoutDialog";
+import PwaPanel from "@/components/portal/pwa/PwaPanel";
 import { formatPhone, GRADES } from "@/lib/application";
 import { formatDate } from "@/lib/format";
 import { maskTc } from "@/lib/student/labels";
@@ -120,7 +121,13 @@ export default function ProfileView({ student, period, provinceName }) {
                 </Section>
             </div>
 
-            <motion.div {...rise(4)} className="mt-5 grid grid-cols-1 gap-5">
+            <div className="mt-5">
+                <Section icon="smartphone" title={t.studentPortal.pwa.title} index={4}>
+                    <PwaPanel />
+                </Section>
+            </div>
+
+            <motion.div {...rise(5)} className="mt-5 grid grid-cols-1 gap-5">
                 <div className="flex flex-col gap-4 rounded-[32px] bg-gradient-to-br from-orchid-powder to-orchid-lilac p-6 sm:flex-row sm:items-center sm:justify-between sm:p-7">
                     <div className="flex items-start gap-4">
                         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-orchid-pink shadow-sm">

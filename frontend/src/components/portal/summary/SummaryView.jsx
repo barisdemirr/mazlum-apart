@@ -42,7 +42,7 @@ export default function SummaryView({ student, ledger, period }) {
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
                 {/* Bakiye */}
                 <motion.section {...rise(0)} className="relative isolate overflow-hidden rounded-[32px] bg-gradient-to-br from-orchid-dark via-[#4b1d66] to-orchid-pink p-6 text-white shadow-[0_30px_70px_-32px_rgba(75,29,102,0.8)] sm:p-8 lg:col-span-2">
-                    <span aria-hidden="true" className="pointer-events-none absolute -right-16 -top-16 -z-10 h-56 w-56 rounded-full bg-orchid-petal/40 blur-3xl animate-blob" />
+                    <span aria-hidden="true" className="pointer-events-none absolute -right-16 -top-16 -z-10 h-56 w-56 rounded-full bg-orchid-petal/40 soft-blob animate-blob" />
                     <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-white/70">
                         <Icon name="account_balance_wallet" className="text-[18px]" />
                         {copy.balance}

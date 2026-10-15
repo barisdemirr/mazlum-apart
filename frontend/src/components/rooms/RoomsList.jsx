@@ -52,9 +52,9 @@ export default function RoomsList({ rooms, children }) {
             <section className="relative flex flex-col items-center px-4 pb-10 pt-36 text-center sm:px-8 sm:pt-40">
                 {/* Aurora lekeleri ve yüzen cam halkalar */}
                 <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-                    <div className="absolute -top-32 left-1/2 h-[520px] w-[700px] max-w-full -translate-x-1/2 rounded-full bg-gradient-to-tr from-orchid-petal/40 via-orchid-lilac/60 to-orchid-powder/50 blur-[140px] animate-blob" />
-                    <div className="absolute -left-32 top-[40%] h-[420px] w-[420px] rounded-full bg-orchid-powder/70 blur-[150px] animate-blob [animation-delay:5s]" />
-                    <div className="absolute -right-32 top-[55%] h-[460px] w-[460px] rounded-full bg-orchid-lilac/70 blur-[150px] animate-blob [animation-delay:9s]" />
+                    <div className="absolute -top-32 left-1/2 h-[520px] w-[700px] max-w-full -translate-x-1/2 rounded-full bg-gradient-to-tr from-orchid-petal/40 via-orchid-lilac/60 to-orchid-powder/50 soft-blob animate-blob" />
+                    <div className="absolute -left-32 top-[40%] h-[420px] w-[420px] rounded-full bg-orchid-powder/70 soft-blob animate-blob [animation-delay:5s]" />
+                    <div className="absolute -right-32 top-[55%] h-[460px] w-[460px] rounded-full bg-orchid-lilac/70 soft-blob animate-blob [animation-delay:9s]" />
                     <div className="absolute left-[8%] top-36 hidden h-24 w-24 rounded-full border border-orchid-petal/40 bg-white/10 backdrop-blur-md animate-float-slow lg:block" />
                     <div className="absolute right-[10%] top-64 hidden h-36 w-36 rounded-full border border-orchid-violet/25 bg-orchid-lilac/20 backdrop-blur-lg animate-float-delay md:block" />
                 </div>
@@ -181,7 +181,7 @@ export default function RoomsList({ rooms, children }) {
             {/* ───────── Kapanış: soru kartı ───────── */}
             <section className="px-4 pb-4 sm:px-8">
                 <Reveal className="relative mx-auto flex max-w-3xl flex-col items-center overflow-hidden rounded-[36px] border border-orchid-petal/40 bg-gradient-to-br from-orchid-powder/70 via-orchid-lilac/50 to-orchid-white p-10 text-center shadow-xl sm:p-14">
-                    <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full bg-orchid-petal/30 blur-3xl animate-blob" />
+                    <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full bg-orchid-petal/30 soft-blob animate-blob" />
                     <span className="relative mb-2 text-xs font-bold uppercase tracking-[0.25em] text-orchid-pink">{t.roomsPage.ctaEyebrow}</span>
                     <h2 className="relative mb-3 font-display text-3xl font-normal tracking-tight text-orchid-dark sm:text-4xl">{t.roomsPage.ctaTitle}</h2>
                     <p className="relative mb-8 max-w-lg text-orchid-muted">{t.roomsPage.ctaText}</p>

@@ -86,7 +86,7 @@ export default function RoomsShowcase({ rooms }) {
                         data-cursor={t.rooms.allCta}
                         className="group relative flex min-w-[280px] snap-center flex-col justify-between gap-10 overflow-hidden rounded-[32px] bg-gradient-to-br from-orchid-dark via-orchid-violet to-orchid-pink p-8 text-white shadow-2xl sm:min-w-[340px] sm:p-10"
                     >
-                        <div aria-hidden="true" className="pointer-events-none absolute -bottom-10 -right-10 h-44 w-44 rounded-full bg-white/10 blur-xl transition-transform duration-700 group-hover:scale-150" />
+                        <div aria-hidden="true" className="pointer-events-none absolute -bottom-10 -right-10 h-44 w-44 rounded-full bg-white/10 soft-blob transition-transform duration-700 group-hover:scale-150" />
                         <div className="relative flex flex-col gap-4">
                             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15 text-orchid-petal backdrop-blur-md">
                                 <Icon name="apartment" className="text-[28px]" />

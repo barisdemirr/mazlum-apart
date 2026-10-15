@@ -7,6 +7,7 @@ import Icon from "@/components/ui/Icon";
 import LocalizedLink from "@/components/ui/LocalizedLink";
 import LanguageSwitch from "@/components/layout/LanguageSwitch";
 import LogoutDialog from "./LogoutDialog";
+import PwaBanner from "./pwa/PwaBanner";
 import { PORTAL_NAV, getActivePortalHref } from "@/lib/student/nav";
 import { localized } from "@/lib/i18n/localized";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
@@ -79,7 +80,7 @@ export default function PortalShell({ student, children }) {
                     </div>
                     <LocalizedLink
                         href="/"
-                        className="flex items-center gap-3 rounded-full px-5 py-2.5 text-sm font-semibold text-orchid-muted transition-colors hover:text-orchid-pink"
+                        className="pwa-hide flex items-center gap-3 rounded-full px-5 py-2.5 text-sm font-semibold text-orchid-muted transition-colors hover:text-orchid-pink"
                     >
                         <Icon name="arrow_back" className="text-[20px]" />
                         {copy.shell.backToSite}
@@ -132,7 +133,10 @@ export default function PortalShell({ student, children }) {
 
             {/* ───────── İçerik ───────── */}
             <main className="px-4 pb-32 pt-24 sm:px-6 lg:ml-72 lg:px-8 lg:pb-14 lg:pt-28">
-                <div className="mx-auto min-w-0 max-w-5xl">{children}</div>
+                <div className="mx-auto min-w-0 max-w-5xl">
+                    <PwaBanner />
+                    {children}
+                </div>
             </main>
 
             {/* ───────── Mobil alt menü ───────── */}

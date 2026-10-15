@@ -18,9 +18,9 @@ import { EASE_OUT } from "@/lib/motion";
 const TOTAL_STEPS = 5;
 
 const stepVariants = {
-    enter: (dir) => ({ opacity: 0, x: dir > 0 ? 70 : -70, filter: "blur(12px)" }),
-    center: { opacity: 1, x: 0, filter: "blur(0px)", transitionEnd: { filter: "none" } },
-    exit: (dir) => ({ opacity: 0, x: dir > 0 ? -70 : 70, filter: "blur(12px)" }),
+    enter: (dir) => ({ opacity: 0, x: dir > 0 ? 70 : -70 }),
+    center: { opacity: 1, x: 0 },
+    exit: (dir) => ({ opacity: 0, x: dir > 0 ? -70 : 70 }),
 };
 
 /** Gönder butonu: basılınca daireye küçülüp yükleniyor animasyonuna döner */

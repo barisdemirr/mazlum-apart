@@ -23,8 +23,8 @@ export default function LoginView({ from, expired }) {
         <main className="min-h-screen bg-orchid-white lg:grid lg:grid-cols-[1.05fr_1fr]">
             {/* Marka paneli */}
             <section className="relative isolate overflow-hidden rounded-b-[36px] bg-gradient-to-br from-orchid-dark via-[#4b1d66] to-orchid-pink px-6 pb-16 pt-8 text-white lg:m-4 lg:flex lg:min-h-[calc(100vh-2rem)] lg:flex-col lg:justify-between lg:rounded-[40px] lg:p-12">
-                <span aria-hidden="true" className="pointer-events-none absolute -left-24 -top-24 -z-10 h-72 w-72 rounded-full bg-orchid-petal/40 blur-3xl animate-blob" />
-                <span aria-hidden="true" className="pointer-events-none absolute -bottom-28 -right-20 -z-10 h-80 w-80 rounded-full bg-orchid-violet/60 blur-3xl animate-blob [animation-delay:-6s]" />
+                <span aria-hidden="true" className="pointer-events-none absolute -left-24 -top-24 -z-10 h-72 w-72 rounded-full bg-orchid-petal/40 soft-blob animate-blob" />
+                <span aria-hidden="true" className="pointer-events-none absolute -bottom-28 -right-20 -z-10 h-80 w-80 rounded-full bg-orchid-violet/60 soft-blob animate-blob [animation-delay:-6s]" />
 
                 <div className="flex items-center justify-between">
                     <LocalizedLink href="/" className="group flex items-center gap-3">

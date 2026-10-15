@@ -357,3 +357,28 @@
         animation: none;
     }
 }
+
+/* ───────── PWA (kurulu uygulama olarak açıldığında) ───────── */
+/* iPhone ana ekran çizgisi altında kalmasın (viewport-fit=cover ile) */
+.admin-root {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@media (display-mode: standalone) {
+    .pwa-hide {
+        display: none !important;
+    }
+}
+
+/* Performans: dokunmatik / küçük ekranda arka plan bulanıklığı kapalı (bkz. globals.css) */
+@media (hover: none), (max-width: 1023px) {
+    .ad-nav {
+        background: rgb(255 255 255 / 0.97);
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+    }
+    [class*="backdrop-blur"] {
+        -webkit-backdrop-filter: none !important;
+        backdrop-filter: none !important;
+    }
+}

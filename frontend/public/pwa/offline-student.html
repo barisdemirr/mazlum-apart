@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#b4398f">
+<title>Çevrimdışı</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{display:flex;align-items:center;justify-content:center;padding:max(24px,env(safe-area-inset-top)) 24px max(24px,env(safe-area-inset-bottom));background:#fff6f9;color:#34163f;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  main{max-width:380px;text-align:center}
+  .mark{width:72px;height:72px;margin:0 auto 22px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#b4398f;color:#fff;font:italic 600 34px/1 Georgia,"Times New Roman",serif}
+  h1{margin:0 0 10px;font-size:22px;line-height:1.25}
+  p{margin:0 0 26px;font-size:15px;line-height:1.55;color:#7a6283}
+  button{appearance:none;border:0;border-radius:999px;padding:14px 30px;font:inherit;font-weight:700;font-size:15px;color:#fff;background:#b4398f;cursor:pointer}
+  button:active{transform:scale(.97)}
+</style>
+</head>
+<body>
+<main>
+  <div class="mark" aria-hidden="true">M</div>
+  <h1 id="t"></h1>
+  <p id="d"></p>
+  <button id="b" type="button"></button>
+</main>
+<script>
+  var TEXT = {tr:{title:"Çevrimdışısın",desc:"İnternet bağlantın yok gibi görünüyor. Bağlantı gelince sayfa kendiliğinden yenilenir.",retry:"Tekrar dene"},en:{title:"You are offline",desc:"It looks like you have no internet connection. The page will refresh as soon as you are back online.",retry:"Try again"}};
+  var lang = (document.cookie.indexOf("ma_lang=en")>-1?"en":"tr");
+  var s = TEXT[lang] || TEXT.tr;
+  document.documentElement.lang = lang;
+  document.getElementById("t").textContent = s.title;
+  document.getElementById("d").textContent = s.desc;
+  var b = document.getElementById("b");
+  b.textContent = s.retry;
+  b.addEventListener("click", function () { location.reload(); });
+  // Bağlantı geri gelince kendiliğinden yeniden dene
+  window.addEventListener("online", function () { location.reload(); });
+</script>
+</body>
+</html>

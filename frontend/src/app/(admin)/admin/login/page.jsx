@@ -20,11 +20,11 @@ export default function LoginPage() {
             <div className="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-ad-brand-dark via-ad-brand to-ad-accent p-12 text-white lg:flex">
                 <div
                     aria-hidden="true"
-                    className="pointer-events-none absolute -left-32 -top-32 h-[480px] w-[480px] rounded-full bg-white/10 blur-[110px]"
+                    className="pointer-events-none absolute -left-32 -top-32 h-[480px] w-[480px] rounded-full bg-white/10 soft-blob"
                 />
                 <div
                     aria-hidden="true"
-                    className="pointer-events-none absolute -bottom-40 -right-20 h-[420px] w-[420px] rounded-full bg-ad-accent-bright/25 blur-[110px]"
+                    className="pointer-events-none absolute -bottom-40 -right-20 h-[420px] w-[420px] rounded-full bg-ad-accent-bright/25 soft-blob"
                 />
 
                 <div className="relative flex items-center gap-3">

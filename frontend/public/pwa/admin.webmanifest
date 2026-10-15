@@ -1,0 +1,27 @@
+{
+  "id": "/admin",
+  "name": "Mazlum Apart Yönetim Paneli",
+  "short_name": "Mazlum Yönetim",
+  "description": "Başvurular, öğrenciler, yerleşim ve muhasebe yönetimi.",
+  "lang": "tr",
+  "dir": "ltr",
+  "start_url": "/admin",
+  "scope": "/admin",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#f8f9ff",
+  "theme_color": "#1e40af",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "/pwa/admin-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/pwa/admin-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/pwa/admin-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Başvurular", "short_name": "Başvurular", "url": "/admin/basvurular" },
+    { "name": "Tahsilatlar", "short_name": "Tahsilat", "url": "/admin/tahsilatlar" },
+    { "name": "Arıza kayıtları", "short_name": "Arıza", "url": "/admin/ariza" },
+    { "name": "Toplu bildirim", "short_name": "Bildirim", "url": "/admin/iletisim/bildirim" }
+  ]
+}

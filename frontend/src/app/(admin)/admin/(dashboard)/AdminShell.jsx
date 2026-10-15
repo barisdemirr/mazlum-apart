@@ -7,6 +7,7 @@ import Icon from "@/components/ui/Icon";
 import ToastProvider from "@/components/admin/Toast";
 import AdminProgressBar from "@/components/admin/AdminProgressBar";
 import PeriodSwitcher from "@/components/admin/PeriodSwitcher";
+import PwaBanner from "@/components/admin/PwaBanner";
 import { logout } from "@/lib/admin/client";
 import { useAdmin } from "@/components/admin/data/AdminDataProvider";
 import { NAV_GROUPS, findNavItem, isActiveItem } from "@/lib/admin/nav";
@@ -100,6 +101,8 @@ export default function AdminShell({ user, children }) {
                         <UserMenu user={user} />
                     </div>
                 </header>
+
+                <PwaBanner />
 
                 {selected.status !== "active" && <PastPeriodBanner selected={selected} periods={periods} />}
 

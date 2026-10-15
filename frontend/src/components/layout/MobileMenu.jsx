@@ -43,15 +43,16 @@ export default function MobileMenu({ open, onClose, origin, activeHref }) {
                     role="dialog"
                     aria-modal="true"
                     aria-label={t.nav.menu}
-                    className="fixed inset-0 z-[60] flex flex-col justify-between overflow-y-auto bg-orchid-dark/95 p-8 pb-10 pt-28 text-white backdrop-blur-2xl lg:hidden"
+                    className="fixed inset-0 z-[60] flex flex-col justify-between overflow-y-auto bg-[#3d1c49] p-8 pb-10 pt-28 text-white lg:hidden"
+                    style={{ willChange: "clip-path", contain: "paint" }}
                     initial={{ clipPath: closed }}
                     animate={{ clipPath: opened }}
                     exit={{ clipPath: closed }}
                     transition={{ duration: 0.7, ease: EASE_IN_OUT }}
                 >
                     {/* Dekoratif ışık lekeleri */}
-                    <div aria-hidden="true" className="pointer-events-none absolute -right-24 top-10 h-72 w-72 rounded-full bg-orchid-pink/30 blur-[90px] animate-blob" />
-                    <div aria-hidden="true" className="pointer-events-none absolute -left-24 bottom-20 h-72 w-72 rounded-full bg-orchid-violet/30 blur-[90px] animate-blob [animation-delay:4s]" />
+                    <div aria-hidden="true" className="pointer-events-none absolute -right-24 top-10 h-72 w-72 rounded-full bg-orchid-pink/30 soft-blob animate-blob" />
+                    <div aria-hidden="true" className="pointer-events-none absolute -left-24 bottom-20 h-72 w-72 rounded-full bg-orchid-violet/30 soft-blob animate-blob [animation-delay:4s]" />
 
                     <div className="relative flex flex-col gap-6">
                         <motion.span

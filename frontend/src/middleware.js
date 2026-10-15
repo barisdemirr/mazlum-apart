@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { DEFAULT_LOCALE, LOCALES, stripLocale } from "@/lib/i18n/config";
+import { DEFAULT_LOCALE, LANG_COOKIE, LANG_COOKIE_MAX_AGE, LOCALES, stripLocale } from "@/lib/i18n/config";
 import { STUDENT_COOKIE, readStudentToken } from "@/lib/student/auth";
 import { ADMIN_COOKIE, ADMIN_HOME, ADMIN_LOGIN, readAdminToken } from "@/lib/admin/auth";
 
@@ -18,6 +18,10 @@ import { ADMIN_COOKIE, ADMIN_HOME, ADMIN_LOGIN, readAdminToken } from "@/lib/adm
  *  5. Süresi dolmuş çerez temizlenir ve girişe ?expired=1 ile yönlenir; dönüş adresi `from` ile taşınır.
  *  6. Yanıtlar önbelleğe alınmaz ve arama motorlarına kapatılır.
  *  7. Yönetim paneli yalnızca Türkçedir ve [lang] ağacının dışındadır: /en/admin ve /tr/admin kabul edilmez.
+ *  8. Öğrenci portalı PWA olarak kurulur ve PWA kapsamı tek bir yol önekidir (/ogrenci). Bu yüzden portalın adresi
+ *     dil öneki taşımaz: dil `ma_lang` çerezinden okunur ve içeride /en/ogrenci/... olarak yeniden yazılır.
+ *     /en/ogrenci/... ve /tr/ogrenci/... adresleri (ana sitedeki bağlantılar, eski linkler) çerezi ayarlayıp
+ *     öneksiz adrese yönlenir.
  *
  * Token'ın imzası burada doğrulanamaz (anahtar backend'de); süre ve rol bakılır.
  * İmzası sahte bir token backend'den 401 alır ve girişe döner.
@@ -30,7 +34,7 @@ const AREAS = {
         home: "/ogrenci",
         cookie: STUDENT_COOKIE,
         read: readStudentToken,
-        localized: true,
+        localized: true, // sayfa ağacı [lang] altındadır, ama adreste önek YOK (kural 8)
     },
     admin: {
         prefix: "/admin",
@@ -87,12 +91,30 @@ function handleArea(request, area, other, localePrefix, path) {
         return privateHeaders(clearCookie(NextResponse.redirect(url), area.cookie));
     }
 
-    const next = area.localized ? handleSite(request) : NextResponse.next();
+    const next = area.localized ? rewriteForStudent(request) : NextResponse.next();
 
     // Süresi dolmuş çerezi temizleyerek giriş sayfasına devam et
     if (isLogin && searchParams.get("expired") === "1" && cookie) clearCookie(next, area.cookie);
 
     return privateHeaders(next);
+}
+
+/** Öğrenci alanı: dil çerezine göre /ogrenci/... -> /{lang}/ogrenci/... (adres çubuğu değişmez) */
+function rewriteForStudent(request) {
+    const lang = request.cookies.get(LANG_COOKIE)?.value;
+    const locale = LOCALES.includes(lang) ? lang : DEFAULT_LOCALE;
+    const url = request.nextUrl.clone();
+    url.pathname = `/${locale}${request.nextUrl.pathname}`;
+    return NextResponse.rewrite(url);
+}
+
+/** /en/ogrenci/... ve /tr/ogrenci/... -> öneksiz adres, seçilen dil çereze yazılır (307: çerez ayarlandığı için kalıcı değil) */
+function redirectStudentLocale(request, locale, path) {
+    const url = request.nextUrl.clone();
+    url.pathname = path;
+    const response = NextResponse.redirect(url, 307);
+    response.cookies.set(LANG_COOKIE, locale, { path: "/", maxAge: LANG_COOKIE_MAX_AGE, sameSite: "lax" });
+    return privateHeaders(response);
 }
 
 /* ───────────────────────────── SITE (i18n) ─────────────────────────────
@@ -132,10 +154,13 @@ export function middleware(request) {
         return NextResponse.redirect(url, 308);
     }
 
-    // /tr/... önce öneksiz adrese yönlenir (handleSite), sonra buraya öneksiz gelir
-    if (first !== DEFAULT_LOCALE && inArea(path, AREAS.student)) {
-        const localePrefix = LOCALES.includes(first) ? `/${first}` : "";
-        return handleArea(request, AREAS.student, AREAS.admin, localePrefix, path);
+    // Kural 8: /en/ogrenci ve /tr/ogrenci öneksiz adrese yönlenir, dil çereze yazılır
+    if (LOCALES.includes(first) && inArea(path, AREAS.student)) {
+        return redirectStudentLocale(request, first, path);
+    }
+
+    if (inArea(pathname, AREAS.student)) {
+        return handleArea(request, AREAS.student, AREAS.admin, "", pathname);
     }
 
     if (inArea(pathname, AREAS.admin)) {

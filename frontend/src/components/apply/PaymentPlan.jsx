@@ -8,7 +8,7 @@ import { formatDate, formatPrice } from "@/lib/format";
 import { EASE_OUT } from "@/lib/motion";
 
 const list = { hidden: {}, show: { transition: { staggerChildren: 0.07, delayChildren: 0.15 } } };
-const row = { hidden: { opacity: 0, y: 18, filter: "blur(6px)" }, show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.5, ease: EASE_OUT } } };
+const row = { hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE_OUT } } };
 
 function PlanRow({ icon, title, sub, amount, when, accent, price }) {
     return (

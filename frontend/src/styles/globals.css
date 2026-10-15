@@ -196,3 +196,58 @@ html[data-preloader-seen] #preloader { display: none; }
         scroll-behavior: auto !important;
     }
 }
+
+/* ───────── PWA (kurulu uygulama olarak açıldığında) ───────── */
+/* Uygulama içindeyken ana siteye dönüş bağlantısı gösterilmez */
+@media (display-mode: standalone) {
+    .pwa-hide {
+        display: none !important;
+    }
+}
+
+/* iPhone ana ekran çizgisinin üstünde dursun (viewport-fit=cover ile) */
+[data-bottom-bar] {
+    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* ───────────── Performans ─────────────
+   Amaç: görünümü koruyup GPU/CPU maliyetini düşürmek.
+   1) .soft-blob  : büyük bulanık lekeler artık `filter: blur()` yerine kenarları maskeyle eriyen
+      katmanlardır. Görüntü aynı yumuşaklıkta, ama tarayıcı her kare bulanıklık hesaplamaz;
+      katman bir kez çizilir, hareket (transform) GPU'da oynar. */
+.soft-blob {
+    -webkit-mask-image: radial-gradient(closest-side, #000 0%, rgb(0 0 0 / 0.72) 48%, transparent 100%);
+    mask-image: radial-gradient(closest-side, #000 0%, rgb(0 0 0 / 0.72) 48%, transparent 100%);
+    scale: 1.2;
+    will-change: transform;
+    backface-visibility: hidden;
+}
+
+/* 2) Dokunmatik / küçük ekranlarda ekran arkasını bulandıran (backdrop-filter) katmanlar kapatılır:
+      her kare yeniden hesaplandıkları için mobilde kasmanın başlıca sebebiydi. Zemin biraz daha opak
+      yapılarak görünüm korunur. Sabit üst çubuk (glass-nav) tek ve küçük olduğu için hafif bulanıklıkla kalır. */
+@layer components {
+    @media (hover: none), (max-width: 1023px) {
+        .glass-card {
+            background: rgb(255 246 249 / 0.9);
+            -webkit-backdrop-filter: none;
+            backdrop-filter: none;
+        }
+        .glass-nav {
+            background: rgb(255 246 249 / 0.9);
+            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+        }
+    }
+}
+@media (hover: none), (max-width: 1023px) {
+    [class*="backdrop-blur"] {
+        -webkit-backdrop-filter: none !important;
+        backdrop-filter: none !important;
+    }
+    /* Hero'daki organik şekil: border-radius animasyonu her karede yeniden çizim ister; mobilde sabit şekil */
+    .animate-morph {
+        animation: none;
+        border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+    }
+}

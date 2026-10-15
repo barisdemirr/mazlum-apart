@@ -39,8 +39,8 @@ export default function RoomDetailBody({ room, availability, otherRooms }) {
             {/* ───────── Üst: breadcrumb + medya (ilk izlenim) ───────── */}
             <section className="relative mx-auto w-full max-w-7xl px-4 pt-24 sm:px-8 sm:pt-28 lg:px-12">
                 <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-                    <div className="absolute -top-24 left-1/3 h-[420px] w-[620px] max-w-full rounded-full bg-gradient-to-tr from-orchid-petal/35 via-orchid-lilac/55 to-orchid-powder/40 blur-[130px] animate-blob" />
-                    <div className="absolute right-0 top-40 h-[360px] w-[360px] rounded-full bg-orchid-lilac/60 blur-[140px] animate-blob [animation-delay:6s]" />
+                    <div className="absolute -top-24 left-1/3 h-[420px] w-[620px] max-w-full rounded-full bg-gradient-to-tr from-orchid-petal/35 via-orchid-lilac/55 to-orchid-powder/40 soft-blob animate-blob" />
+                    <div className="absolute right-0 top-40 h-[360px] w-[360px] rounded-full bg-orchid-lilac/60 soft-blob animate-blob [animation-delay:6s]" />
                 </div>
 
                 <motion.nav

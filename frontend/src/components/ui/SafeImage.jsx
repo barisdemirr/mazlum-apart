@@ -20,5 +20,17 @@ export default function SafeImage({ src, alt = "", className = "", ...props }) {
     }
 
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={alt} className={className} onError={() => setFailed(true)} {...props} />;
+    // Ekran dışı görseller geç yüklenir, çözme işlemi ana iş parçacığını bloklamaz (öncelikli görsel hariç)
+    const priority = props.fetchPriority === "high";
+    return (
+        <img
+            src={src}
+            alt={alt}
+            className={className}
+            loading={priority ? "eager" : "lazy"}
+            decoding="async"
+            onError={() => setFailed(true)}
+            {...props}
+        />
+    );
 }

@@ -111,7 +111,7 @@ export default function DashboardView() {
             {/* KPI kartları */}
             <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <div className="relative overflow-hidden flex flex-col justify-between rounded-[1.25rem] bg-ad-brand p-6 text-white shadow-ad-brand md:col-span-2 xl:col-span-1 xl:row-span-2">
-                    <div aria-hidden="true" className="pointer-events-none absolute -right-8 -top-8 h-44 w-44 rounded-full bg-ad-accent-bright/25 blur-2xl" />
+                    <div aria-hidden="true" className="pointer-events-none absolute -right-8 -top-8 h-44 w-44 rounded-full bg-ad-accent-bright/25 soft-blob" />
                     <div className="relative flex items-start justify-between">
                         <div>
                             <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-white/75">
