@@ -5,10 +5,12 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using MazlumApart.Domain.Entities;
 using MazlumApart.Infrastructure.Auth;
 using MazlumApart.Infrastructure.Database;
+using MazlumApart.Infrastructure.Messaging;
 using MazlumApart.Infrastructure.Services;
 using MazlumApart.Shared;
 
@@ -105,6 +107,20 @@ builder.Services.AddSingleton<NumberGenerator>();
 builder.Services.AddScoped<CashBook>();
 builder.Services.AddScoped<IdempotencyGuard>();
 builder.Services.AddScoped<MazlumApart.Features.Accounting.ExpenseWriter>();
+builder.Services.AddMemoryCache();
+
+// ---- Mesajlaşma: SMS (Verimor) + Web Push (aşama 6) ----
+builder.Services.Configure<SmsOptions>(builder.Configuration.GetSection("Sms"));
+builder.Services.Configure<PushOptions>(builder.Configuration.GetSection("Push"));
+builder.Services
+    .AddHttpClient<VerimorClient>((sp, client) =>
+        client.Timeout = TimeSpan.FromSeconds(Math.Clamp(sp.GetRequiredService<IOptions<SmsOptions>>().Value.TimeoutSeconds, 5, 60)))
+    .RemoveAllLoggers(); // API şifresi sorgu dizesinde gider: istek adresleri ASLA günlüğe yazılmaz
+builder.Services.AddSingleton<MazlumApart.Features.Messaging.SmsGate>();
+builder.Services.AddSingleton<WebPushSender>();
+builder.Services.AddScoped<PushDispatcher>();
+builder.Services.AddSingleton<AdminAlerts>();
+builder.Services.AddHostedService<AdminAlertWorker>();
 builder.Services.AddScoped<AuditWriter>();
 
 // ---- Hız sınırı ----

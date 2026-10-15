@@ -350,3 +350,115 @@ Authorization: Bearer {{adminToken}}
 ### Öğrenci: ödemelerim (kendi hesabı; banka bilgisi site ayarlarında IBAN varsa)
 GET {{api}}/api/student/payments
 Authorization: Bearer {{studentLogin.response.body.accessToken}}
+
+
+### ================= AŞAMA 6: MESAJLAŞMA & DESTEK =================
+### Sms:Enabled=false iken SMS GERÇEKTEN GÖNDERİLMEZ ("simulated" kaydı düşer). Gerçek gönderim için appsettings'te
+### Sms:Enabled=true + Username/Password/SourceAddr doldurun ve sunucu IP'sini Verimor OİM'e ekleyin.
+
+### SMS servis durumu (açık mı, sınırlar, bugün kullanılan, kalan kredi)
+GET {{api}}/api/admin/sms/status
+Authorization: Bearer {{adminToken}}
+
+### SMS önizleme (hiçbir şey göndermez): değişkenler sunucuda dolar
+POST {{api}}/api/admin/sms/preview
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "purpose": "payment_reminder", "lang": "tr",
+  "text": "Merhaba {ad}, {oda} için {kalem} ({tutar}) {vade} tarihinde ödenmelidir.",
+  "recipients": [ { "enrollmentId": "{{enrollmentId}}" } ]
+}
+
+### SMS gönder — tekli ve toplu aynı uç (Idempotency-Key zorunlu; 10 dakikada en fazla 5 istek)
+# @name sms
+POST {{api}}/api/admin/sms/send
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{
+  "purpose": "enrollment_approved", "lang": "tr",
+  "text": "Merhaba {ad}, kaydınız onaylandı. Giriş: telefon {telefon}, şifre {sifre}.",
+  "recipients": [ { "enrollmentId": "{{enrollmentId}}", "vars": { "sifre": "ABC123" } } ]
+}
+
+### Gönderim geçmişi (şifre kayıtta ****** görünmeli)
+GET {{api}}/api/admin/sms/batches
+Authorization: Bearer {{adminToken}}
+
+### Gönderim detayı (mesaj mesaj durum)
+GET {{api}}/api/admin/sms/batches/{{sms.response.body.batchId}}
+Authorization: Bearer {{adminToken}}
+
+### Teslim raporu geri çağrısı (Verimor'un yapacağı istek). Sms:WebhookSecret boşsa 404 döner.
+POST {{api}}/api/webhooks/verimor/BURAYA-WEBHOOK-SECRET
+Content-Type: application/json
+
+[ { "type": "outbound", "campaign_id": 1, "message_id": "13582302", "message_custom_id": "MESAJ-ID-N-FORMATINDA", "dest": "905551112233", "credits": 1, "status": "DELIVERED", "gsm_error": "0", "sent_at": "2026-10-15 16:06:00", "done_at": "2026-10-15 16:06:05" } ]
+
+### WhatsApp iletişim kaydı (WhatsApp tarayıcıda açılır, panel kaydı yazar)
+POST {{api}}/api/admin/contacts
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "enrollmentId": "{{enrollmentId}}", "purpose": "payment_reminder" }
+
+### İletişim geçmişi (dönem)
+GET {{api}}/api/admin/contacts?periodId={{periodId}}
+Authorization: Bearer {{adminToken}}
+
+### Bildirim yapılandırması (genel VAPID anahtarı)
+GET {{api}}/api/push/config
+
+### Hangi öğrencinin bildirimi açık
+GET {{api}}/api/admin/push/audience?periodId={{periodId}}
+Authorization: Bearer {{adminToken}}
+
+### Toplu bildirim önizleme (bildirimi kapalı öğrenciler "skipped" içinde)
+POST {{api}}/api/admin/notifications/preview
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "purpose": "announcement", "url": "/ogrenci",
+  "title": { "tr": "Su kesintisi", "en": "Water outage" },
+  "body": { "tr": "Merhaba {ad}, yarın 10:00-14:00 arası su kesintisi olacak.", "en": "Hello {ad}, there will be a water outage tomorrow 10:00-14:00." },
+  "recipients": [ { "enrollmentId": "{{enrollmentId}}" } ]
+}
+
+### Öğrenci: arıza bildir (multipart; fotoğraf isteğe bağlı, en fazla 3 x 5 MB)
+POST {{api}}/api/student/maintenance-requests
+Authorization: Bearer {{studentLogin.response.body.accessToken}}
+Content-Type: multipart/form-data; boundary=sinir
+
+--sinir
+Content-Disposition: form-data; name="area"
+
+bathroom
+--sinir
+Content-Disposition: form-data; name="title"
+
+Lavabo bataryası damlatıyor
+--sinir
+Content-Disposition: form-data; name="description"
+
+Lavabo bataryasından su sızıyor, vana kapatılsa da devam ediyor.
+--sinir--
+
+### Öğrenci: arıza kayıtlarım
+GET {{api}}/api/student/maintenance-requests
+Authorization: Bearer {{studentLogin.response.body.accessToken}}
+
+### Yönetici: arıza kayıtları (status: open | received | in_progress | done)
+# @name maintenance
+GET {{api}}/api/admin/maintenance?periodId={{periodId}}&status=open
+Authorization: Bearer {{adminToken}}
+
+### Yönetici: durum + öğrenciye görünen not
+PUT {{api}}/api/admin/maintenance/{{maintenance.response.body[0].id}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "status": "in_progress", "adminNote": "Tesisatçı yarın gelecek." }

@@ -18,6 +18,7 @@ public static class RatePolicies
     public const string Upload = "upload";
     public const string Sms = "sms";
     public const string Webhook = "webhook";
+    public const string Push = "push";
 }
 
 public static class RateLimitingExtensions
@@ -64,9 +65,13 @@ public static class RateLimitingExtensions
                 RateLimitPartition.GetFixedWindowLimiter(UserOrIp(context), _ => Window(60, TimeSpan.FromMinutes(10))));
 
             // SMS gönderimi (maliyetli): yönetici başına 10 dakikada 5 gönderim isteği.
-            // Günlük mesaj tavanı ve tekrar gönderim koruması ayrıca handler'da (stage 6) uygulanır.
+            // Günlük boy tavanı, alıcı sınırı ve tekrar gönderim koruması ayrıca SendSms handler'ında uygulanır.
             options.AddPolicy(RatePolicies.Sms, context =>
                 RateLimitPartition.GetFixedWindowLimiter(UserOrIp(context), _ => Window(5, TimeSpan.FromMinutes(10))));
+
+            // Toplu bildirim ve test bildirimi: yönetici başına 10 dakikada 10
+            options.AddPolicy(RatePolicies.Push, context =>
+                RateLimitPartition.GetFixedWindowLimiter(UserOrIp(context), _ => Window(10, TimeSpan.FromMinutes(10))));
 
             // SMS sağlayıcısının teslim raporu geri çağrısı
             options.AddPolicy(RatePolicies.Webhook, context =>

@@ -11,7 +11,7 @@ public record DueItem(Guid Id, ChargeKind Kind, string Month, DateOnly DueDate, 
 
 /// <summary>
 /// Vade listesi satırı (geciken / yaklaşan). Days: gecikmede "kaç gün geçti", yaklaşanda "kaç gün kaldı".
-/// LastContactAt: son WhatsApp/SMS iletişimi (mesajlaşma aşamasında doldurulur).
+/// LastContactAt: son WhatsApp / SMS / bildirim iletişimi.
 /// </summary>
 public record DueRow(Guid EnrollmentId, EnrollmentStatus Status, StudentRef Student, RoomRef? Room, string RoomTypeName, DueItem Item, DateTime? LastContactAt);
 
@@ -44,12 +44,12 @@ public static class DueLists
 
     private static DueRow ToRow(EnrollmentRow row, LedgerItem item, int days) =>
         new(row.Id, row.Status, row.Student, row.Room, row.RoomTypeName,
-            new DueItem(item.Id, item.Kind, item.Month, item.DueDate, item.Note, item.Remaining, days), null);
+            new DueItem(item.Id, item.Kind, item.Month, item.DueDate, item.Note, item.Remaining, days), row.LastContactAt);
 }
 
 /// <summary>
 /// Yönetim paneli ana sayfası (frontend periodView + carriedOver): kasa/banka, dönem tahsilatı/gideri, alacak, avans,
-/// geciken ve yaklaşan ödemeler, vadesi yaklaşan faturalar, önceki dönemlerden açık kalanlar, bekleyen başvurular.
+/// geciken ve yaklaşan ödemeler, vadesi yaklaşan faturalar, önceki dönemlerden açık kalanlar, bekleyen başvurular, açık arızalar.
 /// Doluluk için /api/admin/occupancy kullanılır.
 /// </summary>
 public static class GetDashboard
@@ -58,7 +58,10 @@ public static class GetDashboard
         PeriodBrief Period, decimal CashBalance, decimal BankBalance, List<AccountBalance> Balances, decimal WeekCash, PeriodTotals Totals,
         decimal Charged, decimal CollectionRate, decimal Receivable, decimal Advances, int Debtors, int ExpenseCount,
         List<DueRow> Overdue, List<DueRow> Upcoming, List<BillRow> DueBills, List<CarriedItem> CarriedOver,
-        int PendingApplicationCount, List<PendingApplication> LatestApplications);
+        int PendingApplicationCount, List<PendingApplication> LatestApplications,
+        int OpenMaintenanceCount, List<OpenMaintenanceRow> OpenMaintenance);
+
+    public record OpenMaintenanceRow(Guid Id, string No, string Title, string RoomLabel, MaintenanceStatus Status, DateTime CreatedAt);
 
     public class Handler(AppDbContext db, EnrollmentQueryHandler reader, FinanceQueryHandler finance)
     {
@@ -122,13 +125,21 @@ public static class GetDashboard
             var typeNames = (await db.RoomTypes.AsNoTracking().IgnoreQueryFilters().Where(x => typeIds.Contains(x.Id)).ToListAsync(ct))
                 .ToDictionary(x => x.Id, x => x.Name.Tr);
 
+            // Açık arızalar
+            var openMaintenance = db.MaintenanceRequests.AsNoTracking().Where(x => x.PeriodId == periodId && x.Status != MaintenanceStatus.Done);
+            var openMaintenanceCount = await openMaintenance.CountAsync(ct);
+            var maintenance = await openMaintenance.OrderByDescending(x => x.CreatedAt).Take(3)
+                .Select(x => new OpenMaintenanceRow(x.Id, x.No, x.Title, x.RoomLabel, x.Status, x.CreatedAt))
+                .ToListAsync(ct);
+
             return new Response(
                 new PeriodBrief(period.Id, period.Name, period.Status, period.StartDate, period.EndDate),
                 cash, bank, balances, weekCash, totals,
                 charged, charged > 0 ? LedgerMath.Round(totals.Collected / charged) : 0m, receivable, advances, debtors, expenseCount,
                 overdue, upcoming, dueBills, carried,
                 pendingCount,
-                latest.Select(x => new PendingApplication(x.Id, x.No, x.FullName, x.RoomTypeId, typeNames.GetValueOrDefault(x.RoomTypeId, ""), x.Source, x.CreatedAt)).ToList());
+                latest.Select(x => new PendingApplication(x.Id, x.No, x.FullName, x.RoomTypeId, typeNames.GetValueOrDefault(x.RoomTypeId, ""), x.Source, x.CreatedAt)).ToList(),
+                openMaintenanceCount, maintenance);
         }
     }
 

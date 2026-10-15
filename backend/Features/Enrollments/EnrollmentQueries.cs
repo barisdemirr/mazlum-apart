@@ -26,7 +26,7 @@ public record SummaryDto(decimal Charged, decimal Collected, decimal Refunded, d
 public record EnrollmentRow(
     Guid Id, Guid PeriodId, EnrollmentStatus Status, DateOnly EntryDate, PayWindow PayWindow, StayTerm Term,
     decimal MonthlyPrice, decimal DepositPrice, DateOnly? EndedAt, string? EndReason,
-    StudentRef Student, Guid RoomTypeId, string RoomTypeName, RoomRef? Room, SummaryDto Summary);
+    StudentRef Student, Guid RoomTypeId, string RoomTypeName, RoomRef? Room, SummaryDto Summary, DateTime? LastContactAt);
 
 /// <summary>Kayıt listeleri ve detayları için ortak okuma (takip yok)</summary>
 public class EnrollmentQueryHandler(AppDbContext db, LedgerService ledgers)
@@ -56,12 +56,20 @@ public class EnrollmentQueryHandler(AppDbContext db, LedgerService ledgers)
 
         var summaries = await ledgers.SummariesAsync(ids, TurkeyClock.Today, ct);
 
+        // Son iletişim (WhatsApp / SMS / bildirim): vade listelerinde "son iletişim" sütunu
+        var lastContacts = await db.ContactLogs.AsNoTracking()
+            .Where(x => ids.Contains(x.EnrollmentId))
+            .GroupBy(x => x.EnrollmentId)
+            .Select(g => new { EnrollmentId = g.Key, At = g.Max(x => x.CreatedAt) })
+            .ToDictionaryAsync(x => x.EnrollmentId, x => x.At, ct);
+
         return enrollments.Select(e => (new EnrollmentRow(
             e.Id, e.PeriodId, e.Status, e.EntryDate, e.PayWindow, e.Term, e.MonthlyPrice, e.DepositPrice, e.EndedAt, e.EndReason,
             new StudentRef(e.StudentId, e.Student?.FirstName ?? "", e.Student?.LastName ?? "", e.Student?.Phone ?? "", e.Student?.Tc ?? ""),
             e.RoomTypeId, e.RoomType?.Name.Tr ?? "",
             CurrentRoom(byEnrollment[e.Id], day),
-            SummaryDto.From(summaries[e.Id])), summaries[e.Id])).ToList();
+            SummaryDto.From(summaries[e.Id]),
+            lastContacts.TryGetValue(e.Id, out var last) ? last : null), summaries[e.Id])).ToList();
     }
 
     /// <summary>Verilen gündeki yerleşim; yoksa en son yerleşim</summary>

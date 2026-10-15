@@ -10,4 +10,10 @@ public static class TurkeyClock
 
     public static DateTime LocalNow => DateTime.UtcNow + Offset;
     public static DateOnly Today => DateOnly.FromDateTime(LocalNow);
+
+    /// <summary>Türkiye günü başlangıcının UTC karşılığı (ör. "bugün gönderilen SMS'ler" sorgusu için)</summary>
+    public static DateTime StartOfDayUtc(DateOnly day) => day.ToDateTime(TimeOnly.MinValue) - Offset;
+
+    /// <summary>Türkiye yerel saatini (sağlayıcıların "2026-10-15 16:06:00" biçimi) UTC'ye çevirir</summary>
+    public static DateTime LocalToUtc(DateTime local) => DateTime.SpecifyKind(local - Offset, DateTimeKind.Utc);
 }

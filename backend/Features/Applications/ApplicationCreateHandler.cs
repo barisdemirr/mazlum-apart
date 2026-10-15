@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using MazlumApart.Domain.Entities;
 using MazlumApart.Domain.Enums;
 using MazlumApart.Infrastructure.Database;
+using MazlumApart.Infrastructure.Messaging;
 using MazlumApart.Infrastructure.Services;
 using MazlumApart.Shared;
 
@@ -15,7 +16,7 @@ namespace MazlumApart.Features.Applications;
 ///  - Aynı dönemde aynı T.C. ile reddedilmemiş ikinci başvuru olamaz.
 ///  - Seçilen yatak (bedId) hâlâ boş olmalı; doluysa 409 ve form yeniden seçtirir.
 /// </summary>
-public class ApplicationCreateHandler(AppDbContext db, AvailabilityService availability, NumberGenerator numbers, AuditWriter audit)
+public class ApplicationCreateHandler(AppDbContext db, AvailabilityService availability, NumberGenerator numbers, AdminAlerts alerts, AuditWriter audit)
 {
     public record Created(Guid Id, string ApplicationNo);
 
@@ -113,6 +114,10 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
         db.Applications.Add(application);
         audit.Add("application.create", "application", application.Id, period.Id, after: new { application.No, source });
         await db.SaveChangesAsync(ct);
+
+        // Web'den gelen başvuru: yöneticilerin cihazlarına anında bildirim (arka planda, isteği bekletmez)
+        if (source == ApplicationSource.Online)
+            alerts.Enqueue(new PushPayload("Yeni başvuru", $"{application.FullName} · {roomType!.Name.Tr} · {application.No}", "/admin/basvurular", $"application-{application.Id:N}"));
 
         return new Created(application.Id, application.No);
     }

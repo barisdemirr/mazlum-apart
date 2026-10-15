@@ -44,6 +44,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Bill> Bills => Set<Bill>();
     public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
 
+    // ---- Mesajlaşma & destek (aşama 6) ----
+    public DbSet<ContactLog> ContactLogs => Set<ContactLog>();
+    public DbSet<SmsBatch> SmsBatches => Set<SmsBatch>();
+    public DbSet<SmsMessage> SmsMessages => Set<SmsMessage>();
+    public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
+    public DbSet<NotificationBatch> NotificationBatches => Set<NotificationBatch>();
+    public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
+    public DbSet<MaintenanceRequest> MaintenanceRequests => Set<MaintenanceRequest>();
+    public DbSet<MaintenanceEvent> MaintenanceEvents => Set<MaintenanceEvent>();
+    public DbSet<MaintenancePhoto> MaintenancePhotos => Set<MaintenancePhoto>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder builder)
     {
         // Para: her yerde decimal(18,2). Metin enum'lar string olarak saklanır (okunabilir, sıra değişse bozulmaz).
