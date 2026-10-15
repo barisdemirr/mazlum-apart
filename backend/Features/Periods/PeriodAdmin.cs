@@ -97,7 +97,7 @@ public static class CreatePeriod
 
 /// <summary>
 /// Dönem ayarları: ad, tarihler, başvuruya açık mı, yarım dönem (açıkken iki tarih zorunlu). Kapalı dönem düzenlenemez.
-/// Aşama 4: dönem dışında kalacak kayıt/yerleşim varsa tarih daraltma engellenir.
+/// Dönem dışında kalacak kayıt / yerleşim / bekleyen başvuru varsa tarih daraltma engellenir.
 /// </summary>
 public static class UpdatePeriod
 {
@@ -133,6 +133,14 @@ public static class UpdatePeriod
 
             if (await db.Periods.AnyAsync(x => x.Name == name && x.Id != id, ct)) return Error.Conflict("Bu adda bir dönem zaten var.");
 
+            // Dönem dışında kalacak kayıt ya da yerleşim oluşmasın
+            if (await db.Enrollments.AnyAsync(x => x.PeriodId == id && x.EntryDate < cmd.Start, ct))
+                return Error.Conflict("Bu tarihten önce giriş yapan kayıtlar var; başlangıç tarihi ileri alınamaz.");
+            if (await db.Placements.AnyAsync(x => x.PeriodId == id && x.EndDate > cmd.End, ct))
+                return Error.Conflict("Bitiş tarihinden sonrasına uzanan yerleşimler var.");
+            if (await db.Applications.AnyAsync(x => x.PeriodId == id && x.Status == ApplicationStatus.Pending && (x.EntryDate < cmd.Start || x.EntryDate > cmd.End), ct))
+                return Error.Conflict("Giriş tarihi yeni aralığın dışında kalan bekleyen başvurular var.");
+
             var before = PeriodDto.From(period);
             period.Name = name;
             period.StartDate = cmd.Start;
@@ -156,7 +164,7 @@ public static class UpdatePeriod
     }
 }
 
-/// <summary>Dönemi kapatır (aşama 4: bekleyen başvuru varken kapatılamaz). Kapalı dönemde yalnızca eski borç tahsilatı yapılabilir.</summary>
+/// <summary>Dönemi kapatır (bekleyen başvuru varken kapatılamaz). Kapalı dönemde yalnızca eski borç tahsilatı yapılabilir.</summary>
 public static class ClosePeriod
 {
     public class Handler(AppDbContext db, AuditWriter audit)
@@ -166,6 +174,9 @@ public static class ClosePeriod
             var period = await db.Periods.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (period is null) return Error.NotFound("Dönem bulunamadı.");
             if (period.Status == PeriodStatus.Closed) return Error.Conflict("Dönem zaten kapalı.");
+
+            var pending = await db.Applications.CountAsync(x => x.PeriodId == id && x.Status == ApplicationStatus.Pending, ct);
+            if (pending > 0) return Error.Conflict($"{pending} bekleyen başvuru var. Önce onaylayın ya da reddedin.");
 
             period.Status = PeriodStatus.Closed;
             period.ApplicationsOpen = false;

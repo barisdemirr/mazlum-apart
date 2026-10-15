@@ -19,4 +19,10 @@
     <PackageReference Include="SkiaSharp" Version="3.*" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- İl/ilçe listesi: başvuru formundaki il-ilçe doğrulaması için derlemeye gömülür -->
+    <Content Remove="Shared\Data\turkey-locations.json" />
+    <EmbeddedResource Include="Shared\Data\turkey-locations.json" LogicalName="MazlumApart.Shared.Data.turkey-locations.json" />
+  </ItemGroup>
+
 </Project>

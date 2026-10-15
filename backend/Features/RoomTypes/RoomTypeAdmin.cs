@@ -143,6 +143,8 @@ public static class DeleteRoomType
 
             if (await db.Rooms.AnyAsync(x => x.RoomTypeId == id, ct))
                 return Error.Conflict("Bu oda tipinde odalar var. Silmek yerine “Sitede göster”i kapatın.");
+            if (await db.Applications.AnyAsync(x => x.RoomTypeId == id, ct) || await db.Enrollments.AnyAsync(x => x.RoomTypeId == id, ct))
+                return Error.Conflict("Bu oda tipiyle yapılmış başvuru/kayıt var. Silmek yerine “Sitede göster”i kapatın.");
             if (await db.RoomTypePrices.AnyAsync(x => x.RoomTypeId == id, ct))
                 return Error.Conflict("Bu oda tipinin dönem fiyatları var. Silmek yerine “Sitede göster”i kapatın.");
 

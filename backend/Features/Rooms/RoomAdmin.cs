@@ -31,7 +31,27 @@ public class RoomSaveHandler(AppDbContext db, AuditWriter audit)
         if (await db.Rooms.AnyAsync(x => x.ApartmentId == input.ApartmentId && x.Name == name && x.Id != id, ct))
             return Error.Conflict("Bu dairede aynı adda bir oda var.");
 
-        // Aşama 4: odada kalan / kalacak öğrenci varken kapasite düşürme, kapatma ve oda tipi değiştirme engellenir.
+        // Odada şu an ya da ileride kalan öğrenci varken: kapatma/bakıma alma, oda tipi değiştirme, başka daireye taşıma
+        // ve yatak sayısını kalan öğrenci sayısının altına düşürme engellenir.
+        if (existing is not null)
+        {
+            var today = TurkeyClock.Today;
+            var upcoming = await db.Placements.Where(p => p.RoomId == existing.Id && p.EndDate >= today).ToListAsync(ct);
+            if (upcoming.Count > 0)
+            {
+                if (input.Status != RoomStatus.Active)
+                    return Error.Conflict("Bu odada şu an ya da ileride kalan öğrenci var; kapatmadan/bakıma almadan önce odalarını değiştirin.");
+                if (input.RoomTypeId != existing.RoomTypeId)
+                    return Error.Conflict("Bu odada kalan öğrenci var; oda tipi değiştirilemez.");
+                if (input.ApartmentId != existing.ApartmentId)
+                    return Error.Conflict("Bu odada kalan öğrenci var; başka daireye taşınamaz.");
+
+                var start = upcoming.Min(p => p.StartDate) < today ? today : upcoming.Min(p => p.StartDate);
+                var end = upcoming.Max(p => p.EndDate);
+                if (Features.Enrollments.PlacementRules.Peak(upcoming, existing.Id, start, end) > input.Beds)
+                    return Error.Conflict("Yatak sayısı, odada kalan öğrenci sayısından az olamaz.");
+            }
+        }
 
         var before = existing is null ? null : new { existing.Name, existing.ApartmentId, existing.RoomTypeId, existing.Beds, existing.Status };
         var room = existing ?? new Room();
@@ -99,7 +119,7 @@ public static class UpdateRoom
     }
 }
 
-/// <summary>Oda silme. Aşama 4: geçmişte yerleşim kaydı olan oda silinemez (Kapalı yapılır). Fotoğraf etiketleri kaldırılır.</summary>
+/// <summary>Oda silme. Geçmişte yerleşim kaydı olan oda silinemez (Kapalı yapılır). Fotoğraf etiketleri kaldırılır.</summary>
 public static class DeleteRoom
 {
     public class Handler(AppDbContext db, AuditWriter audit)
@@ -108,6 +128,8 @@ public static class DeleteRoom
         {
             var room = await db.Rooms.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (room is null) return Error.NotFound("Oda bulunamadı.");
+            if (await db.Placements.AnyAsync(x => x.RoomId == id, ct))
+                return Error.Conflict("Bu odada geçmişte yerleşim kaydı var; silinemez. Odayı “Kapalı” yapın.");
 
             await RoomSaveHandler.UntagAsync(db, room.ApartmentId, room.Id, ct);
             db.Rooms.Remove(room);

@@ -113,3 +113,68 @@ GET {{api}}/api/room-types/iki-kisilik-oda/availability
 
 ### Site ayarları (herkese açık; IBAN yok)
 GET {{api}}/api/site-settings
+
+### ───────── Aşama 4: kayıt ─────────
+
+### Başvuru formu ayarları (herkese açık)
+GET {{api}}/api/applications/config
+
+### Web başvurusu (herkese açık; bedId: daire sayfasındaki yatak kimliği, boş bırakılabilir)
+# @name submit
+POST {{api}}/api/applications
+Content-Type: application/json
+
+{
+  "roomSlug": "iki-kisilik-oda", "bedId": null, "term": "full", "entryDate": "2026-10-20", "payDay": "early",
+  "firstName": "Ayşe", "lastName": "Deneme", "tc": "10000000146", "birthDate": "2005-05-14", "phone": "5551112233",
+  "address": "Örnek Mah. 10. Sok. No: 5 Daire: 3", "provinceId": 61, "district": "Ortahisar",
+  "school": "Karadeniz Teknik Üniversitesi", "faculty": "Mühendislik Fakültesi", "department": "Bilgisayar Mühendisliği", "grade": "2",
+  "guardians": [ { "name": "Mehmet Deneme", "phone": "5321112233" } ]
+}
+
+### Başvurular (panel)
+# @name apps
+GET {{api}}/api/admin/applications?status=pending
+Authorization: Bearer {{adminToken}}
+
+###
+@applicationId = {{apps.response.body.items[0].id}}
+
+### Başvuru detayı + ödeme planı önizlemesi
+GET {{api}}/api/admin/applications/{{applicationId}}
+Authorization: Bearer {{adminToken}}
+
+### Onayla (öğrenci + kayıt + ödeme planı; ilk şifre yanıtta)
+# @name approve
+POST {{api}}/api/admin/applications/{{applicationId}}/approve
+Authorization: Bearer {{adminToken}}
+
+###
+@enrollmentId = {{approve.response.body.enrollmentId}}
+
+### Öğrenciler (dönem)
+GET {{api}}/api/admin/enrollments?periodId={{periodId}}
+Authorization: Bearer {{adminToken}}
+
+### Öğrenci detayı (kalem kalem hesap)
+GET {{api}}/api/admin/enrollments/{{enrollmentId}}
+Authorization: Bearer {{adminToken}}
+
+### Doluluk
+GET {{api}}/api/admin/occupancy?periodId={{periodId}}
+Authorization: Bearer {{adminToken}}
+
+### Öğrenci girişi (telefon + onayda dönen şifre)
+# @name studentLogin
+POST {{api}}/api/student/auth/login
+Content-Type: application/json
+
+{ "phone": "5551112233", "password": "BURAYA-ILK-SIFRE", "remember": false }
+
+### Öğrenci: bilgilerim
+GET {{api}}/api/student/me
+Authorization: Bearer {{studentLogin.response.body.accessToken}}
+
+### Öğrenci token'ı ile yönetici ucu -> 403
+GET {{api}}/api/admin/users
+Authorization: Bearer {{studentLogin.response.body.accessToken}}

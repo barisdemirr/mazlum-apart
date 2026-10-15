@@ -27,6 +27,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<StaticPage> StaticPages => Set<StaticPage>();
     public DbSet<MessageTemplate> MessageTemplates => Set<MessageTemplate>();
 
+    // ---- Kayıt & muhasebe defteri (aşama 4) ----
+    public DbSet<Application> Applications => Set<Application>();
+    public DbSet<Enrollment> Enrollments => Set<Enrollment>();
+    public DbSet<Placement> Placements => Set<Placement>();
+    public DbSet<Charge> Charges => Set<Charge>();
+    public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<PaymentAllocation> PaymentAllocations => Set<PaymentAllocation>();
+    public DbSet<Account> Accounts => Set<Account>();
+    public DbSet<AccountTransaction> AccountTransactions => Set<AccountTransaction>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder builder)
     {
         // Para: her yerde decimal(18,2). Metin enum'lar string olarak saklanır (okunabilir, sıra değişse bozulmaz).
@@ -37,6 +47,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+
+        // Başvuru numarası (MA-2026-0001) için sıra: eşzamanlı başvurularda bile tekrar etmez
+        modelBuilder.HasSequence<int>(AppSequences.ApplicationNumbers).StartsAt(1);
 
         // Soft delete: DeletedAt dolu olan düzenlenebilir kayıtlar tüm sorgulardan otomatik elenir
         foreach (var entityType in modelBuilder.Model.GetEntityTypes()
@@ -95,4 +108,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 throw new InvalidOperationException($"{entry.Metadata.ClrType.Name} kaydı silinemez (append-only).");
         }
     }
+}
+
+public static class AppSequences
+{
+    public const string ApplicationNumbers = "ApplicationNumbers";
+
+    /// <summary>Sıradan bir sonraki numarayı alır</summary>
+    public static async Task<int> NextAsync(AppDbContext db, string sequence, CancellationToken ct) =>
+    (await db.Database.SqlQuery<int>($"SELECT NEXT VALUE FOR [dbo].[{sequence}] AS [Value]").ToListAsync(ct)).Single();
 }

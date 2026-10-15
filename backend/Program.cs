@@ -34,6 +34,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower)));
 
 builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<MazlumApart.Infrastructure.ConflictExceptionHandler>(); // eşzamanlılık / tekil indeks → 409
 
 // ---- Kimlik doğrulama: tek JWT şeması, iki rol (typ = admin | student) ----
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>();
@@ -99,6 +100,7 @@ builder.Services.AddSingleton<ImageService>();
 builder.Services.AddSingleton<VideoService>();
 builder.Services.AddScoped<MediaUsageChecker>();
 builder.Services.AddScoped<AvailabilityService>();
+builder.Services.AddScoped<LedgerService>();
 builder.Services.AddScoped<AuditWriter>();
 
 // ---- Hız sınırı ----
