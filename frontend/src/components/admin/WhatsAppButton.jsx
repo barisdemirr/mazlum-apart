@@ -26,7 +26,7 @@ export function whatsappLink(phone, text) {
     return `https://wa.me/${full}?text=${encodeURIComponent(text)}`;
 }
 
-export default function WhatsAppButton({ row, item, purpose = "payment_reminder", compact = true, label = "WhatsApp" }) {
+export default function WhatsAppButton({ row, item, purpose = "payment_reminder", compact = true, label = "WhatsApp", extraVars = {}, defaultTemplate, className = "" }) {
     const { state, run } = useAdmin();
     const toast = useToast();
     const [open, setOpen] = useState(false);
@@ -35,7 +35,7 @@ export default function WhatsAppButton({ row, item, purpose = "payment_reminder"
     const [text, setText] = useState("");
     const [busy, setBusy] = useState(false);
 
-    const defaultKey = purpose === "payment_overdue" || item?.lateDays > 0 ? "payment_overdue" : purpose;
+    const defaultKey = defaultTemplate ?? (purpose === "payment_overdue" || item?.lateDays > 0 ? "payment_overdue" : purpose);
     const templates = state.messageTemplates;
 
     const vars = useMemo(() => {
@@ -47,8 +47,9 @@ export default function WhatsAppButton({ row, item, purpose = "payment_reminder"
             tutar: item ? money(item.remaining) : money(row.summary.remaining),
             vade: item ? date(item.dueDate) : "",
             kalem: item ? `${CHARGE_KIND[item.kind]}${item.kind === "rent" ? ` (${monthLabel(item.month, { short: true })})` : ""}` : "ödeme",
+            ...extraVars,
         };
-    }, [row, item]);
+    }, [row, item, extraVars]);
 
     const pick = (id, language = lang) => {
         const tpl = templates.find((t) => t.id === id);
@@ -89,7 +90,7 @@ export default function WhatsAppButton({ row, item, purpose = "payment_reminder"
                 }}
                 title="WhatsApp ile ulaş"
                 aria-label={`${row.student.firstName} ${row.student.lastName} için WhatsApp mesajı`}
-                className={`ad-btn ad-btn-wa ad-btn-sm ${compact ? "!px-2.5" : ""}`}
+                className={`ad-btn ad-btn-wa ad-btn-sm ${compact ? "!px-2.5" : ""} ${className}`}
             >
                 <Icon name="chat" className="text-[16px]" />
                 {!compact && label}
