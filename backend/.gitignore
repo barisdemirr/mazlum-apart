@@ -1,0 +1,102 @@
+## =====================================
+## Build & Derleme Çıktıları
+## =====================================
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Ll]og/
+[Ll]ogs/
+publish/
+*.publishproj
+
+## =====================================
+## Visual Studio
+## =====================================
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+*.userprefs
+*.ide/
+_ReSharper*/
+*.ReSharper*
+
+## =====================================
+## JetBrains Rider & VS Code
+## =====================================
+.idea/
+*.DotSettings.user
+
+# VS Code (Genel workspace ayarları kalsın istersen sadece içindekileri filtreleyebilirsin)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/
+
+## =====================================
+## Test & Kod Kapsama (Coverage)
+## =====================================
+[Tt]est[Rr]esult*/
+[Tt]est[Rr]esults/
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+
+## =====================================
+## Paketler & Cache
+## =====================================
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.assets.json
+
+## =====================================
+## Hassas Bilgiler & Yerel Konfigürasyon
+## =====================================
+# Canlı veritabanı şifreleri / gizli anahtarlar içeren yerel ayarlar
+appsettings.Production.json
+appsettings.*.local.json
+appsettings.Development.json
+secrets.json
+
+# Sertifikalar & Anahtarlar
+*.pfx
+*.p12
+*.pem
+*.key
+
+## =====================================
+## Entity Framework & DB Kalıntıları
+## =====================================
+*.db
+*.sqlite
+*.sqlite3
+*.mdf
+*.ldf
+
+## =====================================
+## İşletim Sistemi Kalıntıları
+## =====================================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+
+
+wwwroot/uploads/*
+!wwwroot/uploads/.gitkeep
+# Öğrencilerin yüklediği özel dosyalar (arıza fotoğrafları): web'den doğrudan erişilmez
+App_Data/*
+!App_Data/.gitkeep
+
+
+appsettings.Development.json

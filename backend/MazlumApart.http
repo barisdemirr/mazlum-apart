@@ -1,0 +1,7 @@
+@api = http://localhost:5252
+
+### Sağlık kontrolü (veritabanı bağlantısı dahil)
+GET {{api}}/health
+Accept: application/json
+
+###
