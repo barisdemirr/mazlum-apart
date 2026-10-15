@@ -64,7 +64,7 @@ export default function PaymentPlanList({ items }) {
                                     </span>
                                     <div className="min-w-0 flex-1">
                                         <p className="truncate text-sm font-bold text-orchid-dark">{chargeLabel(item, copy, locale)}</p>
-                                        <p className="text-xs text-orchid-muted">{tpl(copy.due, { date: formatDate(item.dueDate) })}</p>
+                                        <p className="text-xs text-orchid-muted">{tpl(copy.due, { date: formatDate(item.dueDate) })}{item.kind === "deposit" && ` · ${copy.depositNote}`}</p>
                                     </div>
                                     <div className="flex flex-col items-end gap-1.5">
                                         <span className="font-display text-lg font-semibold text-orchid-dark">{money(item.amount)}</span>

@@ -181,9 +181,15 @@ export function buildPaymentPlan({ room, entryDate, payDay, period, locale = "tr
         index += 1;
     }
 
+    /* Depozito (1 aylık kira) son ayın kirası yerine sayılır: dönemin son ayı için kira kalemi yoktur.
+     * Giriş doğrudan son aya denk geliyorsa (tek ay) kira alınır. */
+    let coveredMonth = null;
+    if (rents.length > 1) coveredMonth = rents.pop().month;
+
     return {
         deposit,
         rents,
+        coveredMonth,
         months: rents.length,
         dueAtRegistration: deposit + price,
         periodTotal: deposit + price * rents.length,

@@ -35,7 +35,7 @@ export default function BankCard({ bank }) {
             <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-orchid-powder/60 px-4 py-3">
                 <div className="min-w-0">
                     <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orchid-pink">{copy.iban}</p>
-                    <p className="break-all font-mono text-sm font-bold text-orchid-dark">{bank.iban}</p>
+                    <p className="break-words font-mono text-sm font-bold text-orchid-dark">{bank.iban}</p>
                 </div>
                 <button type="button" onClick={copyIban} className="flex shrink-0 items-center gap-1.5 rounded-full bg-white px-3.5 py-2 text-xs font-bold text-orchid-pink shadow-sm hover:bg-orchid-powder">
                     <Icon name={copied ? "check" : "content_copy"} className="text-[16px]" />

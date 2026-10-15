@@ -73,7 +73,10 @@ export const CONTACT_PURPOSE = {
     other: "Diğer",
 };
 
+export const CONTACT_CHANNEL = { whatsapp: "WhatsApp", sms: "SMS" };
+
 export const AUDIT_ACTION = {
+    "sms.bulk": "Toplu SMS gönderildi",
     "payment.create": "Tahsilat girildi",
     "payment.cancel": "Tahsilat iptal edildi",
     "payment.refund": "Avans iadesi",
@@ -125,3 +128,6 @@ export const TX_SOURCE = {
 };
 
 export const MAINT_AREA = { room: "Oda", kitchen: "Mutfak", bathroom: "Banyo", common: "Ortak alan", other: "Diğer" };
+
+/** "TR880099…" → "TR88 0099 …" (4'lü gruplar) */
+export const formatIban = (iban) => String(iban ?? "").replace(/\s/g, "").replace(/(.{4})/g, "$1 ").trim();

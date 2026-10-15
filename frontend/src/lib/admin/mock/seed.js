@@ -1,3 +1,4 @@
+import { SITE } from "@/lib/constants";
 import { MOCK_HERO, MOCK_ROOM_TYPES, getMockRoomTypeDetail } from "@/lib/mockData";
 import { MOCK_PERIODS } from "./periods";
 import { addBill, addExpense, addCharge, payBill, recordPayment, refundAdvance, reverseCharge, transfer } from "@/lib/admin/domain/ledger";
@@ -41,7 +42,7 @@ export function buildSeed() {
     ];
     const [TEK, IKI, UC] = roomTypes.map((r) => r.id);
 
-    /* Bu iki dönemin fiyatları: aylık kira ve depozito (depozito tutarı müşteriden teyit bekliyor; şimdilik bir aylık kira) */
+    /* Bu iki dönemin fiyatları: aylık kira ve depozito (depozito = 1 aylık kira; son ay kirası yerine sayılır) */
     const prices = [
         { periodId: "p-2026-27", roomTypeId: TEK, monthly: 12500, deposit: 12500 },
         { periodId: "p-2026-27", roomTypeId: IKI, monthly: 9500, deposit: 9500 },
@@ -99,7 +100,7 @@ export function buildSeed() {
             { key: "contact", title: { tr: "İletişim", en: "Contact" }, body: { tr: "", en: "" }, updatedAt: null },
             { key: "kvkk", title: { tr: "KVKK Aydınlatma Metni", en: "Privacy Notice" }, body: { tr: "", en: "" }, updatedAt: null },
         ],
-        siteSettings: { phone: "", whatsapp: "", email: "", address: { tr: "", en: "" }, mapUrl: "", instagram: "", iban: "", ibanHolder: "" },
+        siteSettings: { phone: SITE.phone.replace(/\D/g, "").slice(-10), whatsapp: SITE.whatsapp.replace(/\D/g, "").slice(-10), email: "", address: { tr: "", en: "" }, mapUrl: "", instagram: "", iban: SITE.bank.iban.replace(/\s/g, ""), ibanHolder: SITE.bank.holder },
         admins: [{ id: "admin-1", name: "Yönetici", email: "yonetici@mazlumapart.local", active: true, createdAt: at("2026-08-20") }],
         students: [],
         applications: [],

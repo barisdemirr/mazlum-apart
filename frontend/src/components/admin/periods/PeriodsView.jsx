@@ -58,7 +58,7 @@ export default function PeriodsView() {
                 })}
             </div>
 
-            <Card title={`Fiyatlar · ${period.name}`} description={closed ? "Kapalı dönemin fiyatları değiştirilemez." : "Aylık kira ve depozito. Depozito tutarı müşteriden teyit bekliyor; şimdilik her oda tipi için bir aylık kira olarak girilmiştir."}>
+            <Card title={`Fiyatlar · ${period.name}`} description={closed ? "Kapalı dönemin fiyatları değiştirilemez." : "Aylık kira ve depozito. Depozito 1 aylık kiradır ve dönemin son ayının (haziran) kirası yerine sayılır; son ay için ayrıca kira istenmez."}>
                 <div className="ad-scroll mt-4 overflow-x-auto">
                     <table className="ad-table">
                         <thead><tr><th>Oda tipi</th><th className="!text-end">Aylık kira</th><th className="!text-end">Depozito</th><th /></tr></thead>
@@ -153,7 +153,7 @@ function PriceDialog({ roomType, row, onClose }) {
     return (
         <FormDialog open title={`${roomType.name.tr} fiyatı`} description={period.name} onClose={onClose} onSubmit={submit} busy={busy} saveLabel="Kaydet" columns={1}>
             <Field label="Aylık kira" required><NumberInput suffix="₺" min="0" step="0.01" value={f.monthly} onChange={set("monthly")} autoFocus /></Field>
-            <Field label="Depozito" required hint="Kayıtta bir kez alınır."><NumberInput suffix="₺" min="0" step="0.01" value={f.deposit} onChange={set("deposit")} /></Field>
+            <Field label="Depozito" required hint="Kayıtta bir kez alınır. 1 aylık kiradır ve son ay kirası yerine sayılır."><NumberInput suffix="₺" min="0" step="0.01" value={f.deposit} onChange={set("deposit")} /></Field>
             <p className="rounded-xl bg-ad-warn-soft px-3 py-2 text-xs text-ad-warn">Bu değişiklik yalnızca bundan sonraki başvuruları etkiler. Mevcut kayıtların ödeme planı değişmez. İşlem geçmişine yazılır.</p>
         </FormDialog>
     );

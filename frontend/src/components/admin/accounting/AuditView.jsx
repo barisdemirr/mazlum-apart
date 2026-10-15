@@ -9,7 +9,7 @@ import { SelectInput } from "@/components/admin/fields";
 import { AUDIT_ACTION } from "@/lib/admin/labels";
 import DateRange, { inRange } from "./DateRange";
 
-const GROUPS = { payment: "Tahsilat / iade", charge: "Borç kalemleri", account: "Kasa & banka", transfer: "Kasa & banka", expense: "Gider", bill: "Fatura", application: "Başvuru", enrollment: "Kayıt", placement: "Yerleşim", maintenance: "Arıza", roomtype: "Yapı", apartment: "Yapı", room: "Yapı", period: "Dönem & fiyat", price: "Dönem & fiyat", settings: "Sistem", admin: "Sistem" };
+const GROUPS = { payment: "Tahsilat / iade", charge: "Borç kalemleri", account: "Kasa & banka", transfer: "Kasa & banka", expense: "Gider", bill: "Fatura", application: "Başvuru", enrollment: "Kayıt", placement: "Yerleşim", maintenance: "Arıza", roomtype: "Yapı", apartment: "Yapı", room: "Yapı", period: "Dönem & fiyat", price: "Dönem & fiyat", settings: "Sistem", sms: "İletişim", admin: "Sistem" };
 const stamp = (iso) => new Date(iso).toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
 /** Değiştirilemez işlem geçmişi: kim, ne zaman, ne yaptı; önce/sonra değerleriyle */

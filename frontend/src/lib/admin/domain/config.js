@@ -258,6 +258,16 @@ export function savePage(state, { key, title, body }, ctx) {
     return { state: { ...state, pages: state.pages.map((p) => (p.key === key ? next : p)) }, result: next };
 }
 
+/** TR IBAN: 26 karakter ve mod-97 sağlaması (yazım hatalarını yakalar) */
+export function isValidTrIban(iban) {
+    if (!/^TR\d{24}$/.test(iban)) return false;
+    const rearranged = iban.slice(4) + iban.slice(0, 4);
+    const digits = rearranged.replace(/[A-Z]/g, (c) => String(c.charCodeAt(0) - 55));
+    let rem = 0;
+    for (const ch of digits) rem = (rem * 10 + Number(ch)) % 97;
+    return rem === 1;
+}
+
 /** Site ayarları: BOŞ alanlar sitede gösterilmez (uydurma iletişim bilgisi yok) */
 export function saveSiteSettings(state, input, ctx) {
     const phone = String(input.phone ?? "").replace(/\D/g, "");
@@ -265,11 +275,14 @@ export function saveSiteSettings(state, input, ctx) {
     if (phone && !/^5\d{9}$/.test(phone.replace(/^0/, ""))) fail("Telefon 5 ile başlayan 10 haneli olmalı.");
     if (whatsapp && !/^5\d{9}$/.test(whatsapp.replace(/^0/, ""))) fail("WhatsApp numarası 5 ile başlayan 10 haneli olmalı.");
     if (input.email && !/^\S+@\S+\.\S+$/.test(input.email)) fail("E-posta adresi geçersiz.");
+    const iban = String(input.iban ?? "").replace(/\s/g, "").toUpperCase();
+    if (iban && !isValidTrIban(iban)) fail("IBAN geçersiz. TR ile başlayan 26 karakter olmalı; yazım hatası olabilir.");
+    if (iban && !input.ibanHolder?.trim()) fail("IBAN yazıldıysa hesap sahibi adı da gerekli.");
     const next = {
         phone: phone.replace(/^0/, ""), whatsapp: whatsapp.replace(/^0/, ""), email: input.email?.trim() ?? "",
         address: { tr: input.address?.tr?.trim() ?? "", en: input.address?.en?.trim() ?? "" },
         mapUrl: input.mapUrl?.trim() ?? "", instagram: input.instagram?.trim() ?? "",
-        iban: input.iban?.replace(/\s/g, "") ?? "", ibanHolder: input.ibanHolder?.trim() ?? "",
+        iban, ibanHolder: input.ibanHolder?.trim() ?? "",
     };
     const s = withAudit({ ...state, siteSettings: next }, ctx, { action: "settings.update", entity: "settings", entityId: "site", before: state.siteSettings, after: next });
     return { state: s, result: next };

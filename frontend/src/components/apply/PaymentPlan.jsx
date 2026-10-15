@@ -58,7 +58,7 @@ export default function PaymentPlan({ plan, room, payDay }) {
                 animate="show"
                 className="flex flex-col gap-2.5"
             >
-                <PlanRow icon="shield" title={r.deposit} when={r.atRegistration} amount={plan.deposit} price={price} />
+                <PlanRow icon="shield" title={r.deposit} when={r.depositWhen} amount={plan.deposit} price={price} />
                 {plan.rents.map((rent) => (
                     <PlanRow
                         key={rent.key}
@@ -70,6 +70,9 @@ export default function PaymentPlan({ plan, room, payDay }) {
                         price={price}
                     />
                 ))}
+                {plan.coveredMonth && (
+                    <PlanRow icon="check_circle" title={tpl(r.coveredRent, { month: plan.coveredMonth })} when={r.coveredWhen} amount={0} price={() => r.coveredAmount} />
+                )}
             </motion.ul>
 
             <motion.div

@@ -14,13 +14,13 @@ const VARS = [
     ["{vade}", "Vade tarihi"], ["{kalem}", "Borç kalemi"], ["{sifre}", "İlk şifre (kayıt onayında)"], ["{konu}", "Arıza konusu"], ["{durum}", "Arıza durumu"],
 ];
 
-/** WhatsApp butonlarının hazır mesajları. Gönderirken yine de düzenlenebilir; buradaki metin başlangıç metnidir. */
+/** WhatsApp ve SMS için hazır mesajlar. Gönderirken yine de düzenlenebilir; buradaki metin başlangıç metnidir. */
 export default function TemplatesView() {
     const { state } = useAdmin();
     const [editing, setEditing] = useState(null);
     return (
         <div>
-            <p className="mb-5 max-w-2xl text-sm text-ad-muted">Mesajlarda <code className="rounded bg-ad-sunken px-1.5">{"{ad}"}</code> gibi değişkenler gönderirken gerçek bilgiyle dolar.</p>
+            <p className="mb-5 max-w-2xl text-sm text-ad-muted">WhatsApp ve SMS mesajlarında <code className="rounded bg-ad-sunken px-1.5">{"{ad}"}</code> gibi değişkenler gönderirken gerçek bilgiyle dolar.</p>
             <div className="grid gap-4 lg:grid-cols-2">
                 {state.messageTemplates.map((t) => (
                     <Card key={t.id} title={t.name}>
