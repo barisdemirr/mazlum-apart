@@ -98,7 +98,7 @@ export function StepRoom({ form, set, err, tick, rooms, terms, period, bedReques
                             <Icon name="info" filled className="mt-0.5 text-[20px] text-orchid-violet" />
                             <p>
                                 <span className="font-bold">{a.room.infoTitle}: </span>
-                                {tpl(a.room.info, { flat: selectedRoom.peopleInFlat, kitchen: selectedRoom.peopleSharingKitchen, bathroom: selectedRoom.peopleSharingBathroom })}
+                                {tpl(a.room.info, showBed && bedRequest.available && bedRequest.flatPeople ? bedRequest.flatPeople : { flat: selectedRoom.peopleInFlat, kitchen: selectedRoom.peopleSharingKitchen, bathroom: selectedRoom.peopleSharingBathroom })}
                             </p>
                         </motion.div>
                     )}

@@ -47,6 +47,8 @@ export default async function ApplyPage({ params, searchParams }) {
             flatName: found?.flat.name ?? null,
             roomName: found?.room.name ?? null,
             bedLabel: found?.bed.label ?? null,
+            // Seçilen yatağın DAİRESİNE ait gerçek sayılar (tip kartındaki sayılar yalnızca genel özettir)
+            flatPeople: found ? { flat: found.flat.peopleInFlat, kitchen: found.flat.peopleSharingKitchen, bathroom: found.flat.peopleSharingBathroom } : null,
         };
     }
 

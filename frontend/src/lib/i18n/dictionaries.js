@@ -322,7 +322,8 @@ export const dictionaries = {
             about: { eyebrow: "Oda hakkında", title: "Detaylı İnceleme" },
             features: {
                 eyebrow: "Donanım",
-                title: "Oda ve Daire Standartları",
+                title: "Odalar ve Ortak Alanlar",
+                roomBeds: "{count} yataklı",
                 roomFeatures: "Oda özellikleri",
                 flatFeatures: "Dairenin özellikleri",
                 sharedAreas: "Ortak kullanım alanları",
@@ -991,6 +992,7 @@ export const dictionaries = {
             features: {
                 eyebrow: "Equipment",
                 title: "Room and Flat Standards",
+                roomBeds: "{count} beds",
                 roomFeatures: "Room features",
                 flatFeatures: "Flat features",
                 sharedAreas: "Shared areas",

@@ -5,6 +5,7 @@ import CountUp from "@/components/ui/CountUp";
 import Reveal from "@/components/ui/Reveal";
 import SpotlightCard from "@/components/ui/SpotlightCard";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import { localized } from "@/lib/i18n/localized";
 
 function Heading({ eyebrow, title }) {
     return (
@@ -67,45 +68,64 @@ export function About({ room }) {
     );
 }
 
-/** Oda / daire / ortak alan / hizmet listeleri: dolu olanlar görünür */
-export function Features({ room }) {
-    const { t, locale } = useLanguage();
+/**
+ * Daire sayfası: her odanın kendi donanımı + dairenin ortak kullanım alanları.
+ * Oda özellikleri ODAYA, ortak alanlar DAİREYE aittir; dolu olanlar görünür, boşlar gizlenir.
+ */
+export function RoomsAndAreas({ rooms = [], sharedAreas = [] }) {
+    const { t, tpl, locale } = useLanguage();
     const f = t.roomDetail.features;
-    const groups = [
-        { key: "roomFeatures", icon: "bed", tone: "bg-orchid-powder text-orchid-pink", dot: "bg-orchid-pink" },
-        { key: "flatFeatures", icon: "meeting_room", tone: "bg-orchid-lilac text-orchid-violet", dot: "bg-orchid-violet" },
-        { key: "sharedAreas", icon: "countertops", tone: "bg-orchid-powder text-orchid-pink", dot: "bg-orchid-petal" },
-        { key: "services", icon: "room_service", tone: "bg-orchid-lilac text-orchid-violet", dot: "bg-orchid-violet/60" },
-    ]
-        .map((group) => ({ ...group, items: listOf(room[group.key], locale) }))
-        .filter((group) => group.items.length > 0);
-
-    if (groups.length === 0) return null;
+    const textOf = (item) => localized(item.text, locale);
+    const withFeatures = rooms.filter((room) => (room.features ?? []).length > 0);
+    if (withFeatures.length === 0 && sharedAreas.length === 0) return null;
 
     return (
         <Reveal className="glass-card rounded-[32px] p-6 sm:p-8 lg:p-10">
             <Heading eyebrow={f.eyebrow} title={f.title} />
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {groups.map((group) => (
-                    <SpotlightCard key={group.key} className="rounded-3xl p-5">
+                {withFeatures.map((room) => (
+                    <SpotlightCard key={room.id} className="rounded-3xl p-5">
                         <div>
                             <div className="mb-3 flex items-center gap-2.5">
-                                <span className={`flex h-9 w-9 items-center justify-center rounded-full ${group.tone}`}>
-                                    <Icon name={group.icon} className="text-[18px]" />
+                                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orchid-powder text-orchid-pink">
+                                    <Icon name="bed" className="text-[18px]" />
                                 </span>
-                                <h3 className="font-display text-lg font-medium italic text-orchid-dark">{f[group.key]}</h3>
+                                <div>
+                                    <h3 className="font-display text-lg font-medium italic text-orchid-dark">{localized(room.name, locale)}</h3>
+                                    {room.bedCount > 0 && <span className="text-xs text-orchid-muted">{tpl(f.roomBeds, { count: room.bedCount })}</span>}
+                                </div>
                             </div>
                             <ul className="flex flex-col gap-2 text-sm text-orchid-muted">
-                                {group.items.map((item) => (
-                                    <li key={item} className="flex items-center gap-2.5">
-                                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${group.dot}`} />
-                                        {item}
+                                {room.features.map((item, i) => (
+                                    <li key={i} className="flex items-center gap-2.5">
+                                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-orchid-pink" />
+                                        {textOf(item)}
                                     </li>
                                 ))}
                             </ul>
                         </div>
                     </SpotlightCard>
                 ))}
+                {sharedAreas.length > 0 && (
+                    <SpotlightCard className="rounded-3xl p-5">
+                        <div>
+                            <div className="mb-3 flex items-center gap-2.5">
+                                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orchid-lilac text-orchid-violet">
+                                    <Icon name="countertops" className="text-[18px]" />
+                                </span>
+                                <h3 className="font-display text-lg font-medium italic text-orchid-dark">{f.sharedAreas}</h3>
+                            </div>
+                            <ul className="flex flex-col gap-2 text-sm text-orchid-muted">
+                                {sharedAreas.map((item, i) => (
+                                    <li key={i} className="flex items-center gap-2.5">
+                                        <Icon name={item.icon || "check_circle"} className="text-[16px] text-orchid-violet" />
+                                        {textOf(item)}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </SpotlightCard>
+                )}
             </div>
         </Reveal>
     );

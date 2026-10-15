@@ -1,5 +1,5 @@
 import { SITE } from "@/lib/constants";
-import { MOCK_HERO, MOCK_ROOM_TYPES, getMockFlatGallery, getMockRoomNames, getMockRoomTypeDetail } from "@/lib/mockData";
+import { MOCK_HERO, MOCK_ROOM_TYPES, getMockFlatGallery, getMockRoomFeatures, getMockRoomNames, getMockSharedAreas } from "@/lib/mockData";
 import { MOCK_PERIODS } from "./periods";
 import { addBill, addExpense, addCharge, payBill, recordPayment, refundAdvance, reverseCharge, transfer } from "@/lib/admin/domain/ledger";
 import { approveApplication, createApplication, endEnrollment, placeStudent, rejectApplication } from "@/lib/admin/domain/registration";
@@ -39,16 +39,10 @@ const profileFor = (n) => ({
 });
 
 export function buildSeed() {
-    const feat = (list) => (list?.tr ?? []).map((tr, i) => ({ icon: "check_circle", text: { tr, en: list.en?.[i] ?? "" } }));
-    const roomTypes = MOCK_ROOM_TYPES.map((r) => {
-        const d = getMockRoomTypeDetail(r.slug);
-        return {
-            id: r.id, slug: r.slug, name: r.name, description: { tr: "", en: "" },
-            peopleInFlat: r.peopleInFlat, peopleSharingKitchen: r.peopleSharingKitchen, peopleSharingBathroom: r.peopleSharingBathroom,
-            features: feat(d?.roomFeatures), sharedAreas: feat(d?.sharedAreas),
-            image: { mediaId: `med-${r.slug}`, url: r.image.url }, active: true,
-        };
-    });
+    const roomTypes = MOCK_ROOM_TYPES.map((r) => ({
+        id: r.id, slug: r.slug, name: r.name, description: { tr: "", en: "" },
+        image: { mediaId: `med-${r.slug}`, url: r.image.url }, active: true,
+    }));
     const media = [
         { id: "med-hero", name: "ana-sayfa-gorseli", url: MOCK_HERO.image.url, kind: "image", size: 0, alt: MOCK_HERO.image.alt, createdAt: at("2026-08-20") },
         ...MOCK_ROOM_TYPES.map((r) => ({ id: `med-${r.slug}`, name: r.slug, url: r.image.url, kind: "image", size: 0, alt: r.image.alt, createdAt: at("2026-08-20") })),
@@ -71,7 +65,8 @@ export function buildSeed() {
         { id: "apt-3", name: "Daire 3", floor: 3, kitchens: 1, bathrooms: 3, note: "" },
         { id: "apt-4", name: "Daire 4", floor: 3, kitchens: 1, bathrooms: 2, note: "" },
     ];
-    const room = (id, apartmentId, name, roomTypeId, beds, status = "active") => ({ id, apartmentId, name, roomTypeId, beds, status });
+    const slugOf = { [TEK]: MOCK_ROOM_TYPES[0].slug, [IKI]: MOCK_ROOM_TYPES[1].slug, [UC]: MOCK_ROOM_TYPES[2].slug };
+    const room = (id, apartmentId, name, roomTypeId, beds, status = "active") => ({ id, apartmentId, name, roomTypeId, beds, status, features: getMockRoomFeatures(slugOf[roomTypeId]) });
     // Fiziksel oda adları galeri etiketleriyle aynıdır: "1. Sol Oda" etiketli fotoğraf, bu odanın fotoğrafıdır.
     const [tekNames, ikiNames, ucNames] = MOCK_ROOM_TYPES.map((r) => getMockRoomNames(r.slug));
     const rooms = [
@@ -84,6 +79,7 @@ export function buildSeed() {
     // Galeri DAİREYE aittir: her dairenin kendi odalarına etiketli fotoğrafları + 1 video (dairelerin görüntüsü farklıdır)
     apartments.forEach((apt, variant) => {
         apt.published = true;
+        apt.sharedAreas = getMockSharedAreas(slugOf[rooms.find((r) => r.apartmentId === apt.id)?.roomTypeId]);
         apt.gallery = getMockFlatGallery(rooms.filter((r) => r.apartmentId === apt.id).map((r) => ({ id: r.id, name: r.name })), variant)
             .map((g) => ({ ...g, name: "", size: 0, poster: g.poster ?? null, caption: { tr: g.caption?.tr ?? "", en: g.caption?.en ?? "" }, tag: g.tag ?? null }));
     });

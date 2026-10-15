@@ -13,6 +13,8 @@ const slugify = (text) =>
     text.toLocaleLowerCase("tr").replace(/ç/g, "c").replace(/ğ/g, "g").replace(/ı/g, "i").replace(/ö/g, "o").replace(/ş/g, "s").replace(/ü/g, "u")
         .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
+const cleanItems = (list) => (list ?? []).filter((f) => f.text?.tr?.trim()).map((f) => ({ icon: f.icon || "check_circle", text: { tr: f.text.tr.trim(), en: f.text.en?.trim() ?? "" } }));
+
 const upsert = (list, item) => (list.some((x) => x.id === item.id) ? list.map((x) => (x.id === item.id ? item : x)) : [...list, item]);
 
 /* ───────── oda tipleri ───────── */
@@ -31,17 +33,14 @@ export function saveRoomType(state, input, ctx) {
         s = made.state;
         id = made.id;
     }
-    const num = (v) => (v === "" || v == null ? null : Math.max(0, Math.round(Number(v))));
+    // Oda tipi yalnızca KATEGORİdir: ad, açıklama, kapak. Kişi sayıları dairelerden hesaplanır; oda özellikleri odaya,
+    // ortak alanlar daireye aittir (saveRoom / saveApartment).
+    const { peopleInFlat, peopleSharingKitchen, peopleSharingBathroom, features, sharedAreas, gallery, ...rest } = before ?? {};
     const roomType = {
-        ...(before ?? {}),
+        ...rest,
         id, slug,
         name: { tr: input.name.tr.trim(), en: input.name.en?.trim() ?? "" },
         description: { tr: input.description?.tr?.trim() ?? "", en: input.description?.en?.trim() ?? "" },
-        peopleInFlat: num(input.peopleInFlat),
-        peopleSharingKitchen: num(input.peopleSharingKitchen),
-        peopleSharingBathroom: num(input.peopleSharingBathroom),
-        features: (input.features ?? []).filter((f) => f.text?.tr?.trim()),
-        sharedAreas: (input.sharedAreas ?? []).filter((f) => f.text?.tr?.trim()),
         image: input.image ?? before?.image ?? null,
         active: input.active ?? before?.active ?? true,
     };
@@ -139,6 +138,7 @@ export function saveApartment(state, input, ctx) {
         id, name: input.name.trim(), floor: n(input.floor), kitchens: n(input.kitchens), bathrooms: n(input.bathrooms), note: input.note?.trim() ?? "",
         published: input.published ?? before?.published ?? true, // sitede (herkese açık) görünsün mü
         gallery: before?.gallery ?? [],
+        sharedAreas: cleanItems(input.sharedAreas ?? before?.sharedAreas), // ortak kullanım alanları DAİREYE aittir
     };
     s = { ...s, apartments: upsert(s.apartments, apartment) };
     s = withAudit(s, ctx, { action: before ? "apartment.update" : "apartment.create", entity: "apartment", entityId: id, before, after: apartment });
@@ -180,7 +180,10 @@ export function saveRoom(state, input, ctx) {
         s = made.state;
         id = made.id;
     }
-    const room = { id, apartmentId: input.apartmentId, name: input.name.trim(), roomTypeId: input.roomTypeId, beds, status: input.status };
+    const room = {
+        id, apartmentId: input.apartmentId, name: input.name.trim(), roomTypeId: input.roomTypeId, beds, status: input.status,
+        features: cleanItems(input.features ?? before?.features), // oda özellikleri ODAYA aittir (yatak, masa, gardırop…)
+    };
     s = { ...s, rooms: upsert(s.rooms, room) };
     // Galeri etiketleri odayla birlikte güncel kalır: ad değişirse etiket adı yenilenir, başka daireye taşınırsa eski dairedeki fotoğraflar etiketsiz kalır
     if (before) {
@@ -417,3 +420,12 @@ export function changePassword(state, { id, current, next, repeat }, ctx) {
 }
 
 export { DomainError };
+
+/** Dairenin bugünkü kapasitesi: kişi sayıları yatak sayısından hesaplanır (elle girilmez). Yalnızca aktif odalar sayılır. */
+export function flatCapacity(state, apartmentId) {
+    const apt = state.apartments.find((a) => a.id === apartmentId);
+    const beds = state.rooms.filter((r) => r.apartmentId === apartmentId && r.status === "active").reduce((s, r) => s + r.beds, 0);
+    const kitchens = apt?.kitchens || 0;
+    const bathrooms = apt?.bathrooms || 0;
+    return { beds, perKitchen: kitchens ? Math.ceil(beds / kitchens) : null, perBathroom: bathrooms ? Math.ceil(beds / bathrooms) : null };
+}

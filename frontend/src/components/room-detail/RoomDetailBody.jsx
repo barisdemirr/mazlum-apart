@@ -11,7 +11,7 @@ import AvailabilityPicker from "./AvailabilityPicker";
 import ApartmentCards from "./ApartmentCards";
 import SafeImage from "@/components/ui/SafeImage";
 import BookingCard, { buildApplyHref } from "./BookingCard";
-import { About, Features, Included, LivingPlan, Terms } from "./DetailSections";
+import { About, Included, LivingPlan, RoomsAndAreas, Terms } from "./DetailSections";
 import { summarizeAvailability } from "@/lib/availability";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { localized } from "@/lib/i18n/localized";
@@ -197,7 +197,7 @@ export default function RoomDetailBody({ room: typeRoom, availability, otherRoom
             <section className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-8 lg:px-12">
                 <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
                     <div className="flex min-w-0 flex-col gap-8 lg:col-span-8">
-                        <LivingPlan room={room} />
+                        {apartment && <LivingPlan room={room} />}
                         {apartment ? (
                             <AvailabilityPicker
                                 availability={availability}
@@ -209,8 +209,8 @@ export default function RoomDetailBody({ room: typeRoom, availability, otherRoom
                         ) : (
                             <ApartmentCards apartments={apartments} typeSlug={room.slug} />
                         )}
+                        {apartment && <RoomsAndAreas rooms={apartment.rooms} sharedAreas={apartment.sharedAreas} />}
                         <About room={room} />
-                        <Features room={room} />
                         <Included room={room} />
                         <Terms />
                     </div>

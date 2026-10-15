@@ -65,7 +65,9 @@ export const MOCK_MAP_IMAGE = "https://lh3.googleusercontent.com/aida-public/AB6
    Backend DTO şekli:
    RoomTypeDetail = RoomType listesi alanları + {
      summary?, description?: { tr: string[], en: string[] },
-     (galeri artık DAİRELERDE: Apartment.gallery; oda tipi yalnızca kategori/fiyat/tanıtım metnidir)
+     (galeri ve donanım DAİRE tarafındadır: Apartment.gallery / Apartment.sharedAreas / Room.features;
+      oda tipi yalnızca kategori, fiyat, kapak ve tanıtım metnidir. Tip kartlarındaki peopleInFlat/peopleSharing* alanları
+      dairelerden TÜRETİLMİŞ özettir; panelde elle girilmez.)
      roomFeatures / flatFeatures / sharedAreas / services / includedServices: { tr: string[], en: string[] }
    }
    Boş alanlar sayfada gizlenir; içerik panelden girilir. Buradaki metinler yalnızca örnektir. */
@@ -106,6 +108,11 @@ export function getMockFlatGallery(rooms, variant = 0) {
     ];
 }
 
+const toItems = (list, icon) => (list?.tr ?? []).map((tr, i) => ({ icon, text: { tr, en: list.en?.[i] ?? "" } }));
+/** Oda özellikleri ODAYA, ortak alanlar DAİREYE aittir (oda tipine değil). Örnek veri tipten türetilir. */
+export const getMockRoomFeatures = (slug) => toItems(MOCK_DETAILS[slug]?.roomFeatures, "check_circle");
+export const getMockSharedAreas = (slug) => toItems(MOCK_DETAILS[slug]?.sharedAreas, "check_circle");
+
 const MOCK_DETAILS = {
     "tek-kisilik-oda": {
         roomFeatures: { tr: ["Yatak", "Çalışma masası ve sandalye", "Gardırop"], en: ["Bed", "Desk and chair", "Wardrobe"] },
@@ -126,7 +133,7 @@ export const getMockRoomNames = (slug) => ROOM_NAMES[slug] ?? [];
 export function getMockRoomTypeDetail(slug) {
     const base = MOCK_ROOM_TYPES.find((room) => room.slug === slug);
     if (!base) return null;
-    return { ...base, ...MOCK_DETAILS[slug] };
+    return { ...base };
 }
 
 /* ───────────────────────── Yatak bazlı doluluk (GEÇİCİ) ─────────────────────────
@@ -155,6 +162,7 @@ function buildApartments({ slug, flats, roomsPerFlat, bedsPerRoom, bathrooms, st
                 id,
                 name: { tr: trName, en: roomNameEn(trName) },
                 tagKey: roomTagKey(id),
+                features: getMockRoomFeatures(slug),
                 beds: Array.from({ length: bedsPerRoom }, (_, b) => ({
                     id: `${id}-bed-${b + 1}`,
                     label: bedLabel(bedsPerRoom, b),
@@ -169,6 +177,7 @@ function buildApartments({ slug, flats, roomsPerFlat, bedsPerRoom, bathrooms, st
             floor: f + 2,
             kitchens: 1,
             bathrooms,
+            sharedAreas: getMockSharedAreas(slug),
             rooms,
             gallery: toPublicGallery(getMockFlatGallery(rooms.map((r) => ({ id: r.id, name: r.name.tr })), f)),
         };
@@ -192,7 +201,7 @@ const bedsOf = (flat) => flat.rooms.flatMap((r) => r.beds);
 export function getMockAvailability(slug) {
     const spec = AVAILABILITY_SPEC[slug];
     if (!spec) return null;
-    const apartments = buildApartments({ slug, ...spec }).map(({ gallery, kitchens, bathrooms, ...flat }) => flat);
+    const apartments = buildApartments({ slug, ...spec }).map(({ gallery, kitchens, bathrooms, sharedAreas, ...flat }) => ({ ...flat, ...flatPeople({ ...flat, kitchens, bathrooms }) }));
     return { period: PERIOD, apartments };
 }
 
@@ -225,13 +234,14 @@ export function getMockApartments(slug) {
 
 /**
  * Tek daire detayı (galeri + odalar + yataklar). GET /api/room-types/{slug}/apartments/{apartmentSlug}
- * { ...özet, gallery: MediaItem[], availability: { period, apartments: [daire] } }
+ * { ...özet, gallery: MediaItem[], sharedAreas: [{icon,text:{tr,en}}], rooms: [{ id, name, features: [{icon,text}], bedCount }],
+ *   availability: { period, apartments: [daire] } }
  */
 export function getMockApartment(slug, apartmentSlug) {
     const spec = AVAILABILITY_SPEC[slug];
     const flat = spec && buildApartments({ slug, ...spec }).find((f) => f.slug === apartmentSlug);
     if (!flat) return null;
     const summary = getMockApartments(slug).find((a) => a.slug === apartmentSlug);
-    const { gallery, kitchens, bathrooms, ...lean } = flat;
-    return { ...summary, gallery, availability: { period: PERIOD, apartments: [lean] } };
+    const { gallery, kitchens, bathrooms, sharedAreas, ...lean } = flat;
+    return { ...summary, gallery, sharedAreas, rooms: flat.rooms.map(({ id, name, features, beds }) => ({ id, name, features, bedCount: beds.length })), availability: { period: PERIOD, apartments: [{ ...lean, ...flatPeople(flat) }] } };
 }
