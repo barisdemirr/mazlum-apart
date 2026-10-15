@@ -23,7 +23,7 @@ export default function WhatsAppFab() {
             transition={{ ...SPRING_BOUNCY, delay: 1.2 }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="group fixed bottom-6 right-6 z-50 flex items-center rounded-full bg-[#25d366] p-3.5 text-white shadow-[0_12px_35px_rgba(37,211,102,0.4)] transition-shadow duration-300 hover:shadow-[0_16px_45px_rgba(37,211,102,0.6)] sm:p-4"
+            className="wa-fab group fixed bottom-6 right-6 z-50 flex items-center rounded-full bg-[#25d366] p-3.5 text-white shadow-[0_12px_35px_rgba(37,211,102,0.4)] transition-shadow duration-300 hover:shadow-[0_16px_45px_rgba(37,211,102,0.6)] sm:p-4"
         >
             <span aria-hidden="true" className="absolute inset-0 -z-10 rounded-full bg-[#25d366] opacity-40 animate-ping" />
             <Icon name="chat" filled className="text-[26px]" />

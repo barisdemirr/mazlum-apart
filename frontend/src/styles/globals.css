@@ -178,6 +178,13 @@ html[data-preloader-seen] #preloader { display: none; }
     }
 }
 
+/* Ekranın altında sabit bir işlem çubuğu olan sayfalarda WhatsApp butonu çubuğun üstüne çıkar (mobil) */
+@media (max-width: 1023px) {
+    body:has([data-bottom-bar]) .wa-fab {
+        bottom: 8.5rem;
+    }
+}
+
 /* Hareket azaltma tercihine saygı */
 @media (prefers-reduced-motion: reduce) {
     *,

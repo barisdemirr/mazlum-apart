@@ -1,0 +1,191 @@
+import { parseDateOnly } from "@/lib/format";
+
+/* ───────────────────────── Tarih yardımcıları ───────────────────────── */
+
+const pad = (n) => String(n).padStart(2, "0");
+
+/** Date -> "YYYY-MM-DD" (formda tarihler bu biçimde tutulur) */
+export function toISO(date) {
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** "gg/aa/yyyy" yazısını "YYYY-MM-DD"ye çevirir; geçersiz takvim günü ("31/02/2026") için "" döner */
+export function parseDisplayDate(text) {
+    const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(text ?? "").trim());
+    if (!match) return "";
+    const [, d, m, y] = match.map(Number);
+    const date = new Date(y, m - 1, d);
+    if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return "";
+    return toISO(date);
+}
+
+/** Yazarken otomatik eğik çizgi ekler: "01092026" -> "01/09/2026" */
+export function maskDate(raw) {
+    const digits = String(raw ?? "").replace(/\D/g, "").slice(0, 8);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+/* ───────────────────────── Alan biçimleri ───────────────────────── */
+
+export const onlyDigits = (value, max) => String(value ?? "").replace(/\D/g, "").slice(0, max);
+
+/** "5321234567" -> "532 123 45 67" (+90 ön eki arayüzde sabit gösterilir) */
+export function formatPhone(digits) {
+    const d = onlyDigits(digits, 10);
+    const parts = [d.slice(0, 3), d.slice(3, 6), d.slice(6, 8), d.slice(8, 10)].filter(Boolean);
+    return parts.join(" ");
+}
+
+/** TC Kimlik No: resmi sağlama algoritması (11 hane, ilk hane 0 olamaz, 10. ve 11. hane kontrolü) */
+export function isValidTc(value) {
+    const tc = String(value ?? "");
+    if (!/^[1-9]\d{9}\d$/.test(tc)) return false;
+    const d = tc.split("").map(Number);
+    const odd = d[0] + d[2] + d[4] + d[6] + d[8];
+    const even = d[1] + d[3] + d[5] + d[7];
+    const tenth = (((odd * 7 - even) % 10) + 10) % 10;
+    const eleventh = d.slice(0, 10).reduce((a, b) => a + b, 0) % 10;
+    return d[9] === tenth && d[10] === eleventh;
+}
+
+export const isValidPhone = (digits) => /^5\d{9}$/.test(String(digits ?? ""));
+
+/* ───────────────────────── Doğrulama ─────────────────────────
+ * Her doğrulayıcı { alan: "hataKodu" } döner; metinler dictionaries.apply.errors altındadır. */
+
+export const GRADES = ["prep", "1", "2", "3", "4", "5", "6"];
+
+export function newGuardian() {
+    return { id: `g-${Math.random().toString(36).slice(2, 9)}`, name: "", phone: "" };
+}
+
+export function emptyForm({ roomSlug = "", period }) {
+    return {
+        roomSlug,
+        term: "full",
+        entryDate: period?.start ?? "",
+        payDay: "",
+        firstName: "",
+        lastName: "",
+        tc: "",
+        birthDate: "",
+        phone: "",
+        address: "",
+        provinceId: "",
+        district: "",
+        school: "",
+        faculty: "",
+        department: "",
+        grade: "",
+        guardians: [newGuardian()],
+        kvkk: false,
+    };
+}
+
+const filled = (value) => String(value ?? "").trim().length > 0;
+
+export function validateStep(step, form, { period, rooms }) {
+    const errors = {};
+    const required = (field) => {
+        if (!filled(form[field])) errors[field] = "required";
+    };
+
+    if (step === 1) {
+        if (!rooms.some((room) => room.slug === form.roomSlug)) errors.roomSlug = "required";
+        if (!form.entryDate) errors.entryDate = "required";
+        else if (form.entryDate < period.start) errors.entryDate = "dateMin";
+        else if (form.entryDate > period.end) errors.entryDate = "dateMax";
+        required("payDay");
+    }
+
+    if (step === 2) {
+        required("firstName");
+        required("lastName");
+        if (!form.tc) errors.tc = "required";
+        else if (form.tc.length < 11) errors.tc = "tcLength";
+        else if (!isValidTc(form.tc)) errors.tc = "tc";
+
+        if (!form.birthDate) errors.birthDate = "required";
+        else if (form.birthDate >= toISO(new Date()) || form.birthDate < "1940-01-01") errors.birthDate = "birthDate";
+
+        if (!form.phone) errors.phone = "required";
+        else if (!isValidPhone(form.phone)) errors.phone = "phone";
+
+        if (!filled(form.address)) errors.address = "required";
+        else if (form.address.trim().length < 10) errors.address = "addressShort";
+
+        required("provinceId");
+        required("district");
+    }
+
+    if (step === 3) {
+        required("school");
+        required("faculty");
+        required("department");
+        required("grade");
+    }
+
+    if (step === 4) {
+        form.guardians.forEach((guardian) => {
+            if (!filled(guardian.name)) errors[`guardian-${guardian.id}-name`] = "required";
+            if (!guardian.phone) errors[`guardian-${guardian.id}-phone`] = "required";
+            else if (!isValidPhone(guardian.phone)) errors[`guardian-${guardian.id}-phone`] = "phone";
+        });
+    }
+
+    if (step === 5 && !form.kvkk) errors.kvkk = "kvkk";
+
+    return errors;
+}
+
+/* ───────────────────────── Ödeme planı ─────────────────────────
+ * Kural (müşteri): kayıtta 1 depozito + 1 aylık kira peşin; sonraki aylar seçilen ödeme gününe göre.
+ * TEYİT BEKLİYOR: depozito tutarı. Müşteriden gelene kadar bir aylık kira kabul edilir;
+ * backend oda tipine `depositAmount` eklediğinde otomatik o değer kullanılır. */
+export const PAY_DAYS = {
+    early: { from: 1, to: 5 },
+    mid: { from: 15, to: 20 },
+};
+
+export const depositFor = (room) => room?.depositAmount ?? room?.monthlyPrice ?? 0;
+
+export function buildPaymentPlan({ room, entryDate, payDay, period, locale = "tr" }) {
+    if (!room) return null;
+
+    const start = parseDateOnly(entryDate || period.start);
+    const end = parseDateOnly(period.end);
+    const price = room.monthlyPrice;
+    const deposit = depositFor(room);
+    const monthName = (date) => {
+        const name = new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "tr-TR", { month: "long" }).format(date);
+        return name.charAt(0).toLocaleUpperCase(locale === "en" ? "en" : "tr") + name.slice(1);
+    };
+
+    const rents = [];
+    const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+    let index = 0;
+    while (cursor <= end) {
+        const first = index === 0;
+        const dueDay = PAY_DAYS[payDay]?.to;
+        rents.push({
+            key: `${cursor.getFullYear()}-${cursor.getMonth()}`,
+            index: index + 1,
+            month: monthName(cursor),
+            amount: price,
+            atRegistration: first,
+            dueDate: !first && dueDay ? toISO(new Date(cursor.getFullYear(), cursor.getMonth(), dueDay)) : null,
+        });
+        cursor.setMonth(cursor.getMonth() + 1);
+        index += 1;
+    }
+
+    return {
+        deposit,
+        rents,
+        months: rents.length,
+        dueAtRegistration: deposit + price,
+        periodTotal: deposit + price * rents.length,
+    };
+}
