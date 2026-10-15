@@ -112,6 +112,11 @@ namespace MazlumApart.Migrations
 
                     b.HasIndex("AccountId");
 
+                    b.HasIndex("PeriodId", "AccountId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AccountTransactions_Opening")
+                        .HasFilter("[Source] = 'Opening'");
+
                     b.HasIndex("Source", "SourceId");
 
                     b.HasIndex("PeriodId", "AccountId", "Date");
@@ -501,6 +506,81 @@ namespace MazlumApart.Migrations
                     b.ToTable("AuditLogs", (string)null);
                 });
 
+            modelBuilder.Entity("MazlumApart.Domain.Entities.Bill", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateOnly>("DueDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("ExpenseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("nvarchar(12)");
+
+                    b.Property<string>("Month")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("nchar(7)")
+                        .IsFixedLength();
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly?>("PaidAt")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("PeriodId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("PeriodId", "DueDate");
+
+                    b.ToTable("Bills", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Bills_Amount", "[Amount] > 0");
+                        });
+                });
+
             modelBuilder.Entity("MazlumApart.Domain.Entities.Charge", b =>
                 {
                     b.Property<Guid>("Id")
@@ -641,6 +721,140 @@ namespace MazlumApart.Migrations
                         .HasFilter("[Status] <> 'Cancelled' AND [DeletedAt] IS NULL");
 
                     b.ToTable("Enrollments", (string)null);
+                });
+
+            modelBuilder.Entity("MazlumApart.Domain.Entities.Expense", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid?>("BillId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CancelReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CancelledById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<Guid>("PeriodId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId");
+
+                    b.HasIndex("BillId");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("PeriodId", "Date");
+
+                    b.ToTable("Expenses", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Expenses_Amount", "[Amount] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("MazlumApart.Domain.Entities.ExpenseCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SystemKey")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasFilter("[DeletedAt] IS NULL");
+
+                    b.HasIndex("SystemKey")
+                        .IsUnique()
+                        .HasFilter("[SystemKey] IS NOT NULL AND [DeletedAt] IS NULL");
+
+                    b.ToTable("ExpenseCategories", (string)null);
+                });
+
+            modelBuilder.Entity("MazlumApart.Domain.Entities.IdempotencyKey", b =>
+                {
+                    b.Property<Guid>("Key")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.HasKey("Key");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.ToTable("IdempotencyKeys", (string)null);
                 });
 
             modelBuilder.Entity("MazlumApart.Domain.Entities.MediaAsset", b =>
@@ -1538,6 +1752,15 @@ namespace MazlumApart.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MazlumApart.Domain.Entities.Bill", b =>
+                {
+                    b.HasOne("MazlumApart.Domain.Entities.Period", null)
+                        .WithMany()
+                        .HasForeignKey("PeriodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("MazlumApart.Domain.Entities.Charge", b =>
                 {
                     b.HasOne("MazlumApart.Domain.Entities.Enrollment", null)
@@ -1587,6 +1810,32 @@ namespace MazlumApart.Migrations
                     b.Navigation("RoomType");
 
                     b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("MazlumApart.Domain.Entities.Expense", b =>
+                {
+                    b.HasOne("MazlumApart.Domain.Entities.Account", null)
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MazlumApart.Domain.Entities.Bill", null)
+                        .WithMany()
+                        .HasForeignKey("BillId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("MazlumApart.Domain.Entities.ExpenseCategory", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MazlumApart.Domain.Entities.Period", null)
+                        .WithMany()
+                        .HasForeignKey("PeriodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("MazlumApart.Domain.Entities.MediaAsset", b =>

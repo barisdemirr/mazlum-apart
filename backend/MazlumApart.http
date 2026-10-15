@@ -178,3 +178,175 @@ Authorization: Bearer {{studentLogin.response.body.accessToken}}
 ### Öğrenci token'ı ile yönetici ucu -> 403
 GET {{api}}/api/admin/users
 Authorization: Bearer {{studentLogin.response.body.accessToken}}
+
+
+### ================= AŞAMA 5: MUHASEBE =================
+### Para yaratan isteklerde "Idempotency-Key" başlığı zorunlu: {{$guid}} her çalıştırmada yeni anahtar üretir.
+### Aynı isteği aynı anahtarla iki kez göndermek -> 409 (çift kayıt açılmaz).
+
+### Kasa / banka hesapları (ilk açılışta "Nakit Kasa" otomatik oluşur)
+# @name accounts
+GET {{api}}/api/admin/accounts
+Authorization: Bearer {{adminToken}}
+
+###
+@cashId = {{accounts.response.body[0].id}}
+
+### Banka hesabı ekle
+# @name bankAccount
+POST {{api}}/api/admin/accounts
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "type": "bank", "name": "Ziraat Bankası", "iban": "" }
+
+###
+@bankId = {{bankAccount.response.body.id}}
+
+### Açılış bakiyesi (dönem başına hesap başına bir kez; ikincisi 409)
+POST {{api}}/api/admin/accounts/{{cashId}}/opening
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "periodId": "{{periodId}}", "amount": 5000 }
+
+### Öğrenci hesap ekstresi (özet + kalemler + tahsilatlar + işlem geçmişi)
+GET {{api}}/api/admin/enrollments/{{enrollmentId}}/account
+Authorization: Bearer {{adminToken}}
+
+### Tahsilat (FIFO: vadesi en eski kalemden dağıtılır, fazlası avans)
+# @name payment
+POST {{api}}/api/admin/enrollments/{{enrollmentId}}/payments
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{ "amount": 12000, "date": "2026-10-15", "method": "cash", "accountId": "{{cashId}}", "note": "Elden" }
+
+### Tahsilat — nakit + banka hesabı -> 400 (nakit kasa hesabına yazılmalı)
+POST {{api}}/api/admin/enrollments/{{enrollmentId}}/payments
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{ "amount": 1000, "date": "2026-10-15", "method": "cash", "accountId": "{{bankId}}" }
+
+### Tahsilat — sabit anahtarla iki kez gönder: ilki 200, ikincisi 409
+POST {{api}}/api/admin/enrollments/{{enrollmentId}}/payments
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+Idempotency-Key: 11111111-2222-3333-4444-555555555555
+
+{ "amount": 500, "date": "2026-10-15", "method": "transfer", "accountId": "{{bankId}}" }
+
+### Ek kalem: bütünleme konaklaması (fiyat elle)
+POST {{api}}/api/admin/enrollments/{{enrollmentId}}/charges
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{ "kind": "extra_stay", "amount": 2500, "dueDate": "2026-10-25", "note": "Bütünleme 2 hafta" }
+
+### İndirim (pozitif yazılır, eksi kaydedilir; açıklama zorunlu)
+POST {{api}}/api/admin/enrollments/{{enrollmentId}}/charges
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{ "kind": "discount", "amount": 1000, "dueDate": "2026-10-15", "note": "Kardeş indirimi" }
+
+### Kalem iptali (ters kayıt) — chargeId'yi hesap ekstresinden alın
+POST {{api}}/api/admin/charges/BURAYA-KALEM-ID/reverse
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "reason": "Yanlış girildi" }
+
+### Avans iadesi (yalnızca serbest avans kadar)
+POST {{api}}/api/admin/enrollments/{{enrollmentId}}/refunds
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{ "amount": 100, "date": "2026-10-15", "accountId": "{{cashId}}" }
+
+### Tahsilat iptali (dağıtımlar geri alınır, ters kasa hareketi yazılır)
+POST {{api}}/api/admin/payments/{{payment.response.body.paymentId}}/cancel
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "reason": "Tutar yanlış girildi" }
+
+### Tahsilatlar sayfası (iptaller dahil) + dönem toplamları
+GET {{api}}/api/admin/payments?periodId={{periodId}}
+Authorization: Bearer {{adminToken}}
+
+### Transfer: kasadan bankaya (gelir/gider sayılmaz)
+POST {{api}}/api/admin/transfers
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{ "periodId": "{{periodId}}", "fromId": "{{cashId}}", "toId": "{{bankId}}", "amount": 2000, "date": "2026-10-15", "note": "Kasadaki nakit bankaya yatırıldı" }
+
+### Kasa & Banka: kartlar, tutarlılık kontrolü (consistent: true olmalı), hareketler
+GET {{api}}/api/admin/cash-bank?periodId={{periodId}}
+Authorization: Bearer {{adminToken}}
+
+### Gider kategorileri
+# @name categories
+GET {{api}}/api/admin/expense-categories
+Authorization: Bearer {{adminToken}}
+
+### Gider ekle (categoryId: "Faturalar" dışındaki bir kategori)
+# @name expense
+POST {{api}}/api/admin/expenses
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{ "periodId": "{{periodId}}", "categoryId": "{{categories.response.body[0].id}}", "amount": 750, "date": "2026-10-15", "accountId": "{{cashId}}", "description": "Daire 2 musluk tamiri" }
+
+### Gider iptali
+POST {{api}}/api/admin/expenses/{{expense.response.body.id}}/cancel
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "reason": "Yanlış hesaptan girildi" }
+
+### Giderler sayfası
+GET {{api}}/api/admin/expenses?periodId={{periodId}}
+Authorization: Bearer {{adminToken}}
+
+### Fatura kaydet (bakiye değişmez)
+# @name bill
+POST {{api}}/api/admin/bills
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{ "periodId": "{{periodId}}", "kind": "electricity", "month": "2026-10", "amount": 1850.40, "dueDate": "2026-10-20" }
+
+### Faturayı öde (Faturalar kategorisine gider + hesap çıkışı)
+POST {{api}}/api/admin/bills/{{bill.response.body.id}}/pay
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{ "accountId": "{{bankId}}", "date": "2026-10-15" }
+
+### Faturalar sayfası (+ önceki dönemlerden ödenmemişler)
+GET {{api}}/api/admin/bills?periodId={{periodId}}
+Authorization: Bearer {{adminToken}}
+
+### Ana sayfa (kasa, banka, tahsilat oranı, geciken/yaklaşan, açık kalanlar, başvurular)
+GET {{api}}/api/admin/dashboard?periodId={{periodId}}
+Authorization: Bearer {{adminToken}}
+
+### Rapor (tarih aralığı; boşsa tüm dönem)
+GET {{api}}/api/admin/reports/finance?periodId={{periodId}}&from=2026-10-01&to=2026-10-31
+Authorization: Bearer {{adminToken}}
+
+### Öğrenci: ödemelerim (kendi hesabı; banka bilgisi site ayarlarında IBAN varsa)
+GET {{api}}/api/student/payments
+Authorization: Bearer {{studentLogin.response.body.accessToken}}

@@ -38,6 +38,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AccountTransaction> AccountTransactions => Set<AccountTransaction>();
     public DbSet<NumberCounter> NumberCounters => Set<NumberCounter>();
 
+    // ---- Gider, fatura & tekrar koruması (aşama 5) ----
+    public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
+    public DbSet<Expense> Expenses => Set<Expense>();
+    public DbSet<Bill> Bills => Set<Bill>();
+    public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder builder)
     {
         // Para: her yerde decimal(18,2). Metin enum'lar string olarak saklanır (okunabilir, sıra değişse bozulmaz).

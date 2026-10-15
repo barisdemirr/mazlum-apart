@@ -102,6 +102,9 @@ builder.Services.AddScoped<MediaUsageChecker>();
 builder.Services.AddScoped<AvailabilityService>();
 builder.Services.AddScoped<LedgerService>();
 builder.Services.AddSingleton<NumberGenerator>();
+builder.Services.AddScoped<CashBook>();
+builder.Services.AddScoped<IdempotencyGuard>();
+builder.Services.AddScoped<MazlumApart.Features.Accounting.ExpenseWriter>();
 builder.Services.AddScoped<AuditWriter>();
 
 // ---- Hız sınırı ----

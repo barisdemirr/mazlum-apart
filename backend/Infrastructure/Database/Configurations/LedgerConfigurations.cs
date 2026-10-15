@@ -88,5 +88,11 @@ public class AccountTransactionConfiguration : IEntityTypeConfiguration<AccountT
 
         builder.HasIndex(x => new { x.PeriodId, x.AccountId, x.Date });
         builder.HasIndex(x => new { x.Source, x.SourceId });
+
+        // Açılış bakiyesi dönem başına hesap başına bir kez girilir (aynı anda iki istek gelse bile)
+        builder.HasIndex(x => new { x.PeriodId, x.AccountId })
+            .IsUnique()
+            .HasFilter("[Source] = 'Opening'")
+            .HasDatabaseName("UX_AccountTransactions_Opening");
     }
 }

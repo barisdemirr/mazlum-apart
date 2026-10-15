@@ -66,6 +66,85 @@ public sealed class EnrollmentLedger(AppDbContext db, Enrollment enrollment, Lis
         return row;
     }
 
+    /// <summary>Tahsilat ya da avans iadesi satırı ekler (hesap hareketi çağıranda yazılır)</summary>
+    public Payment AddPayment(PaymentKind kind, decimal amount, DateOnly date, PaymentMethod method, Guid accountId, string? note, Guid? by)
+    {
+        var payment = new Payment
+        {
+            PeriodId = Enrollment.PeriodId,
+            EnrollmentId = Enrollment.Id,
+            Kind = kind,
+            Amount = LedgerMath.Round(amount),
+            Date = date,
+            Method = method,
+            AccountId = accountId,
+            Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim(),
+            CreatedById = by,
+            CreatedAt = DateTime.UtcNow
+        };
+        Payments.Add(payment);
+        db.Payments.Add(payment);
+        Touch();
+        return payment;
+    }
+
+    /// <summary>
+    /// Elle dağıtımı doğrular: aynı kalem birden çok kez gelirse toplanır; toplam tahsilatı, satır da kalemin kalanını aşamaz.
+    /// Dağıtım yalnızca BU kaydın kalemlerine yapılabilir (başka öğrencinin ya da dönemin kalemine yapılamaz).
+    /// </summary>
+    public Result<List<(Guid ChargeId, decimal Amount)>> CheckManualLines(decimal amount, IEnumerable<(Guid ChargeId, decimal Amount)> input)
+    {
+        var lines = input.Where(l => l.Amount != 0)
+            .GroupBy(l => l.ChargeId)
+            .Select(g => (ChargeId: g.Key, Amount: LedgerMath.Round(g.Sum(x => x.Amount))))
+            .ToList();
+
+        if (lines.Any(l => l.Amount < 0)) return Error.Field("allocations", "Dağıtım tutarı eksi olamaz.");
+        if (LedgerMath.Round(lines.Sum(l => l.Amount)) > amount) return Error.Field("allocations", "Dağıtılan tutar tahsilat tutarını aşıyor.");
+
+        var items = Items();
+        foreach (var (chargeId, value) in lines)
+        {
+            var item = items.FirstOrDefault(i => i.Id == chargeId);
+            if (item is null) return Error.Conflict("Dağıtım, başka bir kaydın ya da başka bir dönemin kalemine yapılamaz.");
+            if (value > item.Remaining) return Error.Field("allocations", $"Seçilen kalemin kalanı {item.Remaining:N2} ₺; daha fazlası dağıtılamaz.");
+        }
+        return lines;
+    }
+
+    /// <summary>
+    /// Tahsilat iptali: bu tahsilatın kalemlere bıraktığı net dağıtım eksi dağıtımla geri alınır, tahsilat "iptal edildi" olur.
+    /// Bu tahsilatın avansından iade yapılmışsa iptal avansı eksiye düşürür; engellenir.
+    /// Diğer tahsilatların serbest payı açık kalan kalemlere otomatik mahsup edilir.
+    /// </summary>
+    public Result<Payment> CancelPayment(Guid paymentId, string reason, Guid? by, DateOnly today)
+    {
+        var payment = Payments.FirstOrDefault(p => p.Id == paymentId);
+        if (payment is null) return Error.NotFound("Tahsilat bulunamadı.");
+        if (payment.Kind != PaymentKind.Collection) return Error.Conflict("Yalnızca tahsilat iptal edilebilir.");
+        if (payment.CancelledAt is not null) return Error.Conflict("Bu tahsilat zaten iptal edilmiş.");
+
+        var used = LedgerMath.Round(Allocations.Where(a => a.PaymentId == paymentId).Sum(a => a.Amount));
+        var advance = Summary(today).Advance;
+        if (LedgerMath.Round(advance - (payment.Amount - used)) < 0)
+            return Error.Conflict("Bu tahsilatın avansından iade yapılmış. İptal, öğrencinin avansını eksiye düşürür.");
+
+        var perCharge = Allocations.Where(a => a.PaymentId == paymentId)
+            .GroupBy(a => a.ChargeId)
+            .Select(g => (ChargeId: g.Key, Amount: LedgerMath.Round(g.Sum(a => a.Amount))))
+            .Where(x => x.Amount != 0)
+            .ToList();
+        foreach (var (chargeId, amount) in perCharge) AddAllocation(paymentId, chargeId, -amount, auto: false, reversal: true);
+
+        payment.CancelledAt = DateTime.UtcNow;
+        payment.CancelReason = reason;
+        payment.CancelledById = by;
+        Touch();
+
+        AutoAllocate();
+        return payment;
+    }
+
     /// <summary>Serbest (dağıtılmamış) tahsilat parasını açık kalemlere otomatik mahsup eder (vadesi en eski olandan)</summary>
     public void AutoAllocate()
     {

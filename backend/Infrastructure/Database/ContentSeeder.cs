@@ -1,11 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using MazlumApart.Domain.Entities;
+using MazlumApart.Domain.Enums;
 using MazlumApart.Domain.ValueObjects;
 
 namespace MazlumApart.Infrastructure.Database;
 
 /// <summary>
-/// Sabit anahtarlı içerikleri bir kez oluşturur (yoksa): sabit sayfalar, mesaj şablonları, site ayarları satırı.
+/// Sabit anahtarlı içerikleri bir kez oluşturur (yoksa): sabit sayfalar, mesaj şablonları, site ayarları satırı,
+/// gider kategorileri ve ilk nakit kasa.
 /// Var olanlara DOKUNMAZ; yönetici panelden düzenledikten sonra yeniden başlatmak içeriği ezmez.
 /// </summary>
 public static class ContentSeeder
@@ -36,6 +38,16 @@ public static class ContentSeeder
             "Hello {ad}, your registration is confirmed. Your student area login: phone {telefon}, password {sifre}.")
     ];
 
+    private static readonly (string Name, string? SystemKey)[] Categories =
+    [
+        ("Bakım & Onarım", null),
+        ("Temizlik", null),
+        ("Malzeme", null),
+        ("Vergi & Harç", null),
+        ("Faturalar", ExpenseCategoryKeys.Bills),
+        ("Diğer", null)
+    ];
+
     public static async Task SeedAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
@@ -54,6 +66,20 @@ public static class ContentSeeder
 
         if (!await db.SiteSettings.IgnoreQueryFilters().AnyAsync(x => x.Id == SiteSetting.SingletonId))
             db.SiteSettings.Add(new SiteSetting { Id = SiteSetting.SingletonId });
+
+        // Gider kategorileri (aşama 5): "Faturalar" sistem kategorisidir, fatura ödemeleri buraya düşer
+        var categoryNames = await db.ExpenseCategories.IgnoreQueryFilters().Select(x => x.Name).ToListAsync();
+        var order = 0;
+        foreach (var (name, systemKey) in Categories)
+        {
+            order++;
+            if (!categoryNames.Contains(name))
+                db.ExpenseCategories.Add(new ExpenseCategory { Name = name, SystemKey = systemKey, OrderIndex = order });
+        }
+
+        // Hiç kasa/banka hesabı yoksa bir nakit kasa açılır; banka hesapları panelden eklenir
+        if (!await db.Accounts.IgnoreQueryFilters().AnyAsync())
+            db.Accounts.Add(new Account { Type = AccountType.Cash, Name = "Nakit Kasa" });
 
         await db.SaveChangesAsync();
     }

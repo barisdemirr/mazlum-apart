@@ -14,3 +14,9 @@ public enum TransactionDirection { In, Out }
 
 /// <summary>Kasa/banka hareketinin kaynağı (frontend TX_SOURCE)</summary>
 public enum TransactionSource { Opening, Payment, PaymentCancel, Refund, Expense, ExpenseCancel, Transfer }
+
+/// <summary>Fatura türü (frontend BILL_KIND)</summary>
+public enum BillKind { Electricity, Water, Gas, Internet, Other }
+
+/// <summary>Fatura ödeme durumu. "Gecikmiş / yaklaşıyor" saklanmaz, vadeden hesaplanır.</summary>
+public enum BillStatus { Unpaid, Paid }

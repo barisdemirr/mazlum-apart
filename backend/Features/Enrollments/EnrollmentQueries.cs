@@ -15,10 +15,10 @@ public record RoomRef(Guid PlacementId, Guid RoomId, Guid ApartmentId, string La
 public record NextItem(Guid Id, ChargeKind Kind, string Month, DateOnly DueDate, decimal Remaining);
 
 /// <summary>Hesap özeti (frontend summarizeEnrollment): kalan, geciken, avans, durum, sıradaki kalem, karşılanan süre</summary>
-public record SummaryDto(decimal Charged, decimal Collected, decimal Refunded, decimal Remaining, decimal Overdue, decimal Advance,
+public record SummaryDto(decimal Charged, decimal Collected, decimal Refunded, decimal Allocated, decimal Remaining, decimal Overdue, decimal Advance,
     string Status, NextItem? Next, CoveredPeriod Covered)
 {
-    public static SummaryDto From(EnrollmentSummary s) => new(s.Charged, s.Collected, s.Refunded, s.Remaining, s.Overdue, s.Advance, s.Status,
+    public static SummaryDto From(EnrollmentSummary s) => new(s.Charged, s.Collected, s.Refunded, s.Allocated, s.Remaining, s.Overdue, s.Advance, s.Status,
         s.Next is null ? null : new NextItem(s.Next.Id, s.Next.Kind, s.Next.Month, s.Next.DueDate, s.Next.Remaining), s.Covered);
 }
 
@@ -38,7 +38,11 @@ public class EnrollmentQueryHandler(AppDbContext db, LedgerService ledgers)
         return today < period.StartDate ? period.StartDate : today > period.EndDate ? period.EndDate : today;
     }
 
-    public async Task<List<EnrollmentRow>> RowsAsync(IQueryable<Enrollment> query, DateOnly day, CancellationToken ct)
+    public async Task<List<EnrollmentRow>> RowsAsync(IQueryable<Enrollment> query, DateOnly day, CancellationToken ct) =>
+        (await LoadAsync(query, day, ct)).Select(x => x.Row).ToList();
+
+    /// <summary>Satırlar + kalem kalem hesap (vade listeleri, panolar için)</summary>
+    public async Task<List<(EnrollmentRow Row, EnrollmentSummary Ledger)>> LoadAsync(IQueryable<Enrollment> query, DateOnly day, CancellationToken ct)
     {
         var enrollments = await query.AsNoTracking().Include(x => x.Student).Include(x => x.RoomType)
             .IgnoreQueryFilters().Where(x => x.DeletedAt == null)
@@ -52,12 +56,12 @@ public class EnrollmentQueryHandler(AppDbContext db, LedgerService ledgers)
 
         var summaries = await ledgers.SummariesAsync(ids, TurkeyClock.Today, ct);
 
-        return enrollments.Select(e => new EnrollmentRow(
+        return enrollments.Select(e => (new EnrollmentRow(
             e.Id, e.PeriodId, e.Status, e.EntryDate, e.PayWindow, e.Term, e.MonthlyPrice, e.DepositPrice, e.EndedAt, e.EndReason,
             new StudentRef(e.StudentId, e.Student?.FirstName ?? "", e.Student?.LastName ?? "", e.Student?.Phone ?? "", e.Student?.Tc ?? ""),
             e.RoomTypeId, e.RoomType?.Name.Tr ?? "",
             CurrentRoom(byEnrollment[e.Id], day),
-            SummaryDto.From(summaries[e.Id]))).ToList();
+            SummaryDto.From(summaries[e.Id])), summaries[e.Id])).ToList();
     }
 
     /// <summary>Verilen gündeki yerleşim; yoksa en son yerleşim</summary>
