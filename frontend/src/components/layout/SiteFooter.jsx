@@ -106,20 +106,25 @@ export default function SiteFooter() {
 
                 {/* Ekran genişliğinde dev yazı: harfler yükselerek belirir */}
                 <div aria-hidden="true" className="select-none overflow-hidden border-t border-white/10 pt-10 text-center">
-                    <span className="flex justify-center font-display text-[12vw] font-bold uppercase leading-[1.1] tracking-tight text-white/10 transition-colors duration-700 hover:text-white/20">
+                    {/* Gözlem kapsayıcıda yapılır: harfler overflow ile kırpıldığı için tek tek gözlenemez */}
+                    <motion.span
+                        initial="hidden"
+                        whileInView="show"
+                        viewport={{ once: true, amount: 0.3 }}
+                        transition={{ staggerChildren: 0.04 }}
+                        className="flex justify-center font-display text-[9vw] font-bold uppercase leading-[1.1] tracking-tight text-white/10 transition-colors duration-700 hover:text-white/20"
+                    >
                         {GIANT_LETTERS.map((char, i) => (
                             <motion.span
                                 key={i}
-                                initial={{ y: "100%" }}
-                                whileInView={{ y: 0 }}
-                                viewport={{ once: true, amount: 0.6 }}
-                                transition={{ delay: i * 0.04, duration: 0.8, ease: EASE_OUT }}
+                                variants={{ hidden: { y: "100%" }, show: { y: 0 } }}
+                                transition={{ duration: 0.8, ease: EASE_OUT }}
                                 className="inline-block"
                             >
-                                {char === " " ? " " : char}
+                                {char === " " ? "\u00A0" : char}
                             </motion.span>
                         ))}
-                    </span>
+                    </motion.span>
                 </div>
 
                 <div className="flex flex-col items-center justify-between gap-4 border-t border-white/5 pt-6 text-xs text-orchid-lilac/60 sm:flex-row">
