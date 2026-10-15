@@ -19,6 +19,18 @@ const MOCK_STUDENT = {
         flatPeople: 4,
     },
     entryDate: "2026-09-01",
+    registeredAt: "2026-08-28",
+    term: "full",
+    status: "active",
+    tc: "10000000146",
+    birthDate: "2005-05-14",
+    provinceId: "6",
+    district: "Çankaya",
+    school: "Karadeniz Teknik Üniversitesi",
+    faculty: "Mühendislik Fakültesi",
+    department: "Bilgisayar Mühendisliği",
+    grade: "2",
+    guardians: [{ id: "g-1", name: "Mehmet Demir", phone: "5320000000" }],
     period: { id: "2026-2027", name: "2026–2027", start: "2026-09-01", end: "2027-06-30" },
 };
 
