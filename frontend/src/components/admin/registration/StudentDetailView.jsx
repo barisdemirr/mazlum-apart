@@ -13,6 +13,7 @@ import { describeCovered } from "@/lib/admin/domain/accounting";
 import { endEnrollment } from "@/lib/admin/domain/registration";
 import { enrollmentRow } from "@/lib/admin/domain/selectors";
 import { CONTACT_PURPOSE, ENROLLMENT_STATUS, MAINT_STATUS, PAY_STATUS, PAY_WINDOW, TERM, date, money } from "@/lib/admin/labels";
+import { getProvinceName } from "@/lib/locations";
 import { GRADE_LABELS } from "./OfficeApplicationDialog";
 import PlacementDialog from "./PlacementDialog";
 
@@ -105,9 +106,13 @@ function Detail({ enrollment, state, today, periods, selectPeriod }) {
                     <Card title="Kişisel bilgiler">
                         <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
                             <Info label="T.C. kimlik no"><span className="ad-num">{student.tc}</span></Info>
+                            <Info label="Doğum tarihi">{student.birthDate ? date(student.birthDate) : "—"}</Info>
                             <Info label="Telefon"><span className="ad-num">+90 {student.phone}</span></Info>
+                            <Info label="İl / İlçe">{student.provinceId ? `${getProvinceName(student.provinceId)} / ${student.district}` : "—"}</Info>
+                            <Info label="İkamet adresi">{student.address || "—"}</Info>
                             <Info label="Sınıf">{GRADE_LABELS[student.grade]}</Info>
                             <Info label="Okul">{student.school}</Info>
+                            <Info label="Fakülte">{student.faculty || "—"}</Info>
                             <Info label="Bölüm">{student.department}</Info>
                         </dl>
                         <div className="mt-5 rounded-2xl border border-ad-line p-4">
@@ -116,7 +121,7 @@ function Detail({ enrollment, state, today, periods, selectPeriod }) {
                                 {(student.guardians ?? []).map((g, i) => (
                                     <li key={i} className="flex flex-wrap items-center gap-x-2">
                                         <span className="font-bold">{g.name}</span>
-                                        <span className="text-ad-muted">· {g.relation} · <span className="ad-num">+90 {g.phone}</span></span>
+                                        <span className="text-ad-muted">· <span className="ad-num">+90 {g.phone}</span>{g.relation ? ` · ${g.relation}` : ""}</span>
                                     </li>
                                 ))}
                             </ul>

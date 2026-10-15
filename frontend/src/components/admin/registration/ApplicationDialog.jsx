@@ -12,6 +12,7 @@ import { approveApplication, rejectApplication } from "@/lib/admin/domain/regist
 import { generateCharges } from "@/lib/admin/domain/plan";
 import { monthLabel } from "@/lib/admin/domain/dates";
 import { APPLICATION_STATUS, PAY_WINDOW, SOURCE, TERM, date, money } from "@/lib/admin/labels";
+import { getProvinceName } from "@/lib/locations";
 import { enrollmentRow } from "@/lib/admin/domain/selectors";
 import { GRADE_LABELS } from "./OfficeApplicationDialog";
 
@@ -124,9 +125,13 @@ export default function ApplicationDialog({ application, onClose }) {
 
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 <Info label="T.C. kimlik no">{s.tc}</Info>
+                <Info label="Doğum tarihi">{s.birthDate ? date(s.birthDate) : "—"}</Info>
                 <Info label="Telefon">+90 {s.phone}</Info>
+                <Info label="İl / İlçe">{s.provinceId ? `${getProvinceName(s.provinceId)} / ${s.district}` : "—"}</Info>
+                <Info label="İkamet adresi">{s.address || "—"}</Info>
                 <Info label="Sınıf">{GRADE_LABELS[s.grade]}</Info>
                 <Info label="Okul">{s.school}</Info>
+                <Info label="Fakülte">{s.faculty || "—"}</Info>
                 <Info label="Bölüm">{s.department}</Info>
                 <Info label="Oda tipi">{roomType?.name.tr}</Info>
                 <Info label="Giriş tarihi">{date(app.entryDate)}</Info>
@@ -135,9 +140,9 @@ export default function ApplicationDialog({ application, onClose }) {
             </dl>
 
             <div className="rounded-2xl border border-ad-line p-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Veli</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Veli bilgileri</p>
                 <ul className="mt-2 space-y-1 text-sm">
-                    {s.guardians?.map((g, i) => <li key={i} className="font-semibold">{g.name} <span className="font-normal text-ad-muted">· {g.relation} · +90 {g.phone}</span></li>)}
+                    {s.guardians?.map((g, i) => <li key={i} className="font-semibold">{g.name} <span className="font-normal text-ad-muted">· +90 {g.phone}{g.relation ? ` · ${g.relation}` : ""}</span></li>)}
                 </ul>
             </div>
 

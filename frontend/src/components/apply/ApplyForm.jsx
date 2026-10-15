@@ -11,7 +11,7 @@ import StepReview from "./StepReview";
 import { StepGuardians, StepPersonal, StepRoom, StepSchool } from "./StepsForm";
 import { submitApplication } from "@/services";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import { buildPaymentPlan, emptyForm, validateStep } from "@/lib/application";
+import { buildPaymentPlan, clampEntry, earliestEntry, emptyForm, termOptions, termRange, validateStep } from "@/lib/application";
 import { formatDate, formatPrice } from "@/lib/format";
 import { EASE_OUT } from "@/lib/motion";
 
@@ -61,10 +61,12 @@ function SubmitButton({ submitting, label, onClick }) {
 export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }) {
     const { t, tpl, locale } = useLanguage();
     const a = t.apply;
-    const { period } = config;
+    // Seçili kayıt süresinin aralığı (tam dönem ya da yarıyıl): tarih sınırları, plan ve doğrulama bunu kullanır
+    const terms = useMemo(() => termOptions(config), [config]);
 
     const startRoom = rooms.some((room) => room.slug === initialRoomSlug) ? initialRoomSlug : "";
-    const [form, setFormState] = useState(() => emptyForm({ roomSlug: startRoom, period }));
+    const [form, setFormState] = useState(() => emptyForm({ roomSlug: startRoom, period: config.period }));
+    const period = useMemo(() => ({ ...config.period, ...termRange(config, form.term) }), [config, form.term]);
     const [step, setStep] = useState(1);
     const [direction, setDirection] = useState(1);
     const [maxReached, setMaxReached] = useState(1);
@@ -93,6 +95,12 @@ export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }
         });
 
     const set = (field, value) => {
+        if (field === "term") {
+            // Süre değişince giriş tarihi yeni sürenin sınırlarına çekilir
+            setFormState((f) => ({ ...f, term: value, entryDate: clampEntry(f.entryDate, termRange(config, value)) }));
+            clearErrors(["term", "entryDate"]);
+            return;
+        }
         setFormState((f) => ({ ...f, [field]: value }));
         clearErrors([field]);
     };
@@ -104,7 +112,7 @@ export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }
     const errText = (field) => {
         const code = errors[field];
         if (!code) return undefined;
-        if (code === "dateMin") return tpl(a.errors.dateMin, { date: formatDate(period.start) });
+        if (code === "dateMin") return tpl(a.errors.dateMin, { date: formatDate(earliestEntry(period)) });
         if (code === "dateMax") return tpl(a.errors.dateMax, { date: formatDate(period.end) });
         return a.errors[code] ?? a.errors.required;
     };
@@ -122,7 +130,7 @@ export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }
             document.querySelector(`[data-field="${first}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
         }, 60);
     };
-    const validate = (n) => validateStep(n, form, { period, rooms });
+    const validate = (n) => validateStep(n, form, { period, rooms, terms: terms.map((term) => term.id) });
 
     const next = () => {
         const errs = validate(step);
@@ -222,11 +230,11 @@ export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }
                         <AnimatePresence mode="wait" custom={direction} initial={false}>
                             <motion.div key={step} custom={direction} variants={stepVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.38, ease: EASE_OUT }}>
                                 <h2 className="mb-6 font-display text-3xl font-medium text-orchid-dark">{a.steps[step - 1]}</h2>
-                                {step === 1 && <StepRoom {...stepProps} rooms={rooms} config={config} bedRequest={bedRequest} cameFromDetail={Boolean(startRoom) && form.roomSlug === startRoom} />}
+                                {step === 1 && <StepRoom {...stepProps} rooms={rooms} terms={terms} period={period} bedRequest={bedRequest} cameFromDetail={Boolean(startRoom) && form.roomSlug === startRoom} />}
                                 {step === 2 && <StepPersonal {...stepProps} />}
                                 {step === 3 && <StepSchool {...stepProps} />}
                                 {step === 4 && <StepGuardians {...stepProps} setForm={setForm} />}
-                                {step === 5 && <StepReview {...stepProps} goTo={goTo} room={room} plan={plan} />}
+                                {step === 5 && <StepReview {...stepProps} goTo={goTo} room={room} plan={plan} period={period} />}
                             </motion.div>
                         </AnimatePresence>
                     </section>

@@ -55,7 +55,7 @@ function BedTile({ bed, selected, onToggle, labels, ariaLabel }) {
  * Daire → oda → yatak görünümü. Öğrenci boş bir yatağı seçer; seçim üst bileşende tutulur.
  * Dolu / ayrılmış yataklar seçilemez. Durum bilgisi yönetim panelinden gelir.
  */
-export default function AvailabilityPicker({ availability, selectedBedId, onSelect }) {
+export default function AvailabilityPicker({ availability, selectedBedId, onSelect, photoKeys, onShowPhotos }) {
     const { t, tpl, locale } = useLanguage();
     const a = t.roomDetail.availability;
     const [onlyFree, setOnlyFree] = useState(false);
@@ -185,7 +185,20 @@ export default function AvailabilityPicker({ availability, selectedBedId, onSele
                                 {flat.rooms.map((room) => (
                                     <div key={room.id} className="rounded-2xl bg-orchid-white/70 p-3">
                                         <div className="mb-2 flex items-center justify-between px-1 text-xs font-semibold text-orchid-muted">
-                                            <span className="text-orchid-dark">{localized(room.name, locale)}</span>
+                                            <span className="flex items-center gap-2 text-orchid-dark">
+                                                {localized(room.name, locale)}
+                                                {room.tagKey && photoKeys?.has(room.tagKey) && onShowPhotos && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => onShowPhotos(room.tagKey)}
+                                                        aria-label={tpl(a.showPhotosAria, { room: localized(room.name, locale) })}
+                                                        className="inline-flex items-center gap-1 rounded-full bg-orchid-powder px-2.5 py-1 text-[11px] font-bold text-orchid-pink transition-colors hover:bg-orchid-pink hover:text-white"
+                                                    >
+                                                        <Icon name="photo_library" className="text-[14px]" />
+                                                        {a.showPhotos}
+                                                    </button>
+                                                )}
+                                            </span>
                                             <span>{tpl(a.roomBeds, { count: room.beds.length })}</span>
                                         </div>
                                         <div className="flex flex-wrap gap-2">

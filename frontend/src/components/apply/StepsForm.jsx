@@ -13,14 +13,14 @@ import { localized } from "@/lib/i18n/localized";
 import { formatDate, formatPrice } from "@/lib/format";
 import { mediaAlt, mediaUrl } from "@/lib/media";
 import { EASE_OUT } from "@/lib/motion";
-import { GRADES, formatPhone, newGuardian, onlyDigits, toISO } from "@/lib/application";
+import { GRADES, earliestEntry, formatPhone, newGuardian, onlyDigits, toISO } from "@/lib/application";
 import { getDistricts, getProvinces } from "@/lib/locations";
 
 const grid = "grid grid-cols-1 gap-5 sm:grid-cols-2";
 
 /* ───────────────────────── Adım 1: Oda ve konaklama ───────────────────────── */
 
-export function StepRoom({ form, set, err, tick, rooms, config, bedRequest, cameFromDetail }) {
+export function StepRoom({ form, set, err, tick, rooms, terms, period, bedRequest, cameFromDetail }) {
     const { t, tpl, locale } = useLanguage();
     const a = t.apply;
     const selectedRoom = rooms.find((room) => room.slug === form.roomSlug);
@@ -105,28 +105,27 @@ export function StepRoom({ form, set, err, tick, rooms, config, bedRequest, came
                 </AnimatePresence>
             </div>
 
-            {/* Kayıt süresi */}
-            <div className="flex flex-col gap-3">
-                <GroupLabel id="term-label">{a.room.termLabel}</GroupLabel>
-                <div role="radiogroup" aria-labelledby="term-label" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    {config.terms.map((term) => (
-                        <SelectionCard
-                            key={term.id}
-                            selected={form.term === term.id && term.enabled}
-                            disabled={!term.enabled}
-                            onClick={() => set("term", term.id)}
-                            note={term.enabled ? null : a.room.closed}
-                            className="px-5 py-5"
-                        >
-                            <span className="block pr-9 pb-1">
-                                <span className="block font-display text-xl font-medium text-orchid-dark">{term.id === "full" ? a.room.fullTerm : a.room.halfTerm}</span>
-                                {term.id === "full" && <span className="mt-0.5 block text-sm text-orchid-muted">{a.room.fullRange}</span>}
-                            </span>
-                            {!term.enabled && <span className="block h-4" />}
-                        </SelectionCard>
-                    ))}
+            {/* Kayıt süresi: yarım dönem kapalıyken (varsayılan) bu bölüm hiç gösterilmez, form tam dönemdir */}
+            {terms.length > 1 && (
+                <div data-field="term" className="flex flex-col gap-3">
+                    <GroupLabel id="term-label">{a.room.termLabel}</GroupLabel>
+                    <div role="radiogroup" aria-labelledby="term-label" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                        {terms.map((term) => (
+                            <SelectionCard key={term.id} selected={form.term === term.id} onClick={() => set("term", term.id)} className="px-5 py-5">
+                                <span className="block pr-9 pb-1">
+                                    <span className="block font-display text-xl font-medium text-orchid-dark">
+                                        {term.id === "full" ? a.room.fullTerm : term.id === "first" ? a.room.firstTerm : a.room.secondTerm}
+                                    </span>
+                                    <span className="mt-0.5 block text-sm text-orchid-muted">
+                                        {formatDate(term.start)} – {formatDate(term.end)}
+                                    </span>
+                                </span>
+                            </SelectionCard>
+                        ))}
+                    </div>
+                    <FieldError id="term-error" message={err("term")} />
                 </div>
-            </div>
+            )}
 
             {/* Giriş tarihi */}
             <div className="flex flex-col gap-1.5">
@@ -137,14 +136,14 @@ export function StepRoom({ form, set, err, tick, rooms, config, bedRequest, came
                     required
                     value={form.entryDate}
                     onChange={(v) => set("entryDate", v)}
-                    min={config.period.start}
-                    max={config.period.end}
-                    openAt={config.period.start}
+                    min={earliestEntry(period)}
+                    max={period.end}
+                    openAt={earliestEntry(period)}
                     error={err("entryDate")}
                     tick={tick}
                     texts={dateTexts}
                 />
-                <p className="px-1 text-xs text-orchid-muted">{tpl(a.room.entryHint, { date: formatDate(config.period.start) })}</p>
+                <p className="px-1 text-xs text-orchid-muted">{tpl(a.room.entryHint, { date: formatDate(earliestEntry(period)) })}</p>
             </div>
 
             {/* Ödeme günü */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import LocalizedLink from "@/components/ui/LocalizedLink";
 import Icon from "@/components/ui/Icon";
@@ -24,6 +24,14 @@ export default function RoomDetailBody({ room, availability, otherRooms }) {
     const { t, tpl, locale } = useLanguage();
     const [selectedBed, setSelectedBed] = useState(null); // { id, bedLabel, roomName, flatName } | null = yatak fark etmez
     const summary = useMemo(() => summarizeAvailability(availability), [availability]);
+
+    // Fotoğraf–oda eşleşmesi: doluluk ekranında bir odanın "fotoğraflar" düğmesi galeriyi o odanın etiketine süzer
+    const [galleryFilter, setGalleryFilter] = useState("all");
+    const photoKeys = useMemo(() => new Set((room.gallery ?? []).filter((item) => item.type === "image" && item.tag).map((item) => item.tag.key)), [room.gallery]);
+    const showRoomPhotos = useCallback((tagKey) => {
+        setGalleryFilter(tagKey);
+        document.getElementById("galeri")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, []);
 
     const name = localized(room.name, locale);
     const lead =
@@ -64,11 +72,13 @@ export default function RoomDetailBody({ room, availability, otherRooms }) {
                 </motion.nav>
 
                 <motion.div
+                    id="galeri"
                     initial={{ opacity: 0, scale: 0.97, y: 24 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     transition={{ duration: 0.9, delay: 0.55, ease: EASE_OUT }}
+                    className="scroll-mt-24"
                 >
-                    <MediaGallery items={room.gallery ?? []} roomName={name} />
+                    <MediaGallery items={room.gallery ?? []} roomName={name} filter={galleryFilter} onFilterChange={setGalleryFilter} />
                 </motion.div>
             </section>
 
@@ -159,6 +169,8 @@ export default function RoomDetailBody({ room, availability, otherRooms }) {
                             availability={availability}
                             selectedBedId={selectedBed?.id ?? null}
                             onSelect={setSelectedBed}
+                            photoKeys={photoKeys}
+                            onShowPhotos={showRoomPhotos}
                         />
                         <About room={room} />
                         <Features room={room} />

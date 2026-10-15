@@ -1,5 +1,5 @@
 import { SITE } from "@/lib/constants";
-import { MOCK_HERO, MOCK_ROOM_TYPES, getMockRoomTypeDetail } from "@/lib/mockData";
+import { MOCK_HERO, MOCK_ROOM_TYPES, getMockRawGallery, getMockRoomNames, getMockRoomTypeDetail } from "@/lib/mockData";
 import { MOCK_PERIODS } from "./periods";
 import { addBill, addExpense, addCharge, payBill, recordPayment, refundAdvance, reverseCharge, transfer } from "@/lib/admin/domain/ledger";
 import { approveApplication, createApplication, endEnrollment, placeStudent, rejectApplication } from "@/lib/admin/domain/registration";
@@ -25,6 +25,19 @@ const tcFor = (n) => {
 
 const phoneFor = (n) => `500000${String(n).padStart(4, "0")}`;
 
+/* Kayıt formunun diğer alanları (doğum tarihi, adres, il/ilçe, fakülte) için tutarlı örnek veri */
+const PLACES = [
+    { provinceId: 61, district: "Ortahisar" }, { provinceId: 28, district: "Merkez" }, { provinceId: 6, district: "Çankaya" },
+    { provinceId: 34, district: "Kadıköy" }, { provinceId: 25, district: "Yakutiye" }, { provinceId: 53, district: "Merkez" },
+];
+const FACULTIES = ["Mühendislik Fakültesi", "Fen Fakültesi", "İktisadi ve İdari Bilimler Fakültesi", "Sağlık Bilimleri Fakültesi", "Orman Fakültesi", "Edebiyat Fakültesi"];
+const profileFor = (n) => ({
+    birthDate: `${2003 + (n % 3)}-${String(1 + (n % 12)).padStart(2, "0")}-${String(1 + ((n * 7) % 27)).padStart(2, "0")}`,
+    address: `Örnek Mah. ${10 + n}. Sok. No: ${1 + (n % 40)} Daire: ${1 + (n % 9)}`,
+    ...PLACES[n % PLACES.length],
+    faculty: FACULTIES[n % FACULTIES.length],
+});
+
 export function buildSeed() {
     const feat = (list) => (list?.tr ?? []).map((tr, i) => ({ icon: "check_circle", text: { tr, en: list.en?.[i] ?? "" } }));
     const roomTypes = MOCK_ROOM_TYPES.map((r) => {
@@ -34,6 +47,7 @@ export function buildSeed() {
             peopleInFlat: r.peopleInFlat, peopleSharingKitchen: r.peopleSharingKitchen, peopleSharingBathroom: r.peopleSharingBathroom,
             features: feat(d?.roomFeatures), sharedAreas: feat(d?.sharedAreas),
             image: { mediaId: `med-${r.slug}`, url: r.image.url }, active: true,
+            gallery: getMockRawGallery(r.slug).map((g) => ({ ...g, name: "", size: 0, poster: g.poster ?? null, caption: { tr: g.caption?.tr ?? "", en: g.caption?.en ?? "" }, tag: g.tag ?? null })),
         };
     });
     const media = [
@@ -59,11 +73,13 @@ export function buildSeed() {
         { id: "apt-4", name: "Daire 4", floor: 3, kitchens: 1, bathrooms: 2, note: "" },
     ];
     const room = (id, apartmentId, name, roomTypeId, beds, status = "active") => ({ id, apartmentId, name, roomTypeId, beds, status });
+    // Fiziksel oda adları galeri etiketleriyle aynıdır: "1. Sol Oda" etiketli fotoğraf, bu odanın fotoğrafıdır.
+    const [tekNames, ikiNames, ucNames] = MOCK_ROOM_TYPES.map((r) => getMockRoomNames(r.slug));
     const rooms = [
-        room("r-1-1", "apt-1", "1. Oda", TEK, 1), room("r-1-2", "apt-1", "2. Oda", TEK, 1), room("r-1-3", "apt-1", "3. Oda", TEK, 1), room("r-1-4", "apt-1", "4. Oda", TEK, 1),
-        room("r-2-1", "apt-2", "1. Oda", IKI, 2), room("r-2-2", "apt-2", "2. Oda", IKI, 2),
-        room("r-3-1", "apt-3", "1. Oda", UC, 3), room("r-3-2", "apt-3", "2. Oda", UC, 3),
-        room("r-4-1", "apt-4", "1. Oda", TEK, 1), room("r-4-2", "apt-4", "2. Oda", TEK, 1), room("r-4-3", "apt-4", "3. Oda", TEK, 1), room("r-4-4", "apt-4", "4. Oda", TEK, 1, "maintenance"),
+        ...tekNames.map((n, i) => room(`r-1-${i + 1}`, "apt-1", n, TEK, 1)),
+        ...ikiNames.map((n, i) => room(`r-2-${i + 1}`, "apt-2", n, IKI, 2)),
+        ...ucNames.map((n, i) => room(`r-3-${i + 1}`, "apt-3", n, UC, 3)),
+        ...tekNames.map((n, i) => room(`r-4-${i + 1}`, "apt-4", n, TEK, 1, i === 3 ? "maintenance" : "active")),
     ];
 
     let state = {
@@ -129,7 +145,7 @@ export function buildSeed() {
         n += 1;
         const app = run((s, c) => createApplication(s, {
             periodId, source,
-            student: { tc: tcFor(n), firstName: first, lastName: last, phone: phoneFor(n), school, department: dept, grade, guardians: [{ name: `${last} (veli)`, relation: "Anne", phone: phoneFor(n + 500) }] },
+            student: { tc: tcFor(n), firstName: first, lastName: last, phone: phoneFor(n), ...profileFor(n), school, department: dept, grade, guardians: [{ name: `${last} (veli)`, phone: phoneFor(n + 500) }] },
             roomTypeId, entryDate: entry, payWindow,
         }, c), entry);
         const { enrollment } = run((s, c) => approveApplication(s, { applicationId: app.id }, c), entry);
@@ -204,7 +220,7 @@ export function buildSeed() {
     pending.forEach(([f, l, rt, d, entry], i) => {
         n += 1;
         const day = `2026-10-${String(10 + i).padStart(2, "0")}`;
-        const app = run((s, c) => createApplication(s, { periodId: P1, source: "online", student: { tc: tcFor(n), firstName: f, lastName: l, phone: phoneFor(n), school: "Karadeniz Teknik Üniversitesi", department: d, grade: "1", guardians: [{ name: `${l} (veli)`, relation: "Anne", phone: phoneFor(n + 500) }] }, roomTypeId: rt, entryDate: entry, payWindow: i % 2 ? "mid" : "early" }, c), day);
+        const app = run((s, c) => createApplication(s, { periodId: P1, source: "online", student: { tc: tcFor(n), firstName: f, lastName: l, phone: phoneFor(n), ...profileFor(n), school: "Karadeniz Teknik Üniversitesi", department: d, grade: "1", guardians: [{ name: `${l} (veli)`, phone: phoneFor(n + 500) }] }, roomTypeId: rt, entryDate: entry, payWindow: i % 2 ? "mid" : "early" }, c), day);
         pendingIds.push(app.id);
     });
     run((s, c) => rejectApplication(s, { applicationId: pendingIds[3], reason: "Seçilen oda tipi dolu" }, c), "2026-10-14");

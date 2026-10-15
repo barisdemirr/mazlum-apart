@@ -4,6 +4,8 @@
  * Görseller tasarım aracından gelen geçici adreslerdir; gerçek fotoğraflar panelden yüklenecek.
  */
 
+import { roomNameEn, roomTagKey, tagForRoom, AREA_TAGS, toPublicGallery } from "@/lib/gallery";
+
 export const MOCK_HERO = {
     image: {
         url: "https://lh3.googleusercontent.com/aida-public/AB6AXuBdMmgGfLbLmOZ-M6d4B1N6R_EEl44SkelOZIbpR_71nic7HVSSYUELyz7DfPxj2z0qdp-d9UF0wjfWbMhqxfDYnphITGKAiUlp1VrP3bo9VA1cBC_IgbzQFAJl9uKLcGaFagxqYaZ7FX_1u-bQFP4I_jSM7aA6G5fZxP1LCfB5qgUbPX5vXePl-aK5okWlKQNMYoptEuxcSfbb4fNujRqA2kGK4LJq08A3gYrQbF8e2vaDkO4PBFU",
@@ -63,7 +65,7 @@ export const MOCK_MAP_IMAGE = "https://lh3.googleusercontent.com/aida-public/AB6
    Backend DTO şekli:
    RoomTypeDetail = RoomType listesi alanları + {
      summary?, description?: { tr: string[], en: string[] },
-     gallery: MediaItem[]  // { id, type: "video"|"image", url, poster?, label: {tr,en}, category }
+     gallery: MediaItem[]  // { id, type: "video"|"image", url, poster?, label: {tr,en}, category, tag?: {key,tr,en} }  (tag: fotoğrafın ait olduğu oda/alan, lib/gallery.js)
      roomFeatures / flatFeatures / sharedAreas / services / includedServices: { tr: string[], en: string[] }
    }
    Boş alanlar sayfada gizlenir; içerik panelden girilir. Buradaki metinler yalnızca örnektir. */
@@ -75,48 +77,67 @@ const IMG = {
     hero: MOCK_HERO.image.url,
 };
 
-const photo = (id, url, tr, en, category) => ({ id, type: "image", url, label: { tr, en }, category });
+/* Fotoğraflar fiziksel odalara/alanlara ETİKETLENİR (lib/gallery.js). Etiket anahtarı doluluk ekranındaki odayla aynıdır. */
+const tagArea = (key) => AREA_TAGS.find((a) => a.key === key);
+const photo = (id, url, tag, caption) => ({ id, type: "image", url, tag, caption });
+const video = (id, poster) => ({ id, type: "video", url: null, poster, caption: { tr: "Oda ve daire turu", en: "Room and flat tour" } });
+
+/** Oda tipine göre dairedeki oda adları (yönetim panelindeki fiziksel oda adlarıyla aynı olmalı) */
+const ROOM_NAMES = {
+    "tek-kisilik-oda": ["1. Sol Oda", "2. Sol Oda", "1. Sağ Oda", "2. Sağ Oda"],
+    "iki-kisilik-oda": ["Sol Oda", "Sağ Oda"],
+    "uc-kisilik-oda": ["Sol Oda", "Sağ Oda"],
+};
+
+const MOCK_GALLERY = {
+    "tek-kisilik-oda": [
+        video("v1", IMG.single),
+        photo("p1", IMG.single, tagForRoom("1. Sol Oda"), { tr: "Yatak ve çalışma alanı", en: "Bed and study area" }),
+        photo("p2", IMG.hero, tagForRoom("2. Sol Oda")),
+        photo("p3", IMG.double, tagForRoom("1. Sağ Oda")),
+        photo("p4", IMG.triple, tagForRoom("2. Sağ Oda")),
+        photo("p5", IMG.double, tagArea("kitchen")),
+        photo("p6", IMG.triple, tagArea("bathroom")),
+    ],
+    "iki-kisilik-oda": [
+        video("v1", IMG.double),
+        photo("p1", IMG.double, tagForRoom("Sol Oda"), { tr: "Yataklar ve çalışma alanı", en: "Beds and study area" }),
+        photo("p2", IMG.hero, tagForRoom("Sol Oda"), { tr: "Gardırop", en: "Wardrobe" }),
+        photo("p3", IMG.single, tagForRoom("Sağ Oda")),
+        photo("p4", IMG.triple, tagArea("kitchen")),
+        photo("p5", IMG.single, tagArea("bathroom")),
+    ],
+    "uc-kisilik-oda": [
+        video("v1", IMG.triple),
+        photo("p1", IMG.triple, tagForRoom("Sol Oda"), { tr: "Yataklar", en: "Beds" }),
+        photo("p2", IMG.double, tagForRoom("Sağ Oda"), { tr: "Çalışma alanı", en: "Study area" }),
+        photo("p3", IMG.hero, tagArea("kitchen")),
+    ],
+};
 
 const MOCK_DETAILS = {
     "tek-kisilik-oda": {
-        gallery: [
-            { id: "v1", type: "video", url: null, poster: IMG.single, label: { tr: "Oda ve daire turu", en: "Room and flat tour" }, category: "video" },
-            photo("p1", IMG.single, "Yatak ve çalışma alanı", "Bed and study area", "room"),
-            photo("p2", IMG.hero, "Oda geniş açı", "Room wide view", "room"),
-            photo("p3", IMG.double, "Ortak mutfak", "Shared kitchen", "kitchen"),
-            photo("p4", IMG.triple, "Banyo", "Bathroom", "bathroom"),
-        ],
         roomFeatures: { tr: ["Yatak", "Çalışma masası ve sandalye", "Gardırop"], en: ["Bed", "Desk and chair", "Wardrobe"] },
         sharedAreas: { tr: ["Ortak mutfak", "Ortak banyo"], en: ["Shared kitchen", "Shared bathroom"] },
     },
     "iki-kisilik-oda": {
-        gallery: [
-            { id: "v1", type: "video", url: null, poster: IMG.double, label: { tr: "Oda ve daire turu", en: "Room and flat tour" }, category: "video" },
-            photo("p1", IMG.double, "Yataklar ve çalışma alanı", "Beds and study area", "room"),
-            photo("p2", IMG.hero, "Oda geniş açı", "Room wide view", "room"),
-            photo("p3", IMG.single, "Gardırop", "Wardrobe", "room"),
-            photo("p4", IMG.triple, "Ortak mutfak", "Shared kitchen", "kitchen"),
-            photo("p5", IMG.single, "Banyo", "Bathroom", "bathroom"),
-        ],
         roomFeatures: { tr: ["Her öğrenciye yatak", "Çalışma masası ve sandalye", "Gardırop"], en: ["A bed for each student", "Desk and chair", "Wardrobe"] },
         sharedAreas: { tr: ["Ortak mutfak", "Ortak banyo"], en: ["Shared kitchen", "Shared bathroom"] },
     },
     "uc-kisilik-oda": {
-        gallery: [
-            { id: "v1", type: "video", url: null, poster: IMG.triple, label: { tr: "Oda ve daire turu", en: "Room and flat tour" }, category: "video" },
-            photo("p1", IMG.triple, "Yataklar", "Beds", "room"),
-            photo("p2", IMG.double, "Çalışma alanı", "Study area", "room"),
-            photo("p3", IMG.hero, "Ortak mutfak", "Shared kitchen", "kitchen"),
-        ],
         roomFeatures: { tr: ["Her öğrenciye yatak", "Çalışma masası", "Gardırop"], en: ["A bed for each student", "Desk", "Wardrobe"] },
         sharedAreas: { tr: ["Ortak mutfak", "Ortak banyo"], en: ["Shared kitchen", "Shared bathroom"] },
     },
 };
 
+/** Yönetim paneli tohum verisi için ham galeri (etiketli) */
+export const getMockRawGallery = (slug) => MOCK_GALLERY[slug] ?? [];
+export const getMockRoomNames = (slug) => ROOM_NAMES[slug] ?? [];
+
 export function getMockRoomTypeDetail(slug) {
     const base = MOCK_ROOM_TYPES.find((room) => room.slug === slug);
     if (!base) return null;
-    return { ...base, ...MOCK_DETAILS[slug] };
+    return { ...base, ...MOCK_DETAILS[slug], gallery: toPublicGallery(MOCK_GALLERY[slug] ?? []) };
 }
 
 /* ───────────────────────── Yatak bazlı doluluk (GEÇİCİ) ─────────────────────────
@@ -136,19 +157,24 @@ const bedLabel = (count, index) => BED_LABELS[count]?.[index] ?? { tr: `${index 
 
 function buildApartments({ slug, flats, roomsPerFlat, bedsPerRoom, statuses }) {
     let cursor = 0;
+    const names = ROOM_NAMES[slug] ?? [];
     return Array.from({ length: flats }, (_, f) => ({
         id: `${slug}-flat-${f + 1}`,
         name: { tr: `Daire ${f + 1}`, en: `Flat ${f + 1}` },
         floor: f + 2,
-        rooms: Array.from({ length: roomsPerFlat }, (_, r) => ({
-            id: `${slug}-flat-${f + 1}-room-${r + 1}`,
-            name: { tr: `${r + 1}. Oda`, en: `Room ${r + 1}` },
-            beds: Array.from({ length: bedsPerRoom }, (_, b) => ({
-                id: `${slug}-flat-${f + 1}-room-${r + 1}-bed-${b + 1}`,
-                label: bedLabel(bedsPerRoom, b),
-                status: statuses[cursor++ % statuses.length],
-            })),
-        })),
+        rooms: Array.from({ length: roomsPerFlat }, (_, r) => {
+            const trName = names[r] ?? `${r + 1}. Oda`;
+            return {
+                id: `${slug}-flat-${f + 1}-room-${r + 1}`,
+                name: { tr: trName, en: roomNameEn(trName) },
+                tagKey: roomTagKey(trName),
+                beds: Array.from({ length: bedsPerRoom }, (_, b) => ({
+                    id: `${slug}-flat-${f + 1}-room-${r + 1}-bed-${b + 1}`,
+                    label: bedLabel(bedsPerRoom, b),
+                    status: statuses[cursor++ % statuses.length],
+                })),
+            };
+        }),
     }));
 }
 

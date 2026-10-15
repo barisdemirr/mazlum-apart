@@ -40,7 +40,7 @@ function Section({ title, onEdit, editLabel, rows, index }) {
     );
 }
 
-export default function StepReview({ form, set, err, goTo, room, plan }) {
+export default function StepReview({ form, set, err, goTo, room, plan, period }) {
     const { t, tpl, locale } = useLanguage();
     const a = t.apply;
     const r = a.review;
@@ -58,7 +58,7 @@ export default function StepReview({ form, set, err, goTo, room, plan }) {
                     onEdit={() => goTo(1)}
                     rows={[
                         [a.summary.room, room ? localized(room.name, locale) : ""],
-                        [r.labels.term, `${a.room.fullTerm} (${a.room.fullRange})`],
+                        [r.labels.term, `${form.term === "first" ? a.room.firstTerm : form.term === "second" ? a.room.secondTerm : a.room.fullTerm} (${formatDate(period.start)} – ${formatDate(period.end)})`],
                         [a.summary.entry, formatDate(form.entryDate)],
                         [a.summary.payDay, payDay],
                     ]}

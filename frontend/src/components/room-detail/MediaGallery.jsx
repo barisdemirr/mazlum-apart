@@ -7,9 +7,9 @@ import SafeImage from "@/components/ui/SafeImage";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { localized } from "@/lib/i18n/localized";
 import { mediaUrl } from "@/lib/media";
+import { chipKey } from "@/lib/gallery";
 import { EASE_OUT, SPRING_SOFT } from "@/lib/motion";
 
-const CATEGORY_ORDER = ["video", "room", "kitchen", "bathroom", "flat", "other"];
 const CATEGORY_ICONS = { video: "videocam", room: "bed", kitchen: "kitchen", bathroom: "shower", flat: "meeting_room", other: "photo" };
 
 /** Tam ekran büyük görsel: ok tuşları ve Esc ile gezilir */
@@ -105,19 +105,29 @@ function Lightbox({ items, index, onIndex, onClose }) {
  * Üstte büyük sahne, altında küçük resim şeridi, kategoriye göre filtre.
  * Video varsa ilk sırada gelir; yoksa ilk fotoğraf açılır.
  */
-export default function MediaGallery({ items = [], roomName }) {
+export default function MediaGallery({ items = [], roomName, filter, onFilterChange }) {
     const { t, tpl, locale } = useLanguage();
-    const [category, setCategory] = useState("all");
+    // Süzgeç dışarıdan (ör. doluluk ekranındaki "fotoğrafları gör") da yönetilebilir; verilmezse kendi durumunu tutar
+    const [localFilter, setLocalFilter] = useState("all");
+    const category = filter ?? localFilter;
+    const setCategory = onFilterChange ?? setLocalFilter;
     const [index, setIndex] = useState(0);
     const [playing, setPlaying] = useState(false);
     const [lightbox, setLightbox] = useState(null); // lightbox içindeki fotoğraf sırası
 
-    const categories = useMemo(() => {
-        const present = new Set(items.map((item) => item.category));
-        return CATEGORY_ORDER.filter((key) => present.has(key));
-    }, [items]);
+    /* Çipler: video, sonra etiketler (1. Sol Oda, Mutfak, Banyo…) ilk göründükleri sırayla; etiketsiz eski veriler kategoriye göre */
+    const chips = useMemo(() => {
+        const seen = new Map();
+        for (const item of items) {
+            const key = chipKey(item);
+            if (!seen.has(key)) seen.set(key, { key, category: item.category, label: item.tag ? localized(item.tag, locale) : null, count: 0 });
+            seen.get(key).count += 1;
+        }
+        const list = [...seen.values()];
+        return [...list.filter((c) => c.key === "video"), ...list.filter((c) => c.key !== "video")];
+    }, [items, locale]);
 
-    const filtered = useMemo(() => (category === "all" ? items : items.filter((item) => item.category === category)), [items, category]);
+    const filtered = useMemo(() => (category === "all" ? items : items.filter((item) => chipKey(item) === category)), [items, category]);
     const photos = useMemo(() => items.filter((item) => item.type === "image"), [items]);
     const photoCount = photos.length;
 
@@ -133,6 +143,12 @@ export default function MediaGallery({ items = [], roomName }) {
         setCategory(key);
         select(0);
     };
+
+    // Dışarıdan süzgeç değişince ilk öğeye dön
+    useEffect(() => {
+        setIndex(0);
+        setPlaying(false);
+    }, [filter]);
 
     const openLightbox = () => {
         if (!active || active.type !== "image") return;
@@ -153,12 +169,12 @@ export default function MediaGallery({ items = [], roomName }) {
 
     return (
         <div className="flex flex-col gap-4">
-            {/* Kategori filtreleri */}
-            {categories.length > 1 && (
+            {/* Etiket filtreleri */}
+            {chips.length > 1 && (
                 <div className="no-scrollbar order-2 -mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1" role="tablist">
-                    {["all", ...categories].map((key) => {
+                    {[{ key: "all", count: items.length }, ...chips].map((chip) => {
+                        const key = chip.key;
                         const on = category === key;
-                        const count = key === "all" ? items.length : items.filter((i) => i.category === key).length;
                         return (
                             <button
                                 key={key}
@@ -174,9 +190,9 @@ export default function MediaGallery({ items = [], roomName }) {
                                     <motion.span layoutId="media-filter-pill" transition={SPRING_SOFT} className="aurora-btn absolute inset-0 rounded-full" />
                                 )}
                                 <span className="relative flex items-center gap-1.5">
-                                    {key !== "all" && <Icon name={CATEGORY_ICONS[key]} className="text-[18px]" />}
-                                    {key === "all" ? t.roomDetail.media.all : t.roomDetail.media.categories[key]}
-                                    <span className={`text-xs ${on ? "text-white/80" : "text-orchid-muted/70"}`}>{count}</span>
+                                    {key !== "all" && <Icon name={CATEGORY_ICONS[chip.category] ?? "photo"} className="text-[18px]" />}
+                                    {key === "all" ? t.roomDetail.media.all : (chip.label ?? t.roomDetail.media.categories[chip.category] ?? t.roomDetail.media.categories.other)}
+                                    <span className={`text-xs ${on ? "text-white/80" : "text-orchid-muted/70"}`}>{chip.count}</span>
                                 </span>
                             </button>
                         );
@@ -245,7 +261,7 @@ export default function MediaGallery({ items = [], roomName }) {
                         <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-2 sm:left-6 sm:top-6">
                             <span className="flex items-center gap-1.5 rounded-full bg-white/90 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-orchid-pink shadow-md backdrop-blur-xl">
                                 <Icon name={CATEGORY_ICONS[active.category] ?? "photo"} className="text-[16px]" />
-                                {t.roomDetail.media.categories[active.category] ?? t.roomDetail.media.categories.other}
+                                {active.tag ? localized(active.tag, locale) : (t.roomDetail.media.categories[active.category] ?? t.roomDetail.media.categories.other)}
                             </span>
                         </div>
                         <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3 sm:bottom-6 sm:left-6 sm:right-6">

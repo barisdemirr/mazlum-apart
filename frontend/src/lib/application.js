@@ -9,6 +9,9 @@ export function toISO(date) {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+/** Bugün ("YYYY-MM-DD") */
+export const todayISO = () => toISO(new Date());
+
 /** "gg/aa/yyyy" yazısını "YYYY-MM-DD"ye çevirir; geçersiz takvim günü ("31/02/2026") için "" döner */
 export function parseDisplayDate(text) {
     const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(text ?? "").trim());
@@ -61,11 +64,42 @@ export function newGuardian() {
     return { id: `g-${Math.random().toString(36).slice(2, 9)}`, name: "", phone: "" };
 }
 
+/* ───────────────────────── Kayıt süresi (tam dönem / yarım dönem) ─────────────────────────
+ * Müşteri kuralı: yarım dönem kayıtlar HER ZAMAN gösterilmez; boş oda fazlaysa yönetici dönem ayarından açar
+ * (Dönemler → yarım dönemi aç + 1. yarı bitişi + 2. yarı başlangıcı). Kapalıyken form yalnızca tam dönemdir
+ * ve "Kayıt Süresi" seçimi hiç görünmez. Backend: GET /api/applications/config → { period, halfTerm }. */
+export function termOptions(config) {
+    const { period, halfTerm } = config;
+    const full = { id: "full", start: period.start, end: period.end };
+    if (!halfTerm?.enabled || !halfTerm.firstEnd || !halfTerm.secondStart) return [full];
+    return [
+        full,
+        { id: "first", start: period.start, end: halfTerm.firstEnd },
+        { id: "second", start: halfTerm.secondStart, end: period.end },
+    ];
+}
+
+export const termRange = (config, termId) => termOptions(config).find((term) => term.id === termId) ?? termOptions(config)[0];
+
+/** Seçilebilecek en erken giriş tarihi: kayıt süresinin başı; süre başlamışsa bugün (geçmişe giriş verilemez) */
+export const earliestEntry = (range) => {
+    const today = todayISO();
+    return today > range.start ? today : range.start;
+};
+
+/** Giriş tarihini seçilen sürenin sınırlarına çeker */
+export const clampEntry = (entryDate, range) => {
+    const min = earliestEntry(range);
+    if (!entryDate || entryDate < min) return min;
+    if (entryDate > range.end) return range.end;
+    return entryDate;
+};
+
 export function emptyForm({ roomSlug = "", period }) {
     return {
         roomSlug,
         term: "full",
-        entryDate: period?.start ?? "",
+        entryDate: period ? earliestEntry(period) : "",
         payDay: "",
         firstName: "",
         lastName: "",
@@ -86,7 +120,8 @@ export function emptyForm({ roomSlug = "", period }) {
 
 const filled = (value) => String(value ?? "").trim().length > 0;
 
-export function validateStep(step, form, { period, rooms }) {
+/** `period`: SEÇİLİ kayıt süresinin aralığı ({ start, end }); `terms`: seçilebilir süre kimlikleri (verilirse kontrol edilir) */
+export function validateStep(step, form, { period, rooms, terms }) {
     const errors = {};
     const required = (field) => {
         if (!filled(form[field])) errors[field] = "required";
@@ -94,8 +129,9 @@ export function validateStep(step, form, { period, rooms }) {
 
     if (step === 1) {
         if (!rooms.some((room) => room.slug === form.roomSlug)) errors.roomSlug = "required";
+        if (terms && !terms.includes(form.term)) errors.term = "required";
         if (!form.entryDate) errors.entryDate = "required";
-        else if (form.entryDate < period.start) errors.entryDate = "dateMin";
+        else if (form.entryDate < earliestEntry(period)) errors.entryDate = "dateMin";
         else if (form.entryDate > period.end) errors.entryDate = "dateMax";
         required("payDay");
     }

@@ -49,6 +49,68 @@ export function saveRoomType(state, input, ctx) {
     return { state: s, result: roomType };
 }
 
+/* ───────── oda tipi galerisi (fotoğraf + en fazla 1 video, etiketli) ───────── */
+
+export const GALLERY_MAX_ITEMS = 30;
+
+const cleanTag = (tag) => (tag?.key && tag.tr?.trim() ? { key: String(tag.key), tr: tag.tr.trim(), en: tag.en?.trim() || tag.tr.trim() } : null);
+const cleanCaption = (c) => ({ tr: c?.tr?.trim() ?? "", en: c?.en?.trim() ?? "" });
+
+/** Galeriye bir ya da birkaç dosya ekler. Müşteri kuralı: her oda tipine en fazla 1 video. */
+export function addGalleryItems(state, { roomTypeId, items }, ctx) {
+    const rt = find(state.roomTypes, roomTypeId, "Oda tipi");
+    const gallery = rt.gallery ?? [];
+    if (!items?.length) fail("Dosya seçin.");
+    if (items.some((i) => !i.url)) fail("Dosya okunamadı.");
+    const incomingVideos = items.filter((i) => i.type === "video").length;
+    if (incomingVideos > 1) fail("Her oda tipine yalnızca 1 video eklenebilir.");
+    if (incomingVideos && gallery.some((g) => g.type === "video")) fail("Bu oda tipinde zaten bir video var. Yenisini eklemek için önce mevcut videoyu silin.", "conflict");
+    if (gallery.length + items.length > GALLERY_MAX_ITEMS) fail(`Bir oda tipinde en fazla ${GALLERY_MAX_ITEMS} dosya olabilir.`);
+
+    let s = state;
+    const added = items.map((i) => {
+        const made = nextId(s, "gal");
+        s = made.state;
+        return {
+            id: made.id, type: i.type === "video" ? "video" : "image", url: i.url, poster: i.poster ?? null,
+            name: i.name ?? "", size: i.size ?? 0, tag: cleanTag(i.tag), caption: cleanCaption(i.caption),
+        };
+    });
+    const next = { ...rt, gallery: [...gallery, ...added] };
+    s = { ...s, roomTypes: upsert(s.roomTypes, next) };
+    s = withAudit(s, ctx, { action: "roomtype.gallery.add", entity: "roomtype", entityId: rt.id, before: null, after: { added: added.map((a) => a.id) } });
+    return { state: s, result: added };
+}
+
+/** Etiket (hangi oda / mutfak / banyo) ve açıklamayı günceller. */
+export function updateGalleryItem(state, { roomTypeId, id, tag, caption }, ctx) {
+    const rt = find(state.roomTypes, roomTypeId, "Oda tipi");
+    const item = (rt.gallery ?? []).find((g) => g.id === id);
+    if (!item) fail("Galeri öğesi bulunamadı.", "not_found");
+    const updated = { ...item, tag: tag === undefined ? item.tag : cleanTag(tag), caption: caption === undefined ? item.caption : cleanCaption(caption) };
+    const next = { ...rt, gallery: rt.gallery.map((g) => (g.id === id ? updated : g)) };
+    return { state: { ...state, roomTypes: upsert(state.roomTypes, next) }, result: updated };
+}
+
+export function moveGalleryItem(state, { roomTypeId, id, direction }, ctx) {
+    const rt = find(state.roomTypes, roomTypeId, "Oda tipi");
+    const list = [...(rt.gallery ?? [])];
+    const i = list.findIndex((g) => g.id === id);
+    if (i < 0) fail("Galeri öğesi bulunamadı.", "not_found");
+    const j = direction === "up" ? i - 1 : i + 1;
+    if (j < 0 || j >= list.length) return { state, result: id };
+    [list[i], list[j]] = [list[j], list[i]];
+    return { state: { ...state, roomTypes: upsert(state.roomTypes, { ...rt, gallery: list }) }, result: id };
+}
+
+export function removeGalleryItem(state, { roomTypeId, id }, ctx) {
+    const rt = find(state.roomTypes, roomTypeId, "Oda tipi");
+    if (!(rt.gallery ?? []).some((g) => g.id === id)) fail("Galeri öğesi bulunamadı.", "not_found");
+    const next = { ...rt, gallery: rt.gallery.filter((g) => g.id !== id) };
+    const s = withAudit({ ...state, roomTypes: upsert(state.roomTypes, next) }, ctx, { action: "roomtype.gallery.remove", entity: "roomtype", entityId: rt.id, before: { id }, after: null });
+    return { state: s, result: id };
+}
+
 /* ───────── daire & oda ───────── */
 
 export function saveApartment(state, input, ctx) {

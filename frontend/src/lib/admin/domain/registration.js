@@ -1,3 +1,5 @@
+import { GRADES, isValidPhone, isValidTc } from "@/lib/application";
+import { getDistricts, getProvinceName } from "@/lib/locations";
 import { generateCharges } from "./plan";
 import { addDays, diffDays, monthKey, parseISO, toISO } from "./dates";
 import { assertPeriodOpen, fail, find, nextId, requirePeriod, studentName, withAudit } from "./core";
@@ -18,18 +20,52 @@ import { computeItems, round } from "./accounting";
 
 /* ───────── başvuru ───────── */
 
+/**
+ * Müşterinin kayıt formu alanları (web ve ofis kaydı AYNIDIR):
+ * ad, soyad, T.C. kimlik no, doğum tarihi, ikamet adresi, il, ilçe, okul, fakülte, bölüm, sınıf,
+ * veli bilgileri (en az 1: ad soyad + telefon). Eksik/geçersiz alan kaydı engeller.
+ */
+export function normalizeStudent(s0, ctx) {
+    const text = (v) => String(v ?? "").trim();
+    if (!/^\d{11}$/.test(text(s0.tc))) fail("T.C. kimlik no 11 haneli olmalı.");
+    if (!isValidTc(text(s0.tc))) fail("T.C. kimlik no geçerli değil.");
+    if (!text(s0.firstName) || !text(s0.lastName)) fail("Ad ve soyad zorunlu.");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(text(s0.birthDate)) || s0.birthDate >= ctx.today || s0.birthDate < "1940-01-01") fail("Doğum tarihini geçerli girin.");
+    if (!isValidPhone(text(s0.phone))) fail("Telefon 5 ile başlayan 10 haneli olmalı.");
+    if (text(s0.address).length < 10) fail("İkamet adresini ayrıntılı yazın.");
+    const provinceName = getProvinceName(s0.provinceId);
+    if (!provinceName) fail("İl seçin.");
+    if (!getDistricts(s0.provinceId).includes(text(s0.district))) fail("İlçeyi seçin.");
+    if (!text(s0.school)) fail("Okulu yazın.");
+    if (!text(s0.faculty)) fail("Fakülteyi yazın.");
+    if (!text(s0.department)) fail("Bölümü yazın.");
+    if (!GRADES.includes(String(s0.grade))) fail("Sınıfı seçin.");
+    const guardians = (s0.guardians ?? []).map((g) => ({ name: text(g.name), phone: text(g.phone) }));
+    if (guardians.length < 1) fail("En az bir veli bilgisi girin.");
+    if (guardians.some((g) => !g.name || !isValidPhone(g.phone))) fail("Her velinin adı soyadı ve 5 ile başlayan 10 haneli telefonu olmalı.");
+    return {
+        tc: text(s0.tc), firstName: text(s0.firstName), lastName: text(s0.lastName), birthDate: s0.birthDate, phone: text(s0.phone),
+        address: text(s0.address), provinceId: Number(s0.provinceId), province: provinceName, district: text(s0.district),
+        school: text(s0.school), faculty: text(s0.faculty), department: text(s0.department), grade: String(s0.grade), guardians,
+    };
+}
+
 export function createApplication(state, input, ctx) {
     const period = assertPeriodOpen(state, input.periodId, "Yeni başvuru");
     if (!period.applicationsOpen) fail("Bu dönem başvuruya kapalı.", "conflict");
-    const s0 = input.student ?? {};
-    if (!s0.tc || !/^\d{11}$/.test(s0.tc)) fail("T.C. kimlik no 11 haneli olmalı.");
-    if (!s0.firstName?.trim() || !s0.lastName?.trim()) fail("Ad ve soyad zorunlu.");
-    if (!/^5\d{9}$/.test(s0.phone ?? "")) fail("Telefon 5 ile başlayan 10 haneli olmalı.");
+    const s0 = normalizeStudent(input.student ?? {}, ctx);
     const roomType = find(state.roomTypes, input.roomTypeId, "Oda tipi");
     const price = state.roomTypePrices.find((p) => p.periodId === input.periodId && p.roomTypeId === roomType.id);
     if (!price) fail("Bu oda tipi için bu dönemde fiyat tanımlı değil. Önce Dönemler & Fiyatlar'dan fiyat girin.", "conflict");
     if (!input.entryDate) fail("Giriş tarihini seçin.");
     if (input.entryDate < period.start || input.entryDate > period.end) fail("Giriş tarihi dönemin tarihleri içinde olmalı.");
+    // Yarım dönem yalnızca dönem ayarından açıldıysa ve ilgili yarının tarihleri içinde seçilebilir
+    if (input.term === "first" || input.term === "second") {
+        const half = period.halfTerm;
+        if (!half?.enabled || !half.firstEnd || !half.secondStart) fail("Bu dönemde yarım dönem kaydı kapalı. Önce Dönemler sayfasından açın.", "conflict");
+        if (input.term === "first" && input.entryDate > half.firstEnd) fail("1. yarıyıl kaydında giriş tarihi 1. yarının bitişinden sonra olamaz.");
+        if (input.term === "second" && input.entryDate < half.secondStart) fail("2. yarıyıl kaydında giriş tarihi 2. yarının başlangıcından önce olamaz.");
+    } else if (input.term && input.term !== "full") fail("Kayıt süresi geçersiz.");
     if (state.applications.some((a) => a.periodId === input.periodId && a.student.tc === s0.tc && a.status !== "rejected")) {
         fail("Bu T.C. kimlik no ile bu dönemde zaten bir başvuru/kayıt var.", "conflict");
     }
@@ -41,7 +77,7 @@ export function createApplication(state, input, ctx) {
         source: input.source ?? "office",
         createdAt: ctx.now,
         status: "pending",
-        student: { ...s0, firstName: s0.firstName.trim(), lastName: s0.lastName.trim() },
+        student: s0,
         roomTypeId: roomType.id,
         entryDate: input.entryDate,
         payWindow: input.payWindow ?? "early",
