@@ -2,12 +2,12 @@
 
 import { useEffect, useRef } from "react";
 
-const INTERACTIVE = "[data-cursor], a, button, [role='button'], summary, label";
+const INTERACTIVE = "a, button, [role='button'], summary, label";
 const NATIVE = "input, textarea, select, [contenteditable='true']";
 
 /**
  * Masaüstü özel imleci: küçük nokta + gecikmeyle takip eden halka.
- * [data-cursor="Metin"] olan öğelerin üstünde halka büyür ve metni gösterir.
+ * Etkileşimli öğelerin üstünde halka yalnızca bir miktar büyür (yazı gösterilmez).
  * Yalnızca ince imleçli (fare) cihazlarda çalışır; dokunmatikte hiçbir şey yapmaz.
  * Form alanlarında sistem imleci kullanılır.
  */
@@ -56,14 +56,9 @@ export default function CustomCursor() {
 
             const el = target.closest(INTERACTIVE);
             if (el) {
-                const label = el.getAttribute("data-cursor") || "";
-                ring.textContent = label;
                 setState("hover", "true");
-                ring.dataset.label = label ? "true" : "false";
             } else {
-                ring.textContent = "";
                 setState("hover", "false");
-                ring.dataset.label = "false";
             }
         };
         const onDown = () => setState("down", "true");
@@ -109,7 +104,7 @@ export default function CustomCursor() {
             <div
                 ref={ringRef}
                 aria-hidden="true"
-                className="pointer-events-none fixed left-0 top-0 z-[100001] flex h-10 w-10 items-center justify-center rounded-full border border-orchid-petal/70 bg-orchid-powder/20 text-[10px] font-bold uppercase tracking-widest text-orchid-pink opacity-0 backdrop-blur-[1px] transition-[opacity,width,height,background-color] duration-200 data-[visible=true]:opacity-100 data-[hover=true]:h-14 data-[hover=true]:w-14 data-[hover=true]:bg-orchid-petal/20 data-[label=true]:h-[4.5rem] data-[label=true]:w-[4.5rem] data-[label=true]:bg-white/70 data-[native=true]:opacity-0 data-[down=true]:h-8 data-[down=true]:w-8"
+                className="pointer-events-none fixed left-0 top-0 z-[100001] flex h-7 w-7 items-center justify-center rounded-full border border-orchid-petal/70 bg-orchid-powder/20 text-[10px] font-bold uppercase tracking-widest text-orchid-pink opacity-0 backdrop-blur-[1px] transition-[opacity,width,height,background-color] duration-200 data-[visible=true]:opacity-100 data-[hover=true]:h-9 data-[hover=true]:w-9 data-[hover=true]:bg-orchid-petal/20 data-[native=true]:opacity-0 data-[down=true]:h-6 data-[down=true]:w-6"
             />
         </>
     );

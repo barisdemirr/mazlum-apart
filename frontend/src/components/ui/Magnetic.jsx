@@ -26,14 +26,17 @@ export default function Magnetic({ children, strength = 0.3, className = "" }) {
     };
 
     return (
-        <motion.div
+        // Dış kap sabit kalır (hareket alanını ve imleci o ölçer); yalnızca iç kap kayar.
+        // Aksi halde kayan öğe kendi ölçüm kutusunu da kaydırır ve imleçten kaçıyormuş gibi titrer.
+        <div
             ref={ref}
-            style={{ x: sx, y: sy }}
             onMouseMove={onMove}
             onMouseLeave={onLeave}
             className={className || "inline-flex"}
         >
-            {children}
-        </motion.div>
+            <motion.div style={{ x: sx, y: sy }} className="inline-flex max-w-full">
+                {children}
+            </motion.div>
+        </div>
     );
 }
