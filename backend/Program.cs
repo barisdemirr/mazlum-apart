@@ -98,6 +98,7 @@ builder.Services.Configure<UploadOptions>(builder.Configuration.GetSection("Uplo
 builder.Services.AddSingleton<ImageService>();
 builder.Services.AddSingleton<VideoService>();
 builder.Services.AddScoped<MediaUsageChecker>();
+builder.Services.AddScoped<AvailabilityService>();
 builder.Services.AddScoped<AuditWriter>();
 
 // ---- Hız sınırı ----
@@ -112,6 +113,8 @@ var app = builder.Build();
 
 // İlk yönetici (yalnızca hiç yönetici yoksa; ayar: "Seed")
 await AdminSeeder.SeedAsync(app.Services, app.Configuration);
+// Sabit sayfalar, mesaj şablonları ve site ayarları satırı (yalnızca eksik olanlar)
+await ContentSeeder.SeedAsync(app.Services);
 
 app.UseExceptionHandler(); // beklenmeyen hata: ayrıntı sızdırmadan problem+json 500
 app.UseStatusCodePages();

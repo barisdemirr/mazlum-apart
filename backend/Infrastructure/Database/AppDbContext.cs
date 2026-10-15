@@ -15,6 +15,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
 
+    // ---- Yapı, dönem & içerik (aşama 3) ----
+    public DbSet<RoomType> RoomTypes => Set<RoomType>();
+    public DbSet<Apartment> Apartments => Set<Apartment>();
+    public DbSet<Room> Rooms => Set<Room>();
+    public DbSet<ApartmentMedia> ApartmentMedia => Set<ApartmentMedia>();
+    public DbSet<Period> Periods => Set<Period>();
+    public DbSet<RoomTypePrice> RoomTypePrices => Set<RoomTypePrice>();
+    public DbSet<SiteSetting> SiteSettings => Set<SiteSetting>();
+    public DbSet<Slide> Slides => Set<Slide>();
+    public DbSet<StaticPage> StaticPages => Set<StaticPage>();
+    public DbSet<MessageTemplate> MessageTemplates => Set<MessageTemplate>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder builder)
     {
         // Para: her yerde decimal(18,2). Metin enum'lar string olarak saklanır (okunabilir, sıra değişse bozulmaz).

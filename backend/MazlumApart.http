@@ -39,3 +39,77 @@ Authorization: Bearer {{adminToken}}
 
 ### Token olmadan yönetici ucu -> 401
 GET {{api}}/api/admin/users
+
+### ───────── Aşama 3: yapı, dönem, içerik ─────────
+
+### Dönem oluştur (aktif dönem varsa kapanır)
+# @name period
+POST {{api}}/api/admin/periods
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "name": "2026–2027 Akademik", "type": "academic", "start": "2026-09-01", "end": "2027-06-30" }
+
+###
+@periodId = {{period.response.body.id}}
+
+### Oda tipi ekle
+# @name roomType
+POST {{api}}/api/admin/room-types
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "name": { "tr": "İki Kişilik Oda", "en": "Double Room" }, "active": true, "order": 1 }
+
+###
+@roomTypeId = {{roomType.response.body.id}}
+
+### Fiyat (aylık + depozito)
+PUT {{api}}/api/admin/periods/{{periodId}}/prices/{{roomTypeId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "monthly": 9500, "deposit": 9500 }
+
+### Daire ekle (ortak alanlarıyla)
+# @name apartment
+POST {{api}}/api/admin/apartments
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Daire 1", "floor": 2, "kitchens": 1, "bathrooms": 2, "published": true, "order": 1,
+  "sharedAreas": [ { "icon": "countertops", "text": { "tr": "Ortak mutfak", "en": "Shared kitchen" } } ]
+}
+
+###
+@apartmentId = {{apartment.response.body.id}}
+
+### Oda ekle (oda özellikleriyle)
+POST {{api}}/api/admin/rooms
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "apartmentId": "{{apartmentId}}", "roomTypeId": "{{roomTypeId}}", "name": "Sol Oda", "beds": 2, "status": "active", "order": 1,
+  "features": [ { "icon": "bed", "text": { "tr": "Her öğrenciye yatak", "en": "A bed for each student" } } ]
+}
+
+### Panel: daireler (kapasite otomatik)
+GET {{api}}/api/admin/apartments
+Authorization: Bearer {{adminToken}}
+
+### Herkese açık: oda tipleri (kartlar)
+GET {{api}}/api/room-types
+
+### Herkese açık: bu tipteki daireler
+GET {{api}}/api/room-types/iki-kisilik-oda/apartments
+
+### Herkese açık: daire sayfası (galeri, odalar, yataklar)
+GET {{api}}/api/room-types/iki-kisilik-oda/apartments/daire-1
+
+### Herkese açık: doluluk
+GET {{api}}/api/room-types/iki-kisilik-oda/availability
+
+### Site ayarları (herkese açık; IBAN yok)
+GET {{api}}/api/site-settings
