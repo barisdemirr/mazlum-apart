@@ -2,9 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
-import { writePeriodCookie } from "@/lib/admin/client";
+import { useAdmin } from "@/components/admin/data/AdminDataProvider";
 
 const STATUS_LABEL = { active: "Aktif çalışma dönemi", closed: "Kapalı dönem" };
 
@@ -12,8 +11,8 @@ const STATUS_LABEL = { active: "Aktif çalışma dönemi", closed: "Kapalı dön
  * Üst çubuktaki dönem seçici. Seçim ma_period çerezine yazılır, sayfa yenilenir.
  * Muhasebe dönemleri birbirine karışmaz: panelin tamamı seçili döneme göre çalışır.
  */
-export default function PeriodSwitcher({ periods, selectedId }) {
-    const router = useRouter();
+export default function PeriodSwitcher() {
+    const { periods, periodId: selectedId, selectPeriod } = useAdmin();
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
     const selected = periods.find((p) => p.id === selectedId) ?? periods[0];
@@ -33,8 +32,7 @@ export default function PeriodSwitcher({ periods, selectedId }) {
     const choose = (id) => {
         setOpen(false);
         if (id === selectedId) return;
-        writePeriodCookie(id);
-        router.refresh();
+        selectPeriod(id);
     };
 
     return (

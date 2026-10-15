@@ -2,19 +2,26 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import ToastProvider from "@/components/admin/Toast";
 import AdminProgressBar from "@/components/admin/AdminProgressBar";
 import PeriodSwitcher from "@/components/admin/PeriodSwitcher";
-import { logout, writePeriodCookie } from "@/lib/admin/client";
+import { logout } from "@/lib/admin/client";
+import { useAdmin } from "@/components/admin/data/AdminDataProvider";
 import { NAV_GROUPS, findNavItem, isActiveItem } from "@/lib/admin/nav";
 
-/** badges: { newApplications: 5, ... }  (sayaçlar veri katmanından gelir; yoksa gösterilmez) */
-export default function AdminShell({ user, periods, selectedId, badges = {}, children }) {
+export default function AdminShell({ user, children }) {
     const pathname = usePathname();
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const selected = periods.find((p) => p.id === selectedId) ?? periods[0];
+    const { period: selected, periods, view } = useAdmin();
+
+    // Menü sayaçları: veri katmanından hesaplanır
+    const badges = {
+        newApplications: view.pendingApplications.length,
+        openMaintenance: view.openMaintenance.length,
+        dueBills: view.dueBills,
+    };
 
     useEffect(() => {
         setDrawerOpen(false); // sayfa değişince çekmece kapanır
@@ -79,7 +86,7 @@ export default function AdminShell({ user, periods, selectedId, badges = {}, chi
                     <Breadcrumb pathname={pathname} />
 
                     <div className="ms-auto flex items-center gap-2">
-                        <PeriodSwitcher periods={periods} selectedId={selectedId} />
+                        <PeriodSwitcher />
                         <a
                             href="/"
                             target="_blank"
@@ -106,14 +113,9 @@ export default function AdminShell({ user, periods, selectedId, badges = {}, chi
 
 /* ── Geçmiş dönem uyarı şeridi ── */
 function PastPeriodBanner({ selected, periods }) {
-    const router = useRouter();
+    const { selectPeriod } = useAdmin();
     const active = periods.find((p) => p.status === "active");
-
-    const back = () => {
-        if (!active) return;
-        writePeriodCookie(active.id);
-        router.refresh();
-    };
+    const back = () => active && selectPeriod(active.id);
 
     return (
         <div
