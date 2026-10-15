@@ -1,4 +1,5 @@
 import { isValidPhone, onlyDigits } from "@/lib/application";
+import { ROLES, readRoleToken } from "@/lib/auth/token";
 
 /** Öğrenci oturum çerezi: backend gelince içinde gerçek JWT durur (httpOnly) */
 export const STUDENT_COOKIE = "ma_student";
@@ -27,19 +28,9 @@ export function validateLogin({ phone, password }) {
     return errors;
 }
 
-/** JWT payload'ını doğrulamadan okur (imza kontrolü backend'de). Süresi dolmuşsa null. */
+/** Öğrenci token yükü ({ sub, typ: "student", exp }). Süresi dolmuş ya da rolü farklıysa null. */
 export function readStudentToken(token) {
-    if (!token || typeof token !== "string") return null;
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    try {
-        const json = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
-        const payload = JSON.parse(decodeURIComponent(escape(json)));
-        if (typeof payload.exp !== "number" || payload.exp * 1000 <= Date.now()) return null;
-        return payload;
-    } catch {
-        return null;
-    }
+    return readRoleToken(token, ROLES.STUDENT);
 }
 
 /** Girişten sonra yalnızca portal içine dönülür (açık yönlendirme engeli) */

@@ -18,7 +18,7 @@ const b64url = (value) => Buffer.from(JSON.stringify(value)).toString("base64url
 /** Biçimi gerçek JWT ile aynı olan sahte token (imzasız) */
 function createMockToken(sub, ttlSeconds) {
     const exp = Math.floor(Date.now() / 1000) + ttlSeconds;
-    return `${b64url({ alg: "none", typ: "JWT" })}.${b64url({ sub, exp })}.mock`;
+    return `${b64url({ alg: "none", typ: "JWT" })}.${b64url({ sub, typ: "student", exp })}.mock`;
 }
 
 /** Başarılıysa { token, maxAge } (maxAge: çerez ömrü; boşsa oturum çerezi), değilse null */

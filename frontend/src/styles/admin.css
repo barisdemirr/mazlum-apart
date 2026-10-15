@@ -1,0 +1,359 @@
+@import "tailwindcss";
+
+/* ════════════════════════════════════════════════════════════
+   YÖNETİM PANELİ TASARIM SİSTEMİ
+   Ana sitenin (globals.css) hiçbir şeyini kullanmaz; ayrı kök layout'ta yüklenir.
+   Tema: safir mavisi (Stitch yönetim paneli renkleri). Tüm tokenlar "ad-" önekli.
+   ════════════════════════════════════════════════════════════ */
+@theme {
+    --font-sans: var(--font-manrope), system-ui, sans-serif;
+    --font-display: var(--font-newsreader), Georgia, serif;
+
+    /* Zemin ve yüzeyler */
+    --color-ad-canvas: #f8f9ff;
+    --color-ad-surface: #ffffff;
+    --color-ad-sunken: #eff4ff;
+    --color-ad-raised: #e5eeff;
+    --color-ad-line: #dde5f5;
+    --color-ad-line-strong: #c4c5d5;
+
+    /* Metin */
+    --color-ad-ink: #0b1c30;
+    --color-ad-body: #444653;
+    --color-ad-muted: #6a6c7b;
+    --color-ad-faint: #9b9eae;
+
+    /* Marka: safir */
+    --color-ad-brand: #1e40af;
+    --color-ad-brand-dark: #00288e;
+    --color-ad-brand-soft: #e5eeff;
+    --color-ad-brand-line: #b8c4ff;
+
+    /* İkincil vurgu: gök mavisi */
+    --color-ad-accent: #006398;
+    --color-ad-accent-soft: #cce5ff;
+    --color-ad-accent-bright: #5bb8fe;
+
+    /* Durum renkleri (hata/uyarı/başarı mavi temadan ayrışır) */
+    --color-ad-ok: #0b7a52;
+    --color-ad-ok-soft: #e1f4ea;
+    --color-ad-warn: #96560a;
+    --color-ad-warn-soft: #fdf0d8;
+    --color-ad-danger: #ba1a1a;
+    --color-ad-danger-soft: #ffdad6;
+
+    /* Gölgeler: mavi-lacivert tonlu, katmanlı */
+    --shadow-ad-sm: 0 1px 2px rgb(11 28 48 / 0.04), 0 1px 3px rgb(11 28 48 / 0.06);
+    --shadow-ad: 0 2px 4px rgb(11 28 48 / 0.03), 0 8px 20px -6px rgb(11 28 48 / 0.1);
+    --shadow-ad-lg: 0 4px 8px rgb(11 28 48 / 0.04), 0 20px 48px -12px rgb(11 28 48 / 0.2);
+    --shadow-ad-brand: 0 8px 22px -8px rgb(30 64 175 / 0.55);
+}
+
+/* Material Symbols: yazı tipi <link> ile gelir, bu sınıflar ikon davranışını belirler */
+.material-symbols-outlined {
+    font-family: "Material Symbols Outlined";
+    font-weight: normal;
+    font-style: normal;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    font-feature-settings: "liga";
+    -webkit-font-smoothing: antialiased;
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+.material-symbols-outlined.icon-fill {
+    font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+/* Panel kökü: site stillerinden yalıtım */
+.admin-root {
+    min-height: 100dvh;
+    background-color: var(--color-ad-canvas);
+    color: var(--color-ad-ink);
+    font-family: var(--font-sans);
+    letter-spacing: 0;
+    overflow-x: clip;
+    -webkit-font-smoothing: antialiased;
+}
+
+.admin-root ::selection {
+    background: var(--color-ad-brand);
+    color: #fff;
+}
+
+.admin-root :focus-visible {
+    outline: 2px solid var(--color-ad-brand);
+    outline-offset: 2px;
+}
+
+/* Başlık yazı tipi (Newsreader): sayfa başlıkları ve büyük rakamlar */
+.ad-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+}
+
+/* Sayılar tablolarda aynı genişlikte dursun */
+.ad-num {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Kenar çubuğu: yarı saydam beyaz */
+.ad-nav {
+    background: rgb(255 255 255 / 0.86);
+    backdrop-filter: blur(18px);
+    box-shadow: 1px 0 0 var(--color-ad-line);
+}
+
+/* Aktif menü öğesi: dolu hap */
+.ad-nav-active {
+    background: var(--color-ad-brand);
+    color: #fff;
+    box-shadow: var(--shadow-ad-brand);
+}
+
+/* Kaydırma çubuğu: ince */
+.ad-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-ad-line-strong) transparent;
+}
+
+/* ───────── Form alanları ───────── */
+.ad-field {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-ad-line-strong);
+    background: var(--color-ad-surface);
+    padding: 0.65rem 0.9rem;
+    font-size: 0.875rem;
+    color: var(--color-ad-ink);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.ad-field::placeholder {
+    color: var(--color-ad-faint);
+}
+
+.ad-field:focus {
+    border-color: var(--color-ad-brand);
+    box-shadow: 0 0 0 3px rgb(30 64 175 / 0.14);
+}
+
+.ad-field:disabled {
+    background: var(--color-ad-sunken);
+    color: var(--color-ad-muted);
+}
+
+.ad-field[aria-invalid="true"] {
+    border-color: var(--color-ad-danger);
+    background: #fff8f7;
+}
+
+/* ───────── Kart ───────── */
+.ad-card {
+    border-radius: 1.25rem;
+    border: 1px solid var(--color-ad-line);
+    background: var(--color-ad-surface);
+    box-shadow: var(--shadow-ad-sm);
+}
+
+/* ───────── Butonlar ───────── */
+.ad-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    height: 2.5rem;
+    padding: 0 1.1rem;
+    border-radius: 9999px;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s, opacity 0.15s, transform 0.1s;
+    border: 1px solid transparent;
+}
+
+.ad-btn:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.ad-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.ad-btn-primary {
+    background: var(--color-ad-brand);
+    color: #fff;
+    box-shadow: var(--shadow-ad-brand);
+}
+
+.ad-btn-primary:hover:not(:disabled) {
+    background: var(--color-ad-brand-dark);
+}
+
+.ad-btn-soft {
+    background: var(--color-ad-brand-soft);
+    color: var(--color-ad-brand-dark);
+}
+
+.ad-btn-soft:hover:not(:disabled) {
+    background: var(--color-ad-brand-line);
+}
+
+.ad-btn-outline {
+    background: var(--color-ad-surface);
+    color: var(--color-ad-body);
+    border-color: var(--color-ad-line-strong);
+}
+
+.ad-btn-outline:hover:not(:disabled) {
+    background: var(--color-ad-sunken);
+    color: var(--color-ad-ink);
+}
+
+.ad-btn-danger {
+    background: var(--color-ad-danger);
+    color: #fff;
+}
+
+.ad-btn-danger:hover:not(:disabled) {
+    filter: brightness(0.92);
+}
+
+.ad-btn-danger-soft {
+    background: var(--color-ad-danger-soft);
+    color: var(--color-ad-danger);
+}
+
+.ad-btn-sm {
+    height: 2rem;
+    padding: 0 0.8rem;
+    font-size: 0.75rem;
+}
+
+.ad-btn-icon {
+    width: 2.25rem;
+    padding: 0;
+    height: 2.25rem;
+}
+
+/* WhatsApp butonu: markanın kendi yeşili, yalnızca bu eylemde */
+.ad-btn-wa {
+    background: #e3f7ea;
+    color: #0b6b3a;
+}
+
+.ad-btn-wa:hover:not(:disabled) {
+    background: #c9efd7;
+}
+
+/* ───────── Durum rozetleri ───────── */
+.ad-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    height: 1.5rem;
+    padding: 0 0.6rem;
+    border-radius: 9999px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.ad-badge-neutral { background: var(--color-ad-sunken); color: var(--color-ad-body); }
+.ad-badge-brand { background: var(--color-ad-brand-soft); color: var(--color-ad-brand-dark); }
+.ad-badge-accent { background: var(--color-ad-accent-soft); color: #00476e; }
+.ad-badge-ok { background: var(--color-ad-ok-soft); color: var(--color-ad-ok); }
+.ad-badge-warn { background: var(--color-ad-warn-soft); color: var(--color-ad-warn); }
+.ad-badge-danger { background: var(--color-ad-danger-soft); color: var(--color-ad-danger); }
+
+/* ───────── Tablo ───────── */
+.ad-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.8125rem;
+}
+
+.ad-table th {
+    position: sticky;
+    top: 0;
+    padding: 0.7rem 1rem;
+    text-align: start;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-ad-muted);
+    background: var(--color-ad-sunken);
+    border-bottom: 1px solid var(--color-ad-line);
+    white-space: nowrap;
+}
+
+.ad-table td {
+    padding: 0.8rem 1rem;
+    border-bottom: 1px solid var(--color-ad-line);
+    vertical-align: middle;
+}
+
+.ad-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.ad-table tbody tr[data-click="1"] {
+    cursor: pointer;
+}
+
+.ad-table tbody tr:hover td {
+    background: #f6f9ff;
+}
+
+/* ───────── Yükleme animasyonları ───────── */
+@keyframes admin-spin { to { transform: rotate(360deg); } }
+@keyframes admin-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+@keyframes admin-pulse { 0%, 100% { opacity: 0.45; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1.05); } }
+@keyframes admin-slide { 0% { transform: translateX(-110%); } 100% { transform: translateX(320%); } }
+@keyframes admin-dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75%, 100% { content: "..."; } }
+@keyframes admin-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.ad-rise { animation: admin-rise 0.25s ease-out both; }
+
+.admin-loader-ring {
+    background: conic-gradient(from 0deg, transparent 0deg, var(--color-ad-brand) 270deg, var(--color-ad-accent-bright) 330deg, transparent 360deg);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+    animation: admin-spin 1s linear infinite;
+}
+
+.admin-loader-spin-rev { animation: admin-spin 6s linear infinite reverse; }
+.admin-loader-breathe { animation: admin-breathe 1.8s ease-in-out infinite; }
+.admin-loader-pulse { animation: admin-pulse 1.8s ease-in-out infinite; }
+.admin-loader-slide { animation: admin-slide 1.3s cubic-bezier(0.65, 0, 0.35, 1) infinite; }
+
+.admin-loader-dots::after {
+    content: "";
+    display: inline-block;
+    width: 1.2em;
+    text-align: start;
+    animation: admin-dots 1.2s steps(1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .admin-loader-ring,
+    .admin-loader-spin-rev,
+    .admin-loader-breathe,
+    .admin-loader-pulse,
+    .admin-loader-slide,
+    .admin-loader-dots::after,
+    .ad-rise {
+        animation: none;
+    }
+}
