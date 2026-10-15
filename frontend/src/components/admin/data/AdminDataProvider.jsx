@@ -45,7 +45,7 @@ export default function AdminDataProvider({ user, initialPeriodId, children }) {
     const run = useCallback(
         async (command, input) => {
             await track(new Promise((resolve) => setTimeout(resolve, 350)));
-            const ctx = { now: new Date().toISOString(), today: todayISO(), by: user?.name ?? "Yönetici" };
+            const ctx = { now: new Date().toISOString(), today: todayISO(), by: user?.name ?? "Yönetici", userId: user?.id ?? "admin-1" };
             const out = command(stateRef.current, input, ctx);
             stateRef.current = out.state;
             setState(out.state);

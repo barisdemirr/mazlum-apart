@@ -4,12 +4,12 @@ import { useMemo, useState } from "react";
 import { useAdmin } from "@/components/admin/data/AdminDataProvider";
 import DataTable from "@/components/admin/DataTable";
 import FormDialog from "@/components/admin/FormDialog";
-import { Badge, PageHeader } from "@/components/admin/ui";
+import { Badge } from "@/components/admin/ui";
 import { SelectInput } from "@/components/admin/fields";
 import { AUDIT_ACTION } from "@/lib/admin/labels";
 import DateRange, { inRange } from "./DateRange";
 
-const GROUPS = { payment: "Tahsilat / iade", charge: "Borç kalemleri", account: "Kasa & banka", transfer: "Kasa & banka", expense: "Gider", bill: "Fatura", application: "Başvuru", enrollment: "Kayıt", placement: "Yerleşim" };
+const GROUPS = { payment: "Tahsilat / iade", charge: "Borç kalemleri", account: "Kasa & banka", transfer: "Kasa & banka", expense: "Gider", bill: "Fatura", application: "Başvuru", enrollment: "Kayıt", placement: "Yerleşim", maintenance: "Arıza", roomtype: "Yapı", apartment: "Yapı", room: "Yapı", period: "Dönem & fiyat", price: "Dönem & fiyat", settings: "Sistem", admin: "Sistem" };
 const stamp = (iso) => new Date(iso).toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
 /** Değiştirilemez işlem geçmişi: kim, ne zaman, ne yaptı; önce/sonra değerleriyle */
@@ -34,7 +34,7 @@ export default function AuditView() {
 
     return (
         <div>
-            <PageHeader title="İşlem Geçmişi" description="Panelde yapılan önemli işlemlerin değiştirilemez kaydı. Bir satıra tıklayarak önce/sonra değerlerini görün." />
+            <p className="mb-5 max-w-2xl text-sm text-ad-muted">Panelde yapılan önemli işlemlerin değiştirilemez kaydı. Bir satıra tıklayarak önce/sonra değerlerini görün.</p>
             <DataTable
                 columns={columns}
                 rows={rows}

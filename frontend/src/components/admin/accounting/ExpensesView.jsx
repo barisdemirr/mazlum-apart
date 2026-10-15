@@ -61,7 +61,7 @@ export default function ExpensesView() {
                             {byCategory.map(({ c, amount }) => (
                                 <li key={c.id} className="grid grid-cols-[8rem_1fr_6rem] items-center gap-3 text-sm">
                                     <span className="truncate font-semibold">{c.name}</span>
-                                    <ProgressBar value={total ? (amount / total) * 100 : 0} tone="accent" />
+                                    <ProgressBar value={total ? amount / total : 0} tone="accent" />
                                     <span className="ad-num text-end font-bold">{money(amount)}</span>
                                 </li>
                             ))}

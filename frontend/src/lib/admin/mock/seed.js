@@ -1,4 +1,4 @@
-import { MOCK_ROOM_TYPES } from "@/lib/mockData";
+import { MOCK_HERO, MOCK_ROOM_TYPES, getMockRoomTypeDetail } from "@/lib/mockData";
 import { MOCK_PERIODS } from "./periods";
 import { addBill, addExpense, addCharge, payBill, recordPayment, refundAdvance, reverseCharge, transfer } from "@/lib/admin/domain/ledger";
 import { approveApplication, createApplication, endEnrollment, placeStudent, rejectApplication } from "@/lib/admin/domain/registration";
@@ -25,7 +25,20 @@ const tcFor = (n) => {
 const phoneFor = (n) => `500000${String(n).padStart(4, "0")}`;
 
 export function buildSeed() {
-    const roomTypes = MOCK_ROOM_TYPES.map((r) => ({ id: r.id, slug: r.slug, name: r.name, peopleInFlat: r.peopleInFlat }));
+    const feat = (list) => (list?.tr ?? []).map((tr, i) => ({ icon: "check_circle", text: { tr, en: list.en?.[i] ?? "" } }));
+    const roomTypes = MOCK_ROOM_TYPES.map((r) => {
+        const d = getMockRoomTypeDetail(r.slug);
+        return {
+            id: r.id, slug: r.slug, name: r.name, description: { tr: "", en: "" },
+            peopleInFlat: r.peopleInFlat, peopleSharingKitchen: r.peopleSharingKitchen, peopleSharingBathroom: r.peopleSharingBathroom,
+            features: feat(d?.roomFeatures), sharedAreas: feat(d?.sharedAreas),
+            image: { mediaId: `med-${r.slug}`, url: r.image.url }, active: true,
+        };
+    });
+    const media = [
+        { id: "med-hero", name: "ana-sayfa-gorseli", url: MOCK_HERO.image.url, kind: "image", size: 0, alt: MOCK_HERO.image.alt, createdAt: at("2026-08-20") },
+        ...MOCK_ROOM_TYPES.map((r) => ({ id: `med-${r.slug}`, name: r.slug, url: r.image.url, kind: "image", size: 0, alt: r.image.alt, createdAt: at("2026-08-20") })),
+    ];
     const [TEK, IKI, UC] = roomTypes.map((r) => r.id);
 
     /* Bu iki dönemin fiyatları: aylık kira ve depozito (depozito tutarı müşteriden teyit bekliyor; şimdilik bir aylık kira) */
@@ -76,8 +89,17 @@ export function buildSeed() {
             { id: "tpl-reminder", key: "payment_reminder", name: "Ödeme hatırlatma", tr: "Merhaba {ad}, {oda} için {kalem} ({tutar}) {vade} tarihinde ödenmelidir. Ödemeyi yaptıktan sonra bize bilgi verirseniz seviniriz.", en: "Hello {ad}, your {kalem} ({tutar}) for {oda} is due on {vade}. Please let us know once you have paid." },
             { id: "tpl-overdue", key: "payment_overdue", name: "Geciken ödeme", tr: "Merhaba {ad}, {kalem} ödemenizin vadesi {vade} tarihinde geçti. Kalan tutar: {tutar}. Ödeme yaptıysanız lütfen dekontu paylaşın.", en: "Hello {ad}, your {kalem} payment was due on {vade}. Remaining amount: {tutar}. If you have already paid, please share the receipt." },
             { id: "tpl-received", key: "application_received", name: "Başvuru alındı", tr: "Merhaba {ad}, başvurunuz bize ulaştı. İnceleyip size dönüş yapacağız.", en: "Hello {ad}, we have received your application and will get back to you shortly." },
+            { id: "tpl-maint", key: "maintenance_update", name: "Arıza durumu", tr: "Merhaba {ad}, “{konu}” arıza kaydınızın durumu: {durum}.", en: "Hello {ad}, the status of your maintenance request “{konu}” is: {durum}." },
             { id: "tpl-approved", key: "enrollment_approved", name: "Kayıt onayı ve giriş bilgisi", tr: "Merhaba {ad}, kaydınız onaylandı. Öğrenci alanı giriş bilgileriniz: telefon {telefon}, şifre {sifre}.", en: "Hello {ad}, your registration is confirmed. Your student area login: phone {telefon}, password {sifre}." },
         ],
+        media,
+        slides: [{ id: "sld-1", mediaId: "med-hero", title: { tr: "", en: "" }, subtitle: { tr: "", en: "" }, active: true, order: 1 }],
+        pages: [
+            { key: "about", title: { tr: "Hakkımızda", en: "About us" }, body: { tr: "", en: "" }, updatedAt: null },
+            { key: "contact", title: { tr: "İletişim", en: "Contact" }, body: { tr: "", en: "" }, updatedAt: null },
+            { key: "kvkk", title: { tr: "KVKK Aydınlatma Metni", en: "Privacy Notice" }, body: { tr: "", en: "" }, updatedAt: null },
+        ],
+        siteSettings: { phone: "", whatsapp: "", email: "", address: { tr: "", en: "" }, mapUrl: "", instagram: "", iban: "", ibanHolder: "" },
         admins: [{ id: "admin-1", name: "Yönetici", email: "yonetici@mazlumapart.local", active: true, createdAt: at("2026-08-20") }],
         students: [],
         applications: [],

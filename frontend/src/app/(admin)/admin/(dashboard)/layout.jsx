@@ -6,6 +6,7 @@ export default async function DashboardLayout({ children }) {
     const { payload } = await requireSession();
 
     const user = {
+        id: payload.sub || "admin-1",
         name: payload.name || "Yönetici",
         email: payload.email || "",
     };

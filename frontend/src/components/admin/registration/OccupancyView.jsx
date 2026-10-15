@@ -60,7 +60,7 @@ export default function OccupancyView() {
             />
 
             <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <Card><p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Doluluk · {date(shown)}</p><p className="ad-num mt-2 text-3xl font-extrabold">%{Math.round(occ.totals.rate * 100)}</p><ProgressBar value={occ.totals.rate * 100} className="mt-3" /></Card>
+                <Card><p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Doluluk · {date(shown)}</p><p className="ad-num mt-2 text-3xl font-extrabold">%{Math.round(occ.totals.rate * 100)}</p><ProgressBar value={occ.totals.rate} className="mt-3" /></Card>
                 <Card><p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Dolu yatak</p><p className="ad-num mt-2 text-3xl font-extrabold">{occ.totals.taken}<span className="text-base font-semibold text-ad-muted"> / {occ.totals.beds}</span></p></Card>
                 <Card><p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Boş yatak</p><p className="ad-num mt-2 text-3xl font-extrabold text-ad-ok">{occ.totals.free}</p></Card>
                 <Card><p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Yerleşmeyi bekleyen</p><p className="ad-num mt-2 text-3xl font-extrabold text-ad-warn">{waiting.length}</p></Card>

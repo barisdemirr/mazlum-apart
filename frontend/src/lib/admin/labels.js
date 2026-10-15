@@ -69,6 +69,7 @@ export const CONTACT_PURPOSE = {
     payment_overdue: "Geciken ödeme",
     application_received: "Başvuru bilgilendirme",
     enrollment_approved: "Kayıt onayı",
+    maintenance_update: "Arıza durumu",
     other: "Diğer",
 };
 
@@ -92,6 +93,24 @@ export const AUDIT_ACTION = {
     "enrollment.end": "Kayıt kapatıldı",
     "placement.create": "Yerleşim yapıldı",
     "placement.move": "Oda değiştirildi",
+    "roomtype.create": "Oda tipi eklendi",
+    "roomtype.update": "Oda tipi güncellendi",
+    "apartment.create": "Daire eklendi",
+    "apartment.update": "Daire güncellendi",
+    "apartment.delete": "Daire silindi",
+    "room.create": "Oda eklendi",
+    "room.update": "Oda güncellendi",
+    "room.delete": "Oda silindi",
+    "period.create": "Yeni dönem başlatıldı",
+    "period.update": "Dönem güncellendi",
+    "period.close": "Dönem kapatıldı",
+    "price.update": "Fiyat güncellendi",
+    "settings.update": "Site ayarları güncellendi",
+    "admin.create": "Yönetici eklendi",
+    "admin.activate": "Yönetici aktifleştirildi",
+    "admin.deactivate": "Yönetici pasife alındı",
+    "admin.password": "Şifre değiştirildi",
+    "maintenance.update": "Arıza kaydı güncellendi",
 };
 
 /** Hesap hareketi kaynağı (Kasa & Banka listesi) */
@@ -104,3 +123,5 @@ export const TX_SOURCE = {
     expense_cancel: "Gider iptali",
     transfer: "Transfer",
 };
+
+export const MAINT_AREA = { room: "Oda", kitchen: "Mutfak", bathroom: "Banyo", common: "Ortak alan", other: "Diğer" };
