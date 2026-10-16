@@ -55,6 +55,7 @@ public sealed class WebPushSender(IOptions<PushOptions> options, ILogger<WebPush
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private readonly WebPushClient client = new();
+    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
 
     public enum Outcome { Ok, Gone, Failed }
 
@@ -68,8 +69,22 @@ public sealed class WebPushSender(IOptions<PushOptions> options, ILogger<WebPush
         try
         {
             var target = new WebPush.PushSubscription(subscription.Endpoint, subscription.P256dh, subscription.Auth);
-            await client.SendNotificationAsync(target, JsonSerializer.Serialize(payload, Json), new VapidDetails(o.Subject, o.PublicKey, o.PrivateKey), ct);
-            return Outcome.Ok;
+            // Urgency: high -> telefon uykudayken (Android Doze) bile hemen iletilir. Varsayılan "normal" öncelikli
+            // bildirimler, uygulama kapalıyken cihaz uyandığında (uygulama açılınca) teslim edilir. TTL: 1 gün.
+            // Kütüphane Urgency başlığını desteklemediği için isteği o üretir, başlığı biz ekleriz.
+            var options = new Dictionary<string, object>
+            {
+                ["vapidDetails"] = new VapidDetails(o.Subject, o.PublicKey, o.PrivateKey),
+                ["TTL"] = 86400
+            };
+            using var request = client.GenerateRequestDetails(target, JsonSerializer.Serialize(payload, Json), options);
+            request.Headers.TryAddWithoutValidation("Urgency", "high");
+            using var response = await Http.SendAsync(request, ct);
+
+            if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Gone) return Outcome.Gone;
+            if (response.IsSuccessStatusCode) return Outcome.Ok;
+            logger.LogWarning("Bildirim gönderilemedi: {Status}", (int)response.StatusCode);
+            return Outcome.Failed;
         }
         catch (WebPushException ex) when (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Gone)
         {
