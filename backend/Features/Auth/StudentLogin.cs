@@ -9,7 +9,8 @@ namespace MazlumApart.Features.Auth;
 
 /// <summary>
 /// Öğrenci girişi: telefon + şifre. Şifre, başvuru onaylanınca üretilir ve öğrenciye iletilir.
-/// "Beni hatırla" açıksa token 30 gün, kapalıysa 12 saat geçerlidir.
+/// Erişim token'ı kısa ömürlüdür (15 dk); oturumu yenileme anahtarı ayakta tutar.
+/// "Beni hatırla" açıksa yenileme anahtarı kayan 180 gün, kapalıysa 24 saat geçerlidir (Jwt ayarları).
 /// </summary>
 public static class StudentLogin
 {
@@ -17,9 +18,10 @@ public static class StudentLogin
 
     public record UserInfo(Guid Id, string Name, string Phone);
 
-    public record Response(string AccessToken, DateTime ExpiresAt, UserInfo User);
+    public record Response(string AccessToken, DateTime ExpiresAt, string RefreshToken, DateTime RefreshExpiresAt, bool Persistent, UserInfo User);
 
-    public class Handler(AppDbContext db, IPasswordHasher<Student> hasher, TokenService tokens)
+    public class Handler(AppDbContext db, IPasswordHasher<Student> hasher, TokenService tokens,
+        RefreshTokenService refresh, Microsoft.Extensions.Options.IOptions<JwtOptions> jwt)
     {
         private static readonly Lazy<string> DummyHash =
             new(() => new PasswordHasher<Student>().HashPassword(new Student(), "dummy-password-for-timing"));
@@ -58,10 +60,13 @@ public static class StudentLogin
             student.FailedLoginCount = 0;
             student.LockedUntil = null;
             student.LastLoginAt = DateTime.UtcNow;
+
+            var lifetime = cmd.Remember ? TimeSpan.FromDays(jwt.Value.StudentRefreshDays) : TimeSpan.FromHours(jwt.Value.StudentSessionRefreshHours);
+            var issued = refresh.Issue(AppRoles.Student, student.Id, student.SecurityStamp, lifetime, cmd.Remember);
             await db.SaveChangesAsync(ct);
 
-            var (token, expiresAt) = tokens.CreateForStudent(student, cmd.Remember);
-            return new Response(token, expiresAt, new UserInfo(student.Id, student.FullName, student.Phone));
+            var (token, expiresAt) = tokens.CreateForStudent(student);
+            return new Response(token, expiresAt, issued.Token, issued.ExpiresAt, issued.Persistent, new UserInfo(student.Id, student.FullName, student.Phone));
         }
     }
 

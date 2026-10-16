@@ -47,6 +47,7 @@ if (jwt is null || string.IsNullOrWhiteSpace(jwt.Key) || jwt.Key.Length < 32)
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddScoped<SessionValidator>();
+builder.Services.AddScoped<RefreshTokenService>();
 builder.Services.AddSingleton<IPasswordHasher<AdminUser>, PasswordHasher<AdminUser>>();
 builder.Services.AddSingleton<IPasswordHasher<Student>, PasswordHasher<Student>>();
 

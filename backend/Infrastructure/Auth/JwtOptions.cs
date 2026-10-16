@@ -7,12 +7,16 @@ public class JwtOptions
     public string Audience { get; set; } = "";
     public string Key { get; set; } = "";
 
-    /// <summary>Yönetici oturumu (frontend ADMIN_SESSION_HOURS = 8 ile aynı)</summary>
-    public int AdminExpiresMinutes { get; set; } = 480;
+    /// <summary>Erişim token'ı ömrü (kısa tutulur; süre dolunca oturum yenileme anahtarıyla sessizce yenilenir)</summary>
+    public int AdminExpiresMinutes { get; set; } = 15;
+    public int StudentExpiresMinutes { get; set; } = 15;
 
-    /// <summary>Öğrenci oturumu, "beni hatırla" kapalıyken (frontend SESSION_HOURS = 12)</summary>
-    public int StudentExpiresMinutes { get; set; } = 720;
+    /// <summary>Yenileme anahtarı ömrü (kayan pencere: her yenilemede baştan başlar). Yönetici: gün.</summary>
+    public int AdminRefreshDays { get; set; } = 14;
 
-    /// <summary>Öğrenci oturumu, "beni hatırla" açıkken (frontend REMEMBER_DAYS = 30)</summary>
-    public int StudentRememberDays { get; set; } = 30;
+    /// <summary>Öğrenci, "beni hatırla" açıkken: gün. Bu süre boyunca hiç kullanılmazsa oturum biter.</summary>
+    public int StudentRefreshDays { get; set; } = 180;
+
+    /// <summary>Öğrenci, "beni hatırla" kapalıyken: saat (tarayıcı kapanınca da biter)</summary>
+    public int StudentSessionRefreshHours { get; set; } = 24;
 }

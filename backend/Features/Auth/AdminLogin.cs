@@ -13,9 +13,10 @@ public static class AdminLogin
 
     public record UserInfo(Guid Id, string Email, string Name);
 
-    public record Response(string AccessToken, DateTime ExpiresAt, UserInfo User);
+    public record Response(string AccessToken, DateTime ExpiresAt, string RefreshToken, DateTime RefreshExpiresAt, bool Persistent, UserInfo User);
 
-    public class Handler(AppDbContext db, IPasswordHasher<AdminUser> hasher, TokenService tokens)
+    public class Handler(AppDbContext db, IPasswordHasher<AdminUser> hasher, TokenService tokens,
+        RefreshTokenService refresh, Microsoft.Extensions.Options.IOptions<JwtOptions> jwt)
     {
         // Kullanıcı bulunamasa da şifre doğrulaması yapılır: yanıt süresi hesabın varlığını belli etmesin
         private static readonly Lazy<string> DummyHash =
@@ -55,10 +56,12 @@ public static class AdminLogin
             user.FailedLoginCount = 0;
             user.LockedUntil = null;
             user.LastLoginAt = DateTime.UtcNow;
+
+            var issued = refresh.Issue(AppRoles.Admin, user.Id, user.SecurityStamp, TimeSpan.FromDays(jwt.Value.AdminRefreshDays), persistent: true);
             await db.SaveChangesAsync(ct);
 
             var (token, expiresAt) = tokens.CreateForAdmin(user);
-            return new Response(token, expiresAt, new UserInfo(user.Id, user.Email, user.FullName));
+            return new Response(token, expiresAt, issued.Token, issued.ExpiresAt, issued.Persistent, new UserInfo(user.Id, user.Email, user.FullName));
         }
     }
 

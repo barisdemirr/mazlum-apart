@@ -19,6 +19,7 @@ public static class RatePolicies
     public const string Sms = "sms";
     public const string Webhook = "webhook";
     public const string Push = "push";
+    public const string Refresh = "refresh";
 }
 
 public static class RateLimitingExtensions
@@ -72,6 +73,10 @@ public static class RateLimitingExtensions
             // Toplu bildirim ve test bildirimi: yönetici başına 10 dakikada 10
             options.AddPolicy(RatePolicies.Push, context =>
                 RateLimitPartition.GetFixedWindowLimiter(UserOrIp(context), _ => Window(10, TimeSpan.FromMinutes(10))));
+
+            // Oturum yenileme / çıkış: IP başına dakikada 120 (aynı yurt ağındaki öğrenciler için cömert; anahtar zaten tahmin edilemez)
+            options.AddPolicy(RatePolicies.Refresh, context =>
+                RateLimitPartition.GetFixedWindowLimiter(ClientIp.Get(context), _ => Window(120, TimeSpan.FromMinutes(1))));
 
             // SMS sağlayıcısının teslim raporu geri çağrısı
             options.AddPolicy(RatePolicies.Webhook, context =>

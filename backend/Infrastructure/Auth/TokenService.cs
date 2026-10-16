@@ -24,12 +24,8 @@ public class TokenService(IOptions<JwtOptions> options)
             Guid.ParseExact(admin.FindFirstValue(AppClaims.Stamp)!, "N"), TimeSpan.FromMinutes(10),
             [new Claim(AppClaims.Scope, AppScopes.Upload)]);
 
-    public (string Token, DateTime ExpiresAt) CreateForStudent(Student student, bool remember)
-    {
-        var o = options.Value;
-        var lifetime = remember ? TimeSpan.FromDays(o.StudentRememberDays) : TimeSpan.FromMinutes(o.StudentExpiresMinutes);
-        return Create(student.Id, AppRoles.Student, student.FullName, student.SecurityStamp, lifetime, []);
-    }
+    public (string Token, DateTime ExpiresAt) CreateForStudent(Student student) =>
+        Create(student.Id, AppRoles.Student, student.FullName, student.SecurityStamp, TimeSpan.FromMinutes(options.Value.StudentExpiresMinutes), []);
 
     private (string Token, DateTime ExpiresAt) Create(Guid id, string role, string name, Guid stamp, TimeSpan lifetime, IEnumerable<Claim> extra)
     {
