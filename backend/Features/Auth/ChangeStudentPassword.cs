@@ -9,7 +9,7 @@ using MazlumApart.Shared;
 
 namespace MazlumApart.Features.Auth;
 
-/// <summary>Öğrenci kendi şifresini değiştirir; diğer cihazlardaki oturumlar kapanır, bu cihaz için yeni token döner</summary>
+/// <summary>Öğrenci kendi şifresini değiştirir. SecurityStamp yenilenir: tüm cihazlardaki oturumlar (yenileme anahtarları dahil) kapanır, yeniden giriş gerekir. Remember artık kullanılmaz (uyumluluk için kalır).</summary>
 public static class ChangeStudentPassword
 {
     public record Command(string? CurrentPassword, string? NewPassword, bool Remember);
@@ -40,7 +40,7 @@ public static class ChangeStudentPassword
             audit.Add("student.password", "student", student.Id);
             await db.SaveChangesAsync(ct);
 
-            var (token, expiresAt) = tokens.CreateForStudent(student, cmd.Remember);
+            var (token, expiresAt) = tokens.CreateForStudent(student);
             return new ChangeAdminPassword.Response(token, expiresAt);
         }
     }
