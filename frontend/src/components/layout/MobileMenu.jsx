@@ -10,7 +10,7 @@ import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { EASE_IN_OUT, EASE_OUT } from "@/lib/motion";
 
 /**
- * Tam ekran mobil menü: hamburger düğmesinin olduğu noktadan daire şeklinde açılır,
+ * Tam ekran mobil menü: yalnızca saydamlık animasyonuyla açılır (clip-path her karede yeniden boyama gerektirip kasıyordu),
  * bağlantılar sırayla yükselerek belirir.
  * `origin`: açılma noktası (düğme merkezi, px). Header'ın dışında render edilir ki
  * header'ın transform'u fixed konumlamayı bozmasın.
@@ -31,9 +31,6 @@ export default function MobileMenu({ open, onClose, origin, activeHref }) {
         };
     }, [open, onClose]);
 
-    const radius = typeof window === "undefined" ? 2000 : Math.hypot(window.innerWidth, window.innerHeight);
-    const closed = `circle(0px at ${origin.x}px ${origin.y}px)`;
-    const opened = `circle(${radius}px at ${origin.x}px ${origin.y}px)`;
 
     return (
         <AnimatePresence>
@@ -44,11 +41,10 @@ export default function MobileMenu({ open, onClose, origin, activeHref }) {
                     aria-modal="true"
                     aria-label={t.nav.menu}
                     className="fixed inset-0 z-[60] flex flex-col justify-between overflow-y-auto bg-[#3d1c49] p-8 pb-10 pt-28 text-white lg:hidden"
-                    style={{ willChange: "clip-path", contain: "paint" }}
-                    initial={{ clipPath: closed }}
-                    animate={{ clipPath: opened }}
-                    exit={{ clipPath: closed }}
-                    transition={{ duration: 0.7, ease: EASE_IN_OUT }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.25, ease: EASE_IN_OUT }}
                 >
                     {/* Dekoratif ışık lekeleri */}
                     <div aria-hidden="true" className="pointer-events-none absolute -right-24 top-10 h-72 w-72 rounded-full bg-orchid-pink/30 soft-blob animate-blob" />

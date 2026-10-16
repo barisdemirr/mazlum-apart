@@ -250,4 +250,18 @@ html[data-preloader-seen] #preloader { display: none; }
         animation: none;
         border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
     }
+    /* Sonsuz dekoratif animasyonlar (lekeler, parıltı, Ken Burns, yüzen rozetler) mobilde durdurulur:
+       her biri sürekli kare üretip GPU'yu meşgul ediyordu. Kayan bant (marquee) yalnızca transform kullandığı için kalır. */
+    .animate-blob,
+    .animate-pulse-glow,
+    .animate-kenburns,
+    .animate-float-slow,
+    .animate-float-delay,
+    .animate-bounce,
+    .animate-spin-slow {
+        animation: none !important;
+    }
+    .soft-blob {
+        will-change: auto;
+    }
 }

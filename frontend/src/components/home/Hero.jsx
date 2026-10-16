@@ -43,6 +43,16 @@ export default function Hero({ media, slides = [] }) {
     const slideTitle = localized(current.title, locale);
     const slideSubtitle = localized(current.subtitle, locale);
 
+    // Küçük ekran / dokunmatikte parallax ve büyük görsel kapalı (kaydırırken GPU'yu yoruyordu)
+    const [lite, setLite] = useState(false);
+    useEffect(() => {
+        const mq = window.matchMedia("(max-width: 1023px), (hover: none)");
+        const update = () => setLite(mq.matches);
+        update();
+        mq.addEventListener("change", update);
+        return () => mq.removeEventListener("change", update);
+    }, []);
+
     const videoUrl = media?.videoUrl ? mediaUrl(media.videoUrl) : null;
 
     return (
@@ -52,7 +62,7 @@ export default function Hero({ media, slides = [] }) {
             className="relative flex min-h-screen w-full items-center justify-center overflow-hidden px-4 pb-20 pt-32 sm:px-8 lg:px-12"
         >
             {/* Aurora lekeleri */}
-            <motion.div style={{ y: blobY, willChange: "transform" }} aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
+            <motion.div style={lite ? undefined : { y: blobY, willChange: "transform" }} aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
                 <div className="absolute -left-32 -top-32 h-[650px] w-[650px] rounded-full bg-gradient-to-br from-orchid-powder via-orchid-petal/30 to-transparent soft-blob animate-blob" />
                 <div className="absolute -right-28 top-1/4 h-[580px] w-[580px] rounded-full bg-gradient-to-bl from-orchid-lilac via-orchid-violet/25 to-transparent soft-blob animate-blob [animation-delay:4s]" />
                 <div className="absolute -bottom-20 left-1/3 h-[520px] w-[520px] rounded-full bg-gradient-to-t from-orchid-powder/60 via-orchid-pink/20 to-transparent soft-blob animate-blob [animation-delay:8s]" />
@@ -137,7 +147,7 @@ export default function Hero({ media, slides = [] }) {
                 >
                     <div aria-hidden="true" className="absolute -inset-14 rounded-full bg-gradient-to-tr from-orchid-petal via-orchid-violet to-orchid-pink opacity-60 animate-pulse-glow will-change-transform" style={{ WebkitMaskImage: "radial-gradient(closest-side, transparent 58%, rgb(0 0 0 / 0.9) 80%, transparent 100%)", maskImage: "radial-gradient(closest-side, transparent 58%, rgb(0 0 0 / 0.9) 80%, transparent 100%)" }} />
 
-                    <motion.div style={{ y: imageY }} className="relative">
+                    <motion.div style={lite ? undefined : { y: imageY }} className="relative">
                         <div className="group relative h-[380px] w-[320px] overflow-hidden border-4 border-white/70 shadow-[0_30px_70px_rgba(180,57,143,0.3)] animate-morph sm:h-[480px] sm:w-[420px] lg:h-[520px] lg:w-[460px]">
                             <AnimatePresence initial={false}>
                                 <motion.div
@@ -149,7 +159,7 @@ export default function Hero({ media, slides = [] }) {
                                     className="absolute inset-0"
                                 >
                                     <SafeImage
-                                        src={mediaUrl(current.image, "lg")}
+                                        src={mediaUrl(current.image, lite ? "md" : "lg")}
                                         alt={mediaAlt(current.image, locale)}
                                         className="h-full w-full object-cover animate-kenburns"
                                         fetchPriority="high"
