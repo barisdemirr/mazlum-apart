@@ -7,7 +7,8 @@ export const PERIOD_COOKIE = "ma_period";
 
 export const ADMIN_HOME = "/admin";
 export const ADMIN_LOGIN = "/admin/login";
-export const ADMIN_SESSION_HOURS = 8;
+/** Oturum yenileme anahtarı çerezi (httpOnly). Erişim token'ını sessizce yeniler (backend: Jwt:AdminRefreshDays). */
+export const ADMIN_REFRESH_COOKIE = "ma_admin_rt";
 
 /** Yönetici token yükü ({ sub, typ: "admin", name, email, exp }) ya da null */
 export const readAdminToken = (token) => readRoleToken(token, ROLES.ADMIN);

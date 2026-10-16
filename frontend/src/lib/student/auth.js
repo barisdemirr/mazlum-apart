@@ -4,9 +4,8 @@ import { ROLES, readRoleToken } from "@/lib/auth/token";
 /** Öğrenci oturum çerezi: backend gelince içinde gerçek JWT durur (httpOnly) */
 export const STUDENT_COOKIE = "ma_student";
 
-/** Beni hatırla kapalıysa token 12 saat, açıksa 30 gün geçerlidir */
-export const SESSION_HOURS = 12;
-export const REMEMBER_DAYS = 30;
+/** Oturum yenileme anahtarı çerezi (httpOnly). Erişim token'ı kısa ömürlüdür (backend: Jwt:StudentExpiresMinutes); bu anahtar onu sessizce yeniler. */
+export const STUDENT_REFRESH_COOKIE = "ma_student_rt";
 
 /**
  * Telefon alanına yapıştırılan her biçimi 10 haneye indirir:

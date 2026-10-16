@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { STUDENT_COOKIE, normalizePhoneInput, validateLogin } from "@/lib/student/auth";
-import { ADMIN_COOKIE } from "@/lib/admin/auth";
-import { cookieOptions } from "@/lib/student/session";
-import { loginStatus } from "@/lib/api/auth-session";
+import { normalizePhoneInput, validateLogin } from "@/lib/student/auth";
+import { loginStatus, revokeRequest } from "@/lib/api/auth-session";
+import { SESSION_COOKIES, clearSession, setSession } from "@/lib/api/session-cookies";
 import { authenticateStudent } from "@/services/studentAuth";
 
 const noStore = { "Cache-Control": "no-store" };
@@ -23,22 +22,21 @@ export async function POST(request) {
     }
 
     const response = NextResponse.json({ ok: true }, { headers: noStore });
-    response.cookies.set(STUDENT_COOKIE, result.token, cookieOptions(result.maxAge));
-    response.cookies.set(ADMIN_COOKIE, "", { path: "/", maxAge: 0 }); // öğrenci girişi yönetici oturumunu sonlandırır
+    setSession(response, "student", result);
+    clearSession(response, "admin"); // bu rolün girişi diğer rolün oturumunu sonlandırır
     return response;
 }
 
-/** Çıkış: çerez silinir */
-export async function DELETE() {
-    const response = NextResponse.json({ ok: true }, { headers: noStore });
-    response.cookies.set(STUDENT_COOKIE, "", { path: "/", maxAge: 0 });
-    return response;
+/** Çıkış: yenileme anahtarı backend'de iptal edilir, çerezler silinir */
+export async function DELETE(request) {
+    await revokeRequest(request.cookies.get(SESSION_COOKIES.student.refresh)?.value);
+    return clearSession(NextResponse.json({ ok: true }, { headers: noStore }), "student");
 }
 
-/** Süresi dolmuş/geçersiz oturum: çerez silinir, giriş sayfasına yönlendirilir (sunucu bileşenleri ve vekil buraya yollar) */
+/** Süresi dolmuş/geçersiz oturum: anahtar iptal edilir, çerezler silinir, giriş sayfasına yönlendirilir (sunucu bileşenleri ve vekil buraya yollar) */
 export async function GET(request) {
+    await revokeRequest(request.cookies.get(SESSION_COOKIES.student.refresh)?.value);
     const response = NextResponse.redirect(new URL("/ogrenci/giris?expired=1", request.url));
-    response.cookies.set(STUDENT_COOKIE, "", { path: "/", maxAge: 0 });
     response.headers.set("Cache-Control", "no-store");
-    return response;
+    return clearSession(response, "student");
 }

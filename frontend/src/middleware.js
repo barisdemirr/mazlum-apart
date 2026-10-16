@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { DEFAULT_LOCALE, LANG_COOKIE, LANG_COOKIE_MAX_AGE, LOCALES, stripLocale } from "@/lib/i18n/config";
-import { STUDENT_COOKIE, readStudentToken } from "@/lib/student/auth";
-import { ADMIN_COOKIE, ADMIN_HOME, ADMIN_LOGIN, readAdminToken } from "@/lib/admin/auth";
+import { STUDENT_COOKIE, STUDENT_REFRESH_COOKIE, readStudentToken } from "@/lib/student/auth";
+import { ADMIN_COOKIE, ADMIN_HOME, ADMIN_LOGIN, ADMIN_REFRESH_COOKIE, readAdminToken } from "@/lib/admin/auth";
 
 /* ───────────────────────────── İKİ ROL, KATI KURALLAR ─────────────────────────────
  * Sistemde iki oturum türü vardır ve birbirinin alanına GİREMEZ:
@@ -16,6 +16,9 @@ import { ADMIN_COOKIE, ADMIN_HOME, ADMIN_LOGIN, readAdminToken } from "@/lib/adm
  *  3. Karşı rolün geçerli oturumu varsa kişi bu alanın GİRİŞ sayfasına gönderilir; burada giriş yapınca karşı rolün oturumu kapanır.
  *  4. Giriş yapmış kişi kendi alanının giriş sayfasını görmez, kendi ana sayfasına gider.
  *  5. Süresi dolmuş çerez temizlenir ve girişe ?expired=1 ile yönlenir; dönüş adresi `from` ile taşınır.
+ *     Access token kısa ömürlüdür (~15 dk). Süresi dolmuş ya da dolmak üzere ve yenileme anahtarı çerezi varsa kişi
+ *     /api/<rol>/session/refresh'e yönlenir: yeni token çifti alınır, çerezler yazılır, istenen sayfaya dönülür (kullanıcı fark etmez).
+ *     Yenileme yalnızca giriş dışı sayfalarda tetiklenir; böylece yönlendirme döngüsü oluşmaz.
  *  6. Yanıtlar önbelleğe alınmaz ve arama motorlarına kapatılır.
  *  7. Yönetim paneli yalnızca Türkçedir ve [lang] ağacının dışındadır: /en/admin ve /tr/admin kabul edilmez.
  *  8. Öğrenci portalı PWA olarak kurulur ve PWA kapsamı tek bir yol önekidir (/ogrenci). Bu yüzden portalın adresi
@@ -33,6 +36,8 @@ const AREAS = {
         login: "/ogrenci/giris",
         home: "/ogrenci",
         cookie: STUDENT_COOKIE,
+        refreshCookie: STUDENT_REFRESH_COOKIE,
+        refreshPath: "/api/student/session/refresh",
         read: readStudentToken,
         localized: true, // sayfa ağacı [lang] altındadır, ama adreste önek YOK (kural 8)
     },
@@ -41,6 +46,8 @@ const AREAS = {
         login: ADMIN_LOGIN,
         home: ADMIN_HOME,
         cookie: ADMIN_COOKIE,
+        refreshCookie: ADMIN_REFRESH_COOKIE,
+        refreshPath: "/api/admin/session/refresh",
         read: readAdminToken,
         localized: false,
     },
@@ -65,7 +72,17 @@ function handleArea(request, area, other, localePrefix, path) {
     const isLogin = path === area.login;
 
     const cookie = request.cookies.get(area.cookie)?.value;
-    const signedIn = Boolean(area.read(cookie));
+    const payload = area.read(cookie);
+    const signedIn = Boolean(payload);
+
+    // Kural 5 (sessiz yenileme): access token geçersiz ya da 60 sn içinde bitecek, ama yenileme anahtarı var
+    const hasRefresh = Boolean(request.cookies.get(area.refreshCookie)?.value);
+    const expiringSoon = signedIn && payload.exp * 1000 - Date.now() < 60_000;
+    if (!isLogin && hasRefresh && (!signedIn || expiringSoon)) {
+        const url = new URL(area.refreshPath, request.url);
+        url.searchParams.set("to", path + search);
+        return privateHeaders(NextResponse.redirect(url));
+    }
     // Karşı rolün çerezi geçerli mi? (yalnızca yönlendirme kararı için; asla bu alana giriş hakkı vermez)
     const otherSignedIn = Boolean(other.read(request.cookies.get(other.cookie)?.value));
 
@@ -94,7 +111,10 @@ function handleArea(request, area, other, localePrefix, path) {
     const next = area.localized ? rewriteForStudent(request) : NextResponse.next();
 
     // Süresi dolmuş çerezi temizleyerek giriş sayfasına devam et
-    if (isLogin && searchParams.get("expired") === "1" && cookie) clearCookie(next, area.cookie);
+    if (isLogin && searchParams.get("expired") === "1" && cookie) {
+        clearCookie(next, area.cookie);
+        clearCookie(next, area.refreshCookie);
+    }
 
     return privateHeaders(next);
 }

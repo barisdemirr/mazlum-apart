@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { API_CONFIG } from "@/lib/api/config";
-import { STUDENT_COOKIE } from "@/lib/student/auth";
-import { ADMIN_COOKIE } from "@/lib/admin/auth";
+import { readStudentToken } from "@/lib/student/auth";
+import { readAdminToken } from "@/lib/admin/auth";
+import { refreshRequest } from "@/lib/api/auth-session";
+import { SESSION_COOKIES, clearSession, setSession } from "@/lib/api/session-cookies";
 
 /**
  * BFF vekili: tarayıcı -> /api/backend/<yol> -> backend /api/<yol>
@@ -12,7 +14,8 @@ import { ADMIN_COOKIE } from "@/lib/admin/auth";
  *  - Giriş uçları (…/auth/login) vekilden geçmez: token tarayıcıya hiç dönmez, yalnızca oturum rotaları (/api/admin/session, /api/student/session) çerez yazar.
  *  - Veri değiştiren isteklerde Origin aynı site değilse reddedilir (CSRF'e ek savunma; çerez zaten SameSite=Lax).
  *  - Gerçek istemci IP'si X-Client-Ip ile (ortak gizli anahtarla) iletilir: hız sınırı Vercel IP'sine değil kullanıcıya uygulanır.
- *  - 401 gelirse ilgili rol çerezi silinir.
+ *  - Access token kısa ömürlüdür: süresi dolmuş/dolmak üzereyse ya da backend 401 verirse, yenileme anahtarıyla oturum
+ *    sessizce yenilenir (çerezler bu yanıtta güncellenir) ve istek bir kez tekrarlanır. Yenilenemezse rol çerezleri silinir.
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,16 +60,34 @@ async function forward(request, { params }) {
     if (!route) return problem(404, "Bulunamadı", "Bu adres vekil üzerinden erişilebilir değil.");
     if (method !== "GET" && !sameSite(request)) return problem(403, "Yasak", "İstek kaynağı geçersiz.");
 
-    const cookieName = route.role === "student" ? STUDENT_COOKIE : route.role === "admin" ? ADMIN_COOKIE : null;
-    const token = cookieName ? request.cookies.get(cookieName)?.value : null;
-    if (cookieName && !token) return problem(401, "Oturum gerekli", "Lütfen giriş yapın.");
+    const names = route.role ? SESSION_COOKIES[route.role] : null;
+    const readToken = route.role === "admin" ? readAdminToken : readStudentToken;
+    let token = names ? request.cookies.get(names.access)?.value : null;
+    const refreshToken = names ? request.cookies.get(names.refresh)?.value : null;
+
+    // Yenilenmiş oturum (varsa yanıtta çerezlere yazılır). Aynı istekte en fazla bir kez yenilenir.
+    let renewed = null;
+    const renew = async () => {
+        if (!refreshToken || renewed) return false;
+        const result = await refreshRequest(refreshToken);
+        if (result.error) return false;
+        renewed = result;
+        token = result.token;
+        return true;
+    };
+
+    if (names) {
+        const payload = readToken(token);
+        const expiringSoon = payload && payload.exp * 1000 - Date.now() < 30_000;
+        if (!payload || expiringSoon) await renew();
+        if (!readToken(token)) return clearSession(problem(401, "Oturum gerekli", "Lütfen giriş yapın."), route.role);
+    }
 
     const headers = new Headers();
     for (const name of FORWARD_REQUEST_HEADERS) {
         const value = request.headers.get(name);
         if (value) headers.set(name, value);
     }
-    if (token) headers.set("Authorization", `Bearer ${token}`);
     if (process.env.PROXY_SECRET) {
         headers.set("X-Proxy-Secret", process.env.PROXY_SECRET);
         const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() || request.headers.get("x-real-ip");
@@ -79,15 +100,22 @@ async function forward(request, { params }) {
         if (buffer.byteLength > 0) body = buffer;
     }
 
-    let upstream;
-    try {
-        upstream = await fetch(`${API_CONFIG.baseUrl}/api/${target}${request.nextUrl.search}`, {
+    const send = () => {
+        if (token) headers.set("Authorization", `Bearer ${token}`);
+        return fetch(`${API_CONFIG.baseUrl}/api/${target}${request.nextUrl.search}`, {
             method,
             headers,
             body,
             cache: "no-store",
             signal: AbortSignal.timeout(route.role === "admin" ? 120_000 : 30_000),
         });
+    };
+
+    let upstream;
+    try {
+        upstream = await send();
+        // Token geçerli görünse de backend reddedebilir (ör. saat farkı): bir kez yenileyip tekrar dene
+        if (upstream.status === 401 && names && !renewed && (await renew())) upstream = await send();
     } catch {
         return problem(502, "Bağlantı hatası", "Sunucuya ulaşılamadı. Lütfen biraz sonra tekrar deneyin.");
     }
@@ -99,7 +127,8 @@ async function forward(request, { params }) {
     }
 
     const response = new NextResponse(upstream.status === 204 ? null : await upstream.arrayBuffer(), { status: upstream.status, headers: out });
-    if (upstream.status === 401 && cookieName) response.cookies.set(cookieName, "", { path: "/", maxAge: 0 });
+    if (upstream.status === 401 && names) return clearSession(response, route.role);
+    if (renewed) setSession(response, route.role, renewed);
     return response;
 }
 
