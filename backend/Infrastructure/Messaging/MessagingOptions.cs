@@ -1,28 +1,36 @@
 namespace MazlumApart.Infrastructure.Messaging;
 
 /// <summary>
-/// appsettings "Sms" bölümü (Verimor). Kimlik bilgileri YALNIZCA sunucuda durur; frontend'e hiçbir zaman gönderilmez.
+/// appsettings "Sms" bölümü (Netgsm). Kimlik bilgileri YALNIZCA sunucuda durur; frontend'e hiçbir zaman gönderilmez.
 /// Enabled=false iken gerçek gönderim yapılmaz: mesajlar "simüle edildi" olarak kaydedilir (geliştirme ve test için).
 /// </summary>
 public class SmsOptions
 {
     public bool Enabled { get; set; }
-    public string BaseUrl { get; set; } = "https://sms.verimor.com.tr/v2";
+    public string BaseUrl { get; set; } = "https://api.netgsm.com.tr";
 
-    /// <summary>Verimor kullanıcı adı: 12 haneli numara (908501234567)</summary>
-    public string Username { get; set; } = "";
+    /// <summary>Gönderim / rapor / bakiye yolları (BaseUrl'ün devamı). Netgsm yolu değiştirirse yalnızca burası güncellenir.</summary>
+    public string SendPath { get; set; } = "/sms/rest/v2/send";
+    public string ReportPath { get; set; } = "/sms/rest/v2/report";
+    public string BalancePath { get; set; } = "/balance";
 
-    /// <summary>OİM > SMS Ayarlarım'da tanımlanan API şifresi (panel şifresi değil)</summary>
+    /// <summary>Netgsm kullanıcı kodu = abone numarası (örn. 850xxxxxxx)</summary>
+    public string UserCode { get; set; } = "";
+
+    /// <summary>Netgsm API ALT KULLANICI şifresi (ana panel şifresi API'de çalışmaz)</summary>
     public string Password { get; set; } = "";
 
-    /// <summary>Gönderici başlığı (BTK: API'de alfanumerik başlık zorunlu)</summary>
-    public string SourceAddr { get; set; } = "";
+    /// <summary>Onaylı gönderici başlığı; Netgsm panelindekiyle birebir aynı olmalı (büyük/küçük harf duyarlı)</summary>
+    public string MsgHeader { get; set; } = "";
 
-    /// <summary>Mesaj geçerlilik süresi SS:DD (Verimor: 00:01 – 48:00)</summary>
-    public string ValidFor { get; set; } = "24:00";
+    /// <summary>"TR" = Türkçe karakterler desteklenir (önerilir)</summary>
+    public string Encoding { get; set; } = "TR";
 
-    /// <summary>Teslim raporu geri çağrısı için gizli anahtar. OİM'de push URL: https://api.../api/webhooks/verimor/{WebhookSecret}</summary>
-    public string WebhookSecret { get; set; } = "";
+    /// <summary>İYS filtresi: "0" = bilgilendirme (ticari olmayan) mesajlar. Ticari ileti için 11 (bireysel) / 12 (tacir) ve İYS kurulumu gerekir.</summary>
+    public string IysFilter { get; set; } = "0";
+
+    /// <summary>Netgsm panelinde API'yi kullanan uygulama adı (isteğe bağlı)</summary>
+    public string AppName { get; set; } = "";
 
     /// <summary>Tek istekte en fazla alıcı</summary>
     public int MaxRecipientsPerSend { get; set; } = 300;
@@ -35,7 +43,7 @@ public class SmsOptions
 
     public int TimeoutSeconds { get; set; } = 20;
 
-    public bool HasCredentials => !string.IsNullOrWhiteSpace(Username) && !string.IsNullOrWhiteSpace(Password);
+    public bool HasCredentials => !string.IsNullOrWhiteSpace(UserCode) && !string.IsNullOrWhiteSpace(Password) && !string.IsNullOrWhiteSpace(MsgHeader);
 }
 
 /// <summary>

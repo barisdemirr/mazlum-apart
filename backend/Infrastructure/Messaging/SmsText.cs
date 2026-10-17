@@ -3,7 +3,7 @@ using System.Text;
 namespace MazlumApart.Infrastructure.Messaging;
 
 /// <summary>
-/// SMS metni kuralları (Verimor SMS boy tablosu). Verimor datacoding'i metne bakarak seçer:
+/// SMS metni kuralları (Netgsm SMS boy tablosu; encoding=TR). Karakter kümesine göre:
 ///   Normal (0): GSM 7-bit karakterler       → 1 boy 160, çok boyda her boy 153 (toplam 306, 459, ...)
 ///   Türkçe (1): Ş ş Ğ ğ ç ı İ varsa          → 1 boy 155, çok boyda her boy 149 (toplam 298, 447, ...)
 ///   ^ { } \ [ ] ~ | € karakterleri 2 karakter sayılır.

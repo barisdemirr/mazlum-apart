@@ -20,7 +20,7 @@ public class ContactLog : EntryEntity
 }
 
 /// <summary>
-/// SMS gönderim isteği (Verimor kampanyası). Bir istekte bir ya da çok alıcı olabilir (toplu SMS tek istektir).
+/// SMS gönderim isteği (Netgsm görevi; ProviderCampaignId = jobid). Bir istekte bir ya da çok alıcı olabilir (toplu SMS tek istektir).
 /// Text: şablon metni; şifre gibi gizli değerler maskelenmiş saklanır.
 /// </summary>
 public class SmsBatch : EntryEntity

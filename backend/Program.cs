@@ -119,13 +119,13 @@ builder.Services.AddScoped<IdempotencyGuard>();
 builder.Services.AddScoped<MazlumApart.Features.Accounting.ExpenseWriter>();
 builder.Services.AddMemoryCache();
 
-// ---- Mesajlaşma: SMS (Verimor) + Web Push (aşama 6) ----
+// ---- Mesajlaşma: SMS (Netgsm) + Web Push (aşama 6) ----
 builder.Services.Configure<SmsOptions>(builder.Configuration.GetSection("Sms"));
 builder.Services.Configure<PushOptions>(builder.Configuration.GetSection("Push"));
 builder.Services
-    .AddHttpClient<VerimorClient>((sp, client) =>
+    .AddHttpClient<NetgsmClient>((sp, client) =>
         client.Timeout = TimeSpan.FromSeconds(Math.Clamp(sp.GetRequiredService<IOptions<SmsOptions>>().Value.TimeoutSeconds, 5, 60)))
-    .RemoveAllLoggers(); // API şifresi sorgu dizesinde gider: istek adresleri ASLA günlüğe yazılmaz
+    .RemoveAllLoggers(); // API şifresi Authorization başlığında gider: istek ayrıntıları ASLA günlüğe yazılmaz
 builder.Services.AddSingleton<MazlumApart.Features.Messaging.SmsGate>();
 builder.Services.AddSingleton<WebPushSender>();
 builder.Services.AddScoped<PushDispatcher>();

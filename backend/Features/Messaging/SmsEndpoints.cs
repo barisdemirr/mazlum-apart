@@ -16,9 +16,9 @@ using MazlumApart.Shared;
 namespace MazlumApart.Features.Messaging;
 
 /*
- * SMS (Verimor) — MALİYETLİ İŞLEM. Koruma katmanları:
+ * SMS (Netgsm) — MALİYETLİ İŞLEM. Koruma katmanları:
  *  1. Yalnızca yönetici (fallback policy) · yönetici başına 10 dakikada 5 gönderim isteği (RatePolicies.Sms)
- *  2. Tek uç: tekli ve toplu SMS aynı istekle gider (Verimor'a da TEK istek). İstek başına en fazla Sms:MaxRecipientsPerSend alıcı.
+ *  2. Tek uç: tekli ve toplu SMS aynı istekle gider (Netgsm'e de TEK istek). İstek başına en fazla Sms:MaxRecipientsPerSend alıcı.
  *  3. Alıcılar yalnızca veritabanındaki öğrenci/başvurulardır; numara istemciden alınmaz. Aynı numaraya iki kez gönderilmez.
  *  4. Mesaj başına en fazla Sms:MaxPartsPerMessage boy; günlük toplam boy tavanı Sms:DailyPartLimit (tüm yöneticiler).
  *  5. Idempotency-Key zorunlu: çift tıklama iki kez göndermez. Gönderimler tek sırayla işlenir (SmsGate) → tavan aşılamaz.
@@ -129,14 +129,14 @@ public static class SendSms
     public record Response(Guid BatchId, SmsBatchStatus Status, string? Error, List<SentRow> Sent, List<SkippedRecipient> Skipped, int TotalParts);
 
     public class Handler(
-        AppDbContext db, SmsComposeHandler composer, VerimorClient verimor, SmsGate gate, IdempotencyGuard idempotency,
+        AppDbContext db, SmsComposeHandler composer, NetgsmClient netgsm, SmsGate gate, IdempotencyGuard idempotency,
         AuditWriter audit, IOptions<SmsOptions> options, ILogger<Handler> logger)
     {
         public async Task<Result<Response>> Handle(SmsCommand cmd, ClaimsPrincipal user, Guid? key, CancellationToken ct)
         {
             var o = options.Value;
-            if (o.Enabled && (!o.HasCredentials || string.IsNullOrWhiteSpace(o.SourceAddr)))
-                return Error.Conflict("SMS servisi yapılandırılmamış (Sms:Username / Password / SourceAddr).");
+            if (o.Enabled && !o.HasCredentials)
+                return Error.Conflict("SMS servisi yapılandırılmamış (Sms:UserCode / Password / MsgHeader).");
 
             var composed = await composer.ComposeAsync(cmd, ct);
             if (!composed.IsSuccess) return composed.Error!;
@@ -189,21 +189,22 @@ public static class SendSms
                 }
                 else
                 {
-                    var outgoing = rows.Select((row, i) => new VerimorClient.OutgoingMessage(c.Messages[i].Text, row.Phone, row.Id.ToString("N"))).ToList();
-                    var result = await verimor.SendAsync(batch.Id.ToString("N"), outgoing, CancellationToken.None);
+                    // Netgsm numarayı 10 haneli (5XXXXXXXXX) bekler; kayıtlı numara 905... biçimindedir
+                    var outgoing = rows.Select((row, i) => new NetgsmClient.OutgoingMessage(c.Messages[i].Text, TurkishFormats.NormalizeMobile(row.Phone) ?? row.Phone)).ToList();
+                    var result = await netgsm.SendAsync(outgoing, CancellationToken.None);
 
                     (batch.Status, var messageStatus) = result.Outcome switch
                     {
-                        VerimorClient.SendOutcome.Accepted => (SmsBatchStatus.Sent, SmsMessageStatus.Waiting),
-                        VerimorClient.SendOutcome.Rejected => (SmsBatchStatus.Failed, SmsMessageStatus.Failed),
+                        NetgsmClient.SendOutcome.Accepted => (SmsBatchStatus.Sent, SmsMessageStatus.Waiting),
+                        NetgsmClient.SendOutcome.Rejected => (SmsBatchStatus.Failed, SmsMessageStatus.Failed),
                         _ => (SmsBatchStatus.Unknown, SmsMessageStatus.Unknown)
                     };
-                    batch.ProviderCampaignId = result.CampaignId;
+                    batch.ProviderCampaignId = result.JobId; // Netgsm görev no (jobid): rapor sorgusunun anahtarı
                     batch.ProviderError = result.Error;
                     foreach (var row in rows)
                     {
                         row.Status = messageStatus;
-                        row.ProviderStatus = result.Outcome == VerimorClient.SendOutcome.Rejected ? Cut(result.Error, 40) : null;
+                        row.ProviderStatus = result.Outcome == NetgsmClient.SendOutcome.Rejected ? Cut(result.Error, 40) : null;
                     }
                 }
                 batch.CompletedAt = DateTime.UtcNow;
@@ -267,30 +268,29 @@ public static class SendSms
 /// <summary>SMS servis durumu: açık mı, sınırlar, bugün kullanılan, kalan kredi (2 dk önbellek)</summary>
 public static class GetSmsStatus
 {
-    public record Response(bool Enabled, bool Configured, string? SourceAddr, int MaxRecipientsPerSend, int MaxPartsPerMessage,
-        int DailyPartLimit, int UsedToday, decimal? Balance, bool WebhookConfigured);
+    public record Response(bool Enabled, bool Configured, string? MsgHeader, int MaxRecipientsPerSend, int MaxPartsPerMessage,
+        int DailyPartLimit, int UsedToday, decimal? Balance);
 
     public class Endpoint : IEndpoint
     {
         public void MapEndpoint(IEndpointRouteBuilder app) =>
-            app.MapGet("/api/admin/sms/status", async (SmsComposeHandler composer, VerimorClient verimor, IMemoryCache cache,
+            app.MapGet("/api/admin/sms/status", async (SmsComposeHandler composer, NetgsmClient netgsm, IMemoryCache cache,
                 IOptions<SmsOptions> options, CancellationToken ct) =>
             {
                 var o = options.Value;
-                var configured = o.HasCredentials && !string.IsNullOrWhiteSpace(o.SourceAddr);
+                var configured = o.HasCredentials;
                 decimal? balance = null;
                 if (o.Enabled && configured)
                 {
-                    balance = await cache.GetOrCreateAsync("verimor:balance", async entry =>
+                    balance = await cache.GetOrCreateAsync("netgsm:balance", async entry =>
                     {
                         entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2);
-                        return await verimor.BalanceAsync(ct);
+                        return await netgsm.BalanceAsync(ct);
                     });
                 }
 
-                return Results.Ok(new Response(o.Enabled, configured, string.IsNullOrWhiteSpace(o.SourceAddr) ? null : o.SourceAddr,
-                    o.MaxRecipientsPerSend, o.MaxPartsPerMessage, o.DailyPartLimit, await composer.UsedTodayAsync(ct), balance,
-                    !string.IsNullOrWhiteSpace(o.WebhookSecret)));
+                return Results.Ok(new Response(o.Enabled, configured, string.IsNullOrWhiteSpace(o.MsgHeader) ? null : o.MsgHeader,
+                    o.MaxRecipientsPerSend, o.MaxPartsPerMessage, o.DailyPartLimit, await composer.UsedTodayAsync(ct), balance));
             });
     }
 }
@@ -359,70 +359,70 @@ public static class SmsHistory
 }
 
 /// <summary>
-/// Teslim raporlarını işler (push geri çağrısı ve elle "raporu yenile" ortak). Mesaj, bizim verdiğimiz mesaj kimliğiyle
-/// (message_custom_id) bulunur; bulunamazsa sağlayıcı mesaj no ile. Simüle edilmiş mesajlara dokunulmaz.
+/// Teslim raporlarını işler ("raporu yenile"). Netgsm teslim raporunu kendisi göndermez; görev (jobid) ile sorgulanır.
+/// Rapor satırları alıcı telefonuyla eşleşir (bir gönderimde aynı numara yalnızca bir kez bulunur). Simüle mesajlara dokunulmaz.
 /// </summary>
 public class SmsReportHandler(AppDbContext db)
 {
-    public static SmsMessageStatus Map(string? status) => status?.ToUpperInvariant() switch
+    /// <summary>Netgsm teslim durum kodları: 0 bekliyor · 1 iletildi · 2 zaman aşımı · 3 hatalı/kısıtlı numara · 4 operatöre gönderilemedi · 11 operatör reddetti · 12 gönderim hatası · 13 mükerrer · 103 görev tamamen başarısız</summary>
+    public static SmsMessageStatus Map(string? code) => code?.Trim().ToLowerInvariant() switch
     {
-        "SENDING" or "WAITING" => SmsMessageStatus.Waiting,
-        "DELIVERED" or "SENT" => SmsMessageStatus.Delivered,
-        "NOT_DELIVERED" => SmsMessageStatus.NotDelivered,
-        "EXPIRED" => SmsMessageStatus.Expired,
-        "REJECTED" or "DOUBLE_SEND_ERROR" or "BLACKLISTED_DESTINATION_ADDRESS" or "NOT_ALLOWED_BY_IYS" => SmsMessageStatus.Rejected,
-        null or "" => SmsMessageStatus.Unknown,
-        _ => SmsMessageStatus.Failed
+        "0" or "bekliyor" => SmsMessageStatus.Waiting,
+        "1" or "iletildi" => SmsMessageStatus.Delivered,
+        "2" or "zaman aşımı" => SmsMessageStatus.Expired,
+        "3" or "11" or "13" => SmsMessageStatus.Rejected,
+        "4" or "12" or "103" => SmsMessageStatus.Failed,
+        _ => SmsMessageStatus.Unknown
     };
 
-    public async Task<int> ApplyAsync(IReadOnlyCollection<VerimorClient.Report> reports, CancellationToken ct)
+    public async Task<int> ApplyAsync(Guid batchId, IReadOnlyCollection<NetgsmClient.Report> reports, CancellationToken ct)
     {
-        var outbound = reports.Where(r => r.Type is null || r.Type == "outbound").Take(5000).ToList();
-        if (outbound.Count == 0) return 0;
+        if (reports.Count == 0) return 0;
 
-        var ids = outbound.Select(r => Guid.TryParseExact(r.MessageCustomId, "N", out var g) ? g : Guid.Empty).Where(g => g != Guid.Empty).Distinct().ToList();
-        var providerIds = outbound.Where(r => !string.IsNullOrEmpty(r.MessageId)).Select(r => r.MessageId!).Distinct().ToList();
-
-        var messages = await db.SmsMessages
-            .Where(x => ids.Contains(x.Id) || (x.ProviderMessageId != null && providerIds.Contains(x.ProviderMessageId)))
-            .ToListAsync(ct);
+        var messages = await db.SmsMessages.Where(x => x.BatchId == batchId).ToListAsync(ct);
+        var byPhone = messages.GroupBy(m => PhoneKey(m.Phone)).ToDictionary(g => g.Key, g => g.First());
 
         var updated = 0;
-        foreach (var report in outbound)
+        foreach (var report in reports)
         {
-            var message = Guid.TryParseExact(report.MessageCustomId, "N", out var id)
-                ? messages.FirstOrDefault(m => m.Id == id)
-                : messages.FirstOrDefault(m => m.ProviderMessageId == report.MessageId);
-            if (message is null || message.Status == SmsMessageStatus.Simulated) continue;
+            if (!byPhone.TryGetValue(PhoneKey(report.Phone), out var message) || message.Status == SmsMessageStatus.Simulated) continue;
 
-            message.Status = Map(report.Status);
-            message.ProviderStatus = Cut(report.Status, 40);
-            message.ProviderMessageId = Cut(report.MessageId, 40) ?? message.ProviderMessageId;
-            message.GsmError = Cut(report.GsmError, 20);
-            message.Credits = report.Credits;
-            message.SentAt = ParseLocal(report.SentAt) ?? message.SentAt;
-            message.DoneAt = ParseLocal(report.DoneAt) ?? message.DoneAt;
+            var status = Map(report.StatusCode ?? report.Status);
+            message.Status = status;
+            message.ProviderStatus = Cut(report.StatusCode ?? report.Status, 40);
+            message.GsmError = Cut(report.ErrorCode, 20);
+            message.Credits = report.Credits ?? message.Credits;
+            if (status != SmsMessageStatus.Waiting) message.DoneAt = ParseLocal(report.Date) ?? message.DoneAt;
             message.UpdatedAt = DateTime.UtcNow;
             updated++;
         }
 
-        // "Belirsiz" kalan bir kampanya için rapor geldiyse, kampanya aslında gönderilmiştir
-        var batchIds = messages.Where(m => m.UpdatedAt is not null).Select(m => m.BatchId).Distinct().ToList();
-        var unknown = await db.SmsBatches.Where(b => batchIds.Contains(b.Id) && b.Status == SmsBatchStatus.Unknown).ToListAsync(ct);
-        foreach (var b in unknown) b.Status = SmsBatchStatus.Sent;
+        // "Belirsiz" kalan bir gönderim için rapor geldiyse, gönderim aslında yapılmıştır
+        if (updated > 0)
+        {
+            var batch = await db.SmsBatches.FirstOrDefaultAsync(b => b.Id == batchId && b.Status == SmsBatchStatus.Unknown, ct);
+            if (batch is not null) batch.Status = SmsBatchStatus.Sent;
+        }
 
         await db.SaveChangesAsync(ct);
         return updated;
     }
 
-    /// <summary>Verimor tarihleri Türkiye saatiyle gelir ("2026-10-15 16:06:00" ya da ISO 8601)</summary>
+    /// <summary>Numaraları karşılaştırmak için son 10 hane (905551234567 / 05551234567 / 5551234567 aynı sayılır)</summary>
+    private static string PhoneKey(string? phone)
+    {
+        var digits = new string((phone ?? "").Where(char.IsAsciiDigit).ToArray());
+        return digits.Length > 10 ? digits[^10..] : digits;
+    }
+
+    private static readonly string[] DateFormats =
+        ["dd.MM.yyyy HH:mm:ss", "dd.MM.yyyy HH:mm", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss", "dd/MM/yyyy HH:mm:ss"];
+
+    /// <summary>Netgsm tarihleri Türkiye saatiyle gelir</summary>
     private static DateTime? ParseLocal(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
-        var hasZone = value.Contains('+', StringComparison.Ordinal) || value.EndsWith('Z');
-        if (hasZone && DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dto))
-            return dto.UtcDateTime;
-        return DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var local)
+        return DateTime.TryParseExact(value.Trim(), DateFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var local)
             ? TurkeyClock.LocalToUtc(local)
             : null;
     }
@@ -430,35 +430,7 @@ public class SmsReportHandler(AppDbContext db)
     private static string? Cut(string? value, int max) => value is null ? null : value.Length > max ? value[..max] : value;
 }
 
-/// <summary>
-/// Teslim raporu PUSH geri çağrısı (Verimor OİM > SMS Ayarlarım > rapor URL'si):
-///   https://API-ADRESİNİZ/api/webhooks/verimor/{Sms:WebhookSecret}
-/// Verimor isteği imzalamaz; bu yüzden adres gizli anahtar taşır (sabit zamanlı karşılaştırma). Anahtar boşsa uç kapalıdır (404).
-/// Verimor 200 bekler; alamazsa 5 dakika arayla 3 kez dener.
-/// </summary>
-public static class VerimorWebhook
-{
-    public class Endpoint : IEndpoint
-    {
-        public void MapEndpoint(IEndpointRouteBuilder app) =>
-            app.MapPost("/api/webhooks/verimor/{secret}", async (string secret, List<VerimorClient.Report>? reports,
-                    SmsReportHandler handler, IOptions<SmsOptions> options, CancellationToken ct) =>
-                {
-                    var expected = options.Value.WebhookSecret;
-                    if (string.IsNullOrWhiteSpace(expected) ||
-                        !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(expected)))
-                        return Results.NotFound();
-
-                    if (reports is { Count: > 0 }) await handler.ApplyAsync(reports, ct);
-                    return Results.Text("OK");
-                })
-                .AllowAnonymous()
-                .RequireRateLimiting(RatePolicies.Webhook)
-                .WithMetadata(new RequestSizeLimitAttribute(2 * 1024 * 1024));
-    }
-}
-
-/// <summary>Elle "raporu yenile": kampanyanın teslim durumunu Verimor'dan çeker (Verimor sınırı: dakikada 20 rapor sorgusu)</summary>
+/// <summary>Elle "raporu yenile": gönderimin teslim durumunu Netgsm'den çeker (görev no ile)</summary>
 public static class SyncSmsBatch
 {
     public record Response(int Updated);
@@ -466,7 +438,7 @@ public static class SyncSmsBatch
     public class Endpoint : IEndpoint
     {
         public void MapEndpoint(IEndpointRouteBuilder app) =>
-            app.MapPost("/api/admin/sms/batches/{id:guid}/sync", async (Guid id, AppDbContext db, VerimorClient verimor,
+            app.MapPost("/api/admin/sms/batches/{id:guid}/sync", async (Guid id, AppDbContext db, NetgsmClient netgsm,
                     SmsReportHandler handler, IOptions<SmsOptions> options, CancellationToken ct) =>
                 {
                     var batch = await db.SmsBatches.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -474,10 +446,12 @@ public static class SyncSmsBatch
                     if (batch.Status is SmsBatchStatus.Simulated or SmsBatchStatus.Failed or SmsBatchStatus.Pending)
                         return Error.Conflict("Bu gönderim için sağlayıcı raporu yok.").ToProblem();
                     if (!options.Value.Enabled) return Error.Conflict("SMS servisi kapalı.").ToProblem();
+                    if (string.IsNullOrWhiteSpace(batch.ProviderCampaignId))
+                        return Error.Conflict("Sağlayıcı görev numarası alınamadığı için rapor sorgulanamaz. Netgsm panelinden kontrol edin.").ToProblem();
 
-                    var reports = await verimor.StatusAsync(batch.Id.ToString("N"), ct);
+                    var reports = await netgsm.ReportAsync(batch.ProviderCampaignId, ct);
                     if (reports is null) return Error.Unexpected("Sağlayıcıdan rapor alınamadı. Biraz sonra tekrar deneyin.").ToProblem();
-                    return Results.Ok(new Response(await handler.ApplyAsync(reports, ct)));
+                    return Results.Ok(new Response(await handler.ApplyAsync(batch.Id, reports, ct)));
                 })
                 .RequireRateLimiting(RatePolicies.Sms);
     }
