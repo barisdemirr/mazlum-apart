@@ -34,7 +34,9 @@ export const subscribeInstall = (listener) => {
 };
 
 export const getInstallSnapshot = () => snapshot;
-export const getServerInstallSnapshot = () => ({ canPrompt: false, installed: false });
+// Sunucu görüntüsü SABİT nesne olmalı: useSyncExternalStore her çağrıda aynı referansı bekler (yeni nesne sonsuz döngü yapar)
+const SERVER_SNAPSHOT = Object.freeze({ canPrompt: false, installed: false });
+export const getServerInstallSnapshot = () => SERVER_SNAPSHOT;
 
 /** @returns "accepted" | "dismissed" | "unavailable" */
 export async function promptInstall() {

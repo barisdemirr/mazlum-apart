@@ -7,7 +7,7 @@ import Reveal from "@/components/ui/Reveal";
 import { BED_STATUS, freeBedsInFlat, summarizeAvailability } from "@/lib/availability";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { localized } from "@/lib/i18n/localized";
-import { EASE_OUT, SPRING_BOUNCY } from "@/lib/motion";
+import { EASE_OUT } from "@/lib/motion";
 
 function LegendDot({ className, children }) {
     return (
@@ -41,7 +41,8 @@ function BedTile({ bed, selected, onToggle, labels, ariaLabel }) {
             aria-label={ariaLabel}
             data-cursor={available || selected ? (selected ? labels.selected : labels.free) : undefined}
             animate={selected ? { scale: [1, 1.06, 1] } : { scale: 1 }}
-            transition={selected ? SPRING_BOUNCY : { duration: 0.2 }}
+            // Spring yalnızca 2 kare destekler; 3 karelik [1, 1.06, 1] sıçraması için süreli geçiş kullanılır
+            transition={selected ? { duration: 0.35, ease: "easeOut" } : { duration: 0.2 }}
             className={`relative flex min-w-[104px] flex-1 flex-col items-center gap-1 rounded-2xl px-3 py-3 text-center transition-all duration-300 disabled:cursor-not-allowed ${style}`}
         >
             <Icon name={selected ? "check_circle" : "bed"} filled={selected || available} className="text-[26px]" />
