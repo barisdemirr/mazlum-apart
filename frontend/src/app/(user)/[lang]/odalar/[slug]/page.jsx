@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import RoomDetailBody from "@/components/room-detail/RoomDetailBody";
-import { getRoomTypeApartments, getRoomTypeAvailability, getRoomTypeBySlug, getRoomTypes } from "@/services";
+import { getRoomTypeRooms, getRoomTypeAvailability, getRoomTypeBySlug, getRoomTypes } from "@/services";
 import { settle } from "@/lib/api";
 import { localized } from "@/lib/i18n/localized";
 import { mediaUrl } from "@/lib/media";
@@ -24,9 +24,9 @@ export default async function RoomDetailPage({ params }) {
     if (!room) notFound();
 
     // Doluluk ve diğer odalar, sayfanın geri kalanından bağımsız yüklenir: biri düşerse sayfa yine açılır
-    const [availability, apartments, rooms] = await Promise.all([
+    const [availability, typeRooms, rooms] = await Promise.all([
         settle(getRoomTypeAvailability(slug), null),
-        settle(getRoomTypeApartments(slug), []),
+        settle(getRoomTypeRooms(slug), []),
         settle(getRoomTypes(), []),
     ]);
 
@@ -34,7 +34,7 @@ export default async function RoomDetailPage({ params }) {
 
     return (
         <main className="min-h-screen pb-24 lg:pb-0">
-            <RoomDetailBody room={room} availability={availability.data} apartments={apartments.data ?? []} otherRooms={otherRooms} />
+            <RoomDetailBody room={room} availability={availability.data} rooms={typeRooms.data ?? []} otherRooms={otherRooms} />
         </main>
     );
 }

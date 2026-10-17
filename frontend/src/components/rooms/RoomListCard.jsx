@@ -6,7 +6,7 @@ import SafeImage from "@/components/ui/SafeImage";
 import { APPLY_HREF } from "@/components/layout/navigation";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { localized } from "@/lib/i18n/localized";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, rangeText } from "@/lib/format";
 import { mediaAlt, mediaUrl } from "@/lib/media";
 
 function Pill({ icon, children }) {
@@ -74,9 +74,9 @@ export default function RoomListCard({ room }) {
 
             <div className="flex flex-1 flex-col justify-between gap-6 p-6">
                 <div className="flex flex-wrap gap-2">
-                    <Pill icon="groups">{tpl(t.rooms.peopleInFlat, { count: room.peopleInFlat })}</Pill>
-                    <Pill icon="kitchen">{tpl(t.rooms.kitchen, { count: room.peopleSharingKitchen })}</Pill>
-                    <Pill icon="shower">{tpl(t.rooms.bathroom, { count: room.peopleSharingBathroom })}</Pill>
+                    <Pill icon="groups">{tpl(t.rooms.peopleInFlat, { count: rangeText(room.peopleInFlat, room.peopleInFlatMax) })}</Pill>
+                    <Pill icon="kitchen">{tpl(t.rooms.kitchen, { count: rangeText(room.peopleSharingKitchen, room.peopleSharingKitchenMax) })}</Pill>
+                    <Pill icon="shower">{tpl(t.rooms.bathroom, { count: rangeText(room.peopleSharingBathroom, room.peopleSharingBathroomMax) })}</Pill>
                 </div>
 
                 <div className="flex flex-col gap-4 border-t border-orchid-petal/25 pt-5">

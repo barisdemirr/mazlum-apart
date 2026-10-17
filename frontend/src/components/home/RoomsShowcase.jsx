@@ -22,14 +22,14 @@ export default function RoomsShowcase({ rooms }) {
         const track = trackRef.current;
         if (!track) return;
         const card = track.querySelector("article, [data-room-end]");
-        const step = (card?.getBoundingClientRect().width ?? 360) + 32;
+        const step = (card?.getBoundingClientRect().width ?? 360) + 20;
         track.scrollBy({ left: direction * step, behavior: "smooth" });
     };
 
     return (
-        <section id="odalar" className="relative w-full overflow-hidden px-4 py-20 sm:px-8 lg:px-12">
+        <section id="odalar" className="relative w-full overflow-hidden px-4 py-14 sm:px-8 lg:px-12">
             <div className="mx-auto max-w-[1340px]">
-                <div className="flex flex-col justify-between gap-6 pb-12 md:flex-row md:items-end">
+                <div className="flex flex-col justify-between gap-6 pb-8 md:flex-row md:items-end">
                     <Reveal className="flex flex-col gap-3">
                         <span className="text-xs font-bold uppercase tracking-[0.25em] text-orchid-pink">{t.rooms.eyebrow}</span>
                         <h2 className="font-display text-4xl font-normal tracking-tight text-orchid-dark sm:text-5xl lg:text-6xl">
@@ -66,7 +66,7 @@ export default function RoomsShowcase({ rooms }) {
                     </div>
                 </div>
 
-                <div ref={trackRef} className="no-scrollbar flex snap-x snap-mandatory gap-8 overflow-x-auto pb-8 pt-2">
+                <div ref={trackRef} className="no-scrollbar flex snap-x snap-mandatory gap-5 overflow-x-auto pb-8 pt-2">
                     {rooms.map((room, i) => (
                         <motion.div
                             key={room.id}
@@ -84,14 +84,14 @@ export default function RoomsShowcase({ rooms }) {
                     <div
                         data-room-end
                         data-cursor={t.rooms.allCta}
-                        className="group relative flex min-w-[280px] snap-center flex-col justify-between gap-10 overflow-hidden rounded-[32px] bg-gradient-to-br from-orchid-dark via-orchid-violet to-orchid-pink p-8 text-white shadow-2xl sm:min-w-[340px] sm:p-10"
+                        className="group relative flex min-w-[240px] max-w-[280px] snap-center flex-col justify-between gap-8 overflow-hidden rounded-[28px] bg-gradient-to-br from-orchid-dark via-orchid-violet to-orchid-pink p-6 text-white shadow-2xl sm:min-w-[260px] sm:p-7"
                     >
                         <div aria-hidden="true" className="pointer-events-none absolute -bottom-10 -right-10 h-44 w-44 rounded-full bg-white/10 soft-blob transition-transform duration-700 group-hover:scale-150" />
                         <div className="relative flex flex-col gap-4">
                             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15 text-orchid-petal backdrop-blur-md">
                                 <Icon name="apartment" className="text-[28px]" />
                             </span>
-                            <h3 className="font-display text-3xl font-normal leading-tight sm:text-4xl">{t.rooms.allTitle}</h3>
+                            <h3 className="font-display text-2xl font-normal leading-tight sm:text-3xl">{t.rooms.allTitle}</h3>
                             <p className="text-sm text-orchid-lilac">{t.rooms.allText}</p>
                         </div>
                         <LocalizedLink

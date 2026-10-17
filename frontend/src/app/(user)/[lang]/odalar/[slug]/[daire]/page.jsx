@@ -19,8 +19,9 @@ export async function generateMetadata({ params }) {
 }
 
 /** Daire sayfası: dairenin kendi galerisi, videosu, odaları ve yatakları. Adres paylaşılabilir (örn. veliye). */
-export default async function ApartmentDetailPage({ params }) {
+export default async function ApartmentDetailPage({ params, searchParams }) {
     const { slug, daire } = await params;
+    const { oda } = await searchParams;
     const [room, apartment] = await Promise.all([getRoomTypeBySlug(slug), getApartment(slug, daire)]);
     if (!room || !apartment) notFound();
 
@@ -29,7 +30,7 @@ export default async function ApartmentDetailPage({ params }) {
 
     return (
         <main className="min-h-screen pb-24 lg:pb-0">
-            <RoomDetailBody room={room} availability={apartment.availability} apartment={apartment} apartments={apartments.data ?? []} otherRooms={otherRooms} />
+            <RoomDetailBody room={room} availability={apartment.availability} apartment={apartment} initialRoomId={typeof oda === "string" ? oda : null} apartments={apartments.data ?? []} otherRooms={otherRooms} />
         </main>
     );
 }

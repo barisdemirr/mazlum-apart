@@ -20,7 +20,7 @@ import { SESSION_COOKIES, clearSession, setSession } from "@/lib/api/session-coo
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const PUBLIC_GET = /^(room-types(\/[\w-]+(\/(availability|apartments(\/[\w-]+)?))?)?|site-settings|applications\/config|locations|pages\/[\w-]+|slides|push\/config)$/;
+const PUBLIC_GET = /^(room-types(\/[\w-]+(\/(availability|rooms|apartments(\/[\w-]+)?))?)?|site-settings|applications\/config|locations|pages\/[\w-]+|slides|push\/config)$/;
 const PUBLIC_POST = /^applications$/;
 const STUDENT = /^student\/(me|me\/password|payments|maintenance-requests(\/[\w-]+(\/photos(\/[\w-]+)?)?)?|push\/subscriptions)$/;
 const ADMIN = /^admin\/(?!auth\/login$)[\w\-/]+$/;

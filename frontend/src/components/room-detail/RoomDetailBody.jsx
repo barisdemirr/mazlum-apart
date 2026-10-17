@@ -9,15 +9,14 @@ import RoomListCard from "@/components/rooms/RoomListCard";
 import MediaGallery from "./MediaGallery";
 import AvailabilityPicker from "./AvailabilityPicker";
 import ApartmentCards from "./ApartmentCards";
-import SafeImage from "@/components/ui/SafeImage";
+import RoomCards from "./RoomCards";
 import BookingCard, { buildApplyHref } from "./BookingCard";
 import { About, Included, LivingPlan, RoomsAndAreas, Terms } from "./DetailSections";
-import { summarizeAvailability } from "@/lib/availability";
+import { BED_STATUS, summarizeAvailability } from "@/lib/availability";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { localized } from "@/lib/i18n/localized";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, rangeText } from "@/lib/format";
 import { EASE_OUT } from "@/lib/motion";
-import { mediaAlt, mediaUrl } from "@/lib/media";
 
 /**
  * İki sayfa için ortak gövde:
@@ -26,9 +25,11 @@ import { mediaAlt, mediaUrl } from "@/lib/media";
  * Fotoğraf ve video DAİREYE aittir; aynı tipte birden fazla daire olabilir ve her birinin görüntüsü farklıdır.
  * Yatak seçimi hem seçiciyi hem de sağdaki başvuru kartını etkilediği için burada, ortak durumda tutulur.
  */
-export default function RoomDetailBody({ room: typeRoom, availability, otherRooms, apartments = [], apartment = null }) {
+export default function RoomDetailBody({ room: typeRoom, availability, otherRooms, apartments = [], rooms = [], apartment = null, initialRoomId = null }) {
     const { t, tpl, locale } = useLanguage();
-    const [selectedBed, setSelectedBed] = useState(null); // { id, bedLabel, roomName, flatName } | null = yatak fark etmez
+    // { id, bedLabel, roomName, flatName } | null = yatak fark etmez.
+    // Oda kartından gelindiyse (?oda=) o odanın ilk boş yatağı hazır seçili başlar.
+    const [selectedBed, setSelectedBed] = useState(() => preselectBed(availability, initialRoomId));
     const summary = useMemo(() => summarizeAvailability(availability), [availability]);
 
     // Daire sayfasında kişi sayıları dairenin kendi (yatak sayısından hesaplanan) değerleridir
@@ -52,9 +53,9 @@ export default function RoomDetailBody({ room: typeRoom, availability, otherRoom
     const lead =
         listFirst(room.description, locale) ||
         tpl(t.roomDetail.summaryFallback, {
-            flat: room.peopleInFlat,
-            kitchen: room.peopleSharingKitchen,
-            bathroom: room.peopleSharingBathroom,
+            flat: rangeText(room.peopleInFlat, apartment ? null : room.peopleInFlatMax),
+            kitchen: rangeText(room.peopleSharingKitchen, apartment ? null : room.peopleSharingKitchenMax),
+            bathroom: rangeText(room.peopleSharingBathroom, apartment ? null : room.peopleSharingBathroomMax),
         });
 
     return (
@@ -98,21 +99,18 @@ export default function RoomDetailBody({ room: typeRoom, availability, otherRoom
                     )}
                 </motion.nav>
 
-                <motion.div
-                    id="galeri"
-                    initial={{ opacity: 0, scale: 0.97, y: 24 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ duration: 0.9, delay: 0.55, ease: EASE_OUT }}
-                    className="scroll-mt-24"
-                >
-                    {apartment ? (
+                {/* Tip görseli yalnızca anasayfa kartında kullanılır; fotoğraflar odalara/dairelere aittir */}
+                {apartment && (
+                    <motion.div
+                        id="galeri"
+                        initial={{ opacity: 0, scale: 0.97, y: 24 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        transition={{ duration: 0.9, delay: 0.55, ease: EASE_OUT }}
+                        className="scroll-mt-24"
+                    >
                         <MediaGallery items={gallery} roomName={name} filter={galleryFilter} onFilterChange={setGalleryFilter} />
-                    ) : (
-                        <div className="relative aspect-[16/9] overflow-hidden rounded-[32px] bg-orchid-powder sm:aspect-[21/9]">
-                            <SafeImage src={mediaUrl(room.image, "lg")} alt={mediaAlt(room.image, locale, typeName)} fetchPriority="high" className="h-full w-full object-cover" />
-                        </div>
-                    )}
-                </motion.div>
+                    </motion.div>
+                )}
             </section>
 
             {/* ───────── Başlık: rozetler, ad, fiyat, hızlı başvuru ───────── */}
@@ -207,7 +205,7 @@ export default function RoomDetailBody({ room: typeRoom, availability, otherRoom
                                 onShowPhotos={showRoomPhotos}
                             />
                         ) : (
-                            <ApartmentCards apartments={apartments} typeSlug={room.slug} />
+                            <RoomCards rooms={rooms} typeSlug={room.slug} />
                         )}
                         {apartment && <RoomsAndAreas rooms={apartment.rooms} sharedAreas={apartment.sharedAreas} />}
                         <About room={room} />
@@ -257,4 +255,14 @@ export default function RoomDetailBody({ room: typeRoom, availability, otherRoom
 function listFirst(field, locale) {
     const list = field?.[locale]?.length ? field[locale] : field?.tr;
     return Array.isArray(list) ? list[0] : "";
+}
+
+function preselectBed(availability, roomId) {
+    if (!roomId) return null;
+    for (const flat of availability?.apartments ?? []) {
+        const room = flat.rooms?.find((r) => r.id === roomId);
+        const bed = room?.beds.find((b) => b.status === BED_STATUS.AVAILABLE);
+        if (bed) return { id: bed.id, bedLabel: bed.label, roomName: room.name, flatName: flat.name };
+    }
+    return null;
 }

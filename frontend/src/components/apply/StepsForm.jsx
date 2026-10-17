@@ -10,7 +10,7 @@ import DatePicker from "./fields/DatePicker";
 import { FieldError, GroupLabel, Segmented, SelectionCard } from "./fields/Choice";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { localized } from "@/lib/i18n/localized";
-import { formatDate, formatPrice } from "@/lib/format";
+import { formatDate, formatPrice, rangeText } from "@/lib/format";
 import { mediaAlt, mediaUrl } from "@/lib/media";
 import { EASE_OUT } from "@/lib/motion";
 import { GRADES, earliestEntry, formatPhone, newGuardian, onlyDigits, toISO } from "@/lib/application";
@@ -73,7 +73,7 @@ export function StepRoom({ form, set, err, tick, rooms, terms, period, bedReques
                                     </span>
                                     <span className="block min-w-0 flex-1 px-1 sm:px-1.5 sm:pb-2 sm:pt-3">
                                         <span className="block font-display text-xl font-medium leading-tight text-orchid-dark">{name}</span>
-                                        <span className="mt-0.5 block text-xs text-orchid-muted">{tpl(a.room.inFlat, { count: room.peopleInFlat })}</span>
+                                        <span className="mt-0.5 block text-xs text-orchid-muted">{tpl(a.room.inFlat, { count: rangeText(room.peopleInFlat, room.peopleInFlatMax) })}</span>
                                         <span className="mt-1.5 block font-display text-2xl font-semibold text-orchid-pink">
                                             {formatPrice(room.monthlyPrice, room.currency, locale)} <span className="font-sans text-xs font-normal text-orchid-muted">{t.common.perMonth}</span>
                                         </span>
@@ -98,7 +98,7 @@ export function StepRoom({ form, set, err, tick, rooms, terms, period, bedReques
                             <Icon name="info" filled className="mt-0.5 text-[20px] text-orchid-violet" />
                             <p>
                                 <span className="font-bold">{a.room.infoTitle}: </span>
-                                {tpl(a.room.info, showBed && bedRequest.available && bedRequest.flatPeople ? bedRequest.flatPeople : { flat: selectedRoom.peopleInFlat, kitchen: selectedRoom.peopleSharingKitchen, bathroom: selectedRoom.peopleSharingBathroom })}
+                                {tpl(a.room.info, showBed && bedRequest.available && bedRequest.flatPeople ? bedRequest.flatPeople : { flat: rangeText(selectedRoom.peopleInFlat, selectedRoom.peopleInFlatMax), kitchen: rangeText(selectedRoom.peopleSharingKitchen, selectedRoom.peopleSharingKitchenMax), bathroom: rangeText(selectedRoom.peopleSharingBathroom, selectedRoom.peopleSharingBathroomMax) })}
                             </p>
                         </motion.div>
                     )}
@@ -228,40 +228,36 @@ export function StepPersonal({ form, set, err, tick }) {
                 inputProps={{ inputMode: "tel", autoComplete: "tel-national", maxLength: 13 }}
             />
             <FloatingField id="address" name="address" label={p.address} required multiline value={form.address} onChange={(v) => set("address", v)} error={err("address")} tick={tick} inputProps={{ autoComplete: "street-address" }} />
-            <div className={`${grid} relative z-30`}>
-                <div className="relative z-20">
-                    <SearchSelect
-                        id="provinceId"
-                        name="provinceId"
-                        label={p.province}
-                        required
-                        options={provinces}
-                        value={form.provinceId}
-                        onChange={(v) => {
-                            set("provinceId", v);
-                            set("district", "");
-                        }}
-                        error={err("provinceId")}
-                        tick={tick}
-                        noResult={p.noResult}
-                    />
-                </div>
-                <div className="relative z-10">
-                    <SearchSelect
-                        id="district"
-                        name="district"
-                        label={p.district}
-                        required
-                        options={districts}
-                        value={form.district}
-                        onChange={(v) => set("district", v)}
-                        error={err("district")}
-                        tick={tick}
-                        noResult={p.noResult}
-                        disabled={!form.provinceId}
-                        placeholder={p.pickProvince}
-                    />
-                </div>
+            <div className={grid}>
+                <SearchSelect
+                    id="provinceId"
+                    name="provinceId"
+                    label={p.province}
+                    required
+                    options={provinces}
+                    value={form.provinceId}
+                    onChange={(v) => {
+                        set("provinceId", v);
+                        set("district", "");
+                    }}
+                    error={err("provinceId")}
+                    tick={tick}
+                    noResult={p.noResult}
+                />
+                <SearchSelect
+                    id="district"
+                    name="district"
+                    label={p.district}
+                    required
+                    options={districts}
+                    value={form.district}
+                    onChange={(v) => set("district", v)}
+                    error={err("district")}
+                    tick={tick}
+                    noResult={p.noResult}
+                    disabled={!form.provinceId}
+                    placeholder={p.pickProvince}
+                />
             </div>
         </div>
     );

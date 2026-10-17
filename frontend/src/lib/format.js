@@ -44,3 +44,12 @@ export function turkeyDate(iso) {
     if (Number.isNaN(date.getTime())) return null;
     return new Intl.DateTimeFormat("en-CA", { timeZone: TR_ZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
+
+/**
+ * Aralık metni: rangeText(3, 3) -> "3", rangeText(3, 5) -> "3-5". Aynı tipteki odalar farklı büyüklükte dairelerde olabildiği için
+ * tip düzeyindeki daire bilgileri (dairedeki kişi, mutfak/banyo ortaklığı) tek sayı değil aralık olarak gösterilir.
+ */
+export function rangeText(min, max) {
+    if (min == null) return "";
+    return max == null || max === min ? String(min) : `${min}-${max}`;
+}

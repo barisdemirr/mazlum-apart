@@ -5,7 +5,7 @@ import Icon from "@/components/ui/Icon";
 import SafeImage from "@/components/ui/SafeImage";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { localized } from "@/lib/i18n/localized";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, rangeText } from "@/lib/format";
 import { mediaAlt, mediaUrl } from "@/lib/media";
 
 function Feature({ icon, text }) {
@@ -28,10 +28,10 @@ export default function RoomCard({ room }) {
     return (
         <article
             data-cursor={t.rooms.view}
-            className="glass-card group relative flex min-w-[300px] snap-center flex-col justify-between overflow-hidden rounded-[32px] border border-orchid-petal/40 shadow-[0_16px_40px_rgba(180,57,143,0.08)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_24px_55px_rgba(180,57,143,0.18)] sm:min-w-[390px] lg:min-w-[420px]"
+            className="glass-card group relative flex min-w-[300px] snap-center flex-col justify-between overflow-hidden rounded-[28px] border border-orchid-petal/40 shadow-[0_16px_40px_rgba(180,57,143,0.08)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_24px_55px_rgba(180,57,143,0.18)] sm:min-w-[300px] lg:min-w-[320px] max-w-[320px]"
         >
             <div>
-                <div className="relative aspect-[4/3] w-full overflow-hidden bg-orchid-powder">
+                <div className="relative aspect-[16/10] w-full overflow-hidden bg-orchid-powder">
                     <SafeImage
                         src={mediaUrl(room.image, "md")}
                         alt={mediaAlt(room.image, locale, name)}
@@ -52,9 +52,9 @@ export default function RoomCard({ room }) {
                     )}
                 </div>
 
-                <div className="flex flex-col gap-6 p-6 sm:p-8">
-                    <div className="border-b border-orchid-petal/20 pb-4">
-                        <h3 className="font-display text-2xl font-medium text-orchid-dark sm:text-3xl">
+                <div className="flex flex-col gap-4 p-5">
+                    <div className="border-b border-orchid-petal/20 pb-3">
+                        <h3 className="font-display text-xl font-medium text-orchid-dark sm:text-2xl">
                             {/* after:absolute inset-0 -> kartın tamamı bu bağlantıya tıklar */}
                             <LocalizedLink href={href} className="after:absolute after:inset-0 after:content-['']">
                                 {name}
@@ -62,10 +62,10 @@ export default function RoomCard({ room }) {
                         </h3>
                     </div>
 
-                    <div className="flex flex-col gap-2.5 text-sm text-orchid-muted">
-                        <Feature icon="group" text={tpl(t.rooms.peopleInFlat, { count: room.peopleInFlat })} />
-                        <Feature icon="kitchen" text={tpl(t.rooms.kitchen, { count: room.peopleSharingKitchen })} />
-                        <Feature icon="shower" text={tpl(t.rooms.bathroom, { count: room.peopleSharingBathroom })} />
+                    <div className="flex flex-col gap-2 text-[13px] text-orchid-muted">
+                        <Feature icon="group" text={tpl(t.rooms.peopleInFlat, { count: rangeText(room.peopleInFlat, room.peopleInFlatMax) })} />
+                        <Feature icon="kitchen" text={tpl(t.rooms.kitchen, { count: rangeText(room.peopleSharingKitchen, room.peopleSharingKitchenMax) })} />
+                        <Feature icon="shower" text={tpl(t.rooms.bathroom, { count: rangeText(room.peopleSharingBathroom, room.peopleSharingBathroomMax) })} />
                     </div>
 
                     <div className="inline-flex w-fit items-center gap-2 rounded-full bg-orchid-powder/60 px-3 py-1.5 text-xs font-bold text-orchid-pink">
@@ -75,17 +75,17 @@ export default function RoomCard({ room }) {
                 </div>
             </div>
 
-            <div className="flex items-center justify-between border-t border-orchid-petal/20 p-6 sm:p-8">
+            <div className="flex items-center justify-between border-t border-orchid-petal/20 p-5">
                 <div>
                     <span className="block text-xs uppercase tracking-wider text-orchid-muted">{t.rooms.monthlyPrice}</span>
-                    <span className="font-display text-2xl font-bold text-orchid-pink sm:text-3xl">
+                    <span className="font-display text-xl font-bold text-orchid-pink sm:text-2xl">
                         {formatPrice(room.monthlyPrice, room.currency, locale)}{" "}
                         <span className="font-sans text-xs font-normal text-orchid-muted">{t.common.perMonth}</span>
                     </span>
                 </div>
                 <span
                     aria-hidden="true"
-                    className="flex h-12 w-12 items-center justify-center rounded-full bg-orchid-dark text-white shadow-md transition-all duration-300 group-hover:bg-orchid-pink group-hover:translate-x-1"
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-orchid-dark text-white shadow-md transition-all duration-300 group-hover:bg-orchid-pink group-hover:translate-x-1"
                 >
                     <Icon name="arrow_forward" className="text-[20px]" />
                 </span>

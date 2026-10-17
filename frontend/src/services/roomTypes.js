@@ -19,6 +19,9 @@ export const getRoomTypeBySlug = (slug) => orNull(apiGet(`/api/room-types/${enc(
 /** GET /api/room-types/{slug}/availability: daire / oda / yatak bazlı doluluk, öğrenci bilgisi içermez (404 -> null) */
 export const getRoomTypeAvailability = (slug) => orNull(apiGet(`/api/room-types/${enc(slug)}/availability`, FRESH));
 
+/** GET /api/room-types/{slug}/rooms: tipin ODALARI (hangi dairede olduğu, kendi fotoğrafı, boş yatak). 404 -> null */
+export const getRoomTypeRooms = (slug) => orNull(apiGet(`/api/room-types/${enc(slug)}/rooms`, FRESH));
+
 /** GET /api/room-types/{slug}/apartments: daire özet kartları (404 -> null) */
 export const getRoomTypeApartments = (slug) => orNull(apiGet(`/api/room-types/${enc(slug)}/apartments`, FRESH));
 
