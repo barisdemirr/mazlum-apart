@@ -35,6 +35,17 @@ public static class GetRoomTypeApartments
     }
 }
 
+public static class GetRoomTypeRooms
+{
+    public class Endpoint : IEndpoint
+    {
+        public void MapEndpoint(IEndpointRouteBuilder app) =>
+            app.MapGet("/api/room-types/{slug}/rooms", async (string slug, CatalogQueryHandler catalog, CancellationToken ct) =>
+                await catalog.RoomsAsync(slug, ct) is { } list ? Results.Ok(list) : Error.NotFound("Oda tipi bulunamadı.").ToProblem())
+                .AllowAnonymous();
+    }
+}
+
 public static class GetApartmentDetail
 {
     public class Endpoint : IEndpoint

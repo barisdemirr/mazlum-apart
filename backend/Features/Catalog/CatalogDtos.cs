@@ -9,7 +9,10 @@ public record MediaRef(string Url, LocalizedText? Alt);
 /// <summary>Paragraf listesi: { tr: [...], en: [...] } (frontend DetailSections listOf ile okur)</summary>
 public record LocalizedList(List<string> Tr, List<string> En);
 
-/// <summary>Oda tipi kartı (anasayfa, /odalar, başvuru formu). Kişi sayıları bu tipteki dairelerden TÜRETİLİR (en küçük değer).</summary>
+/// <summary>
+/// Oda tipi kartı (anasayfa, /odalar, başvuru formu). Aynı tipteki odalar farklı dairelerde (ve bir dairede farklı tiplerle) bulunabilir;
+/// bu yüzden dairenin kişi/mutfak/banyo sayıları tek değer değil ARALIKTIR: alan = en az, alanMax = en çok (aynıysa eşittir).
+/// </summary>
 public record RoomTypeCard(
     Guid Id,
     string Slug,
@@ -24,7 +27,11 @@ public record RoomTypeCard(
     decimal? DepositAmount,
     string Currency,
     int FlatCount,
-    int BedsFree);
+    int BedsFree,
+    int RoomCount,
+    int? PeopleInFlatMax,
+    int? PeopleSharingKitchenMax,
+    int? PeopleSharingBathroomMax);
 
 public record RoomTypeDetail(
     Guid Id,
@@ -41,9 +48,32 @@ public record RoomTypeDetail(
     string Currency,
     int FlatCount,
     int BedsFree,
-    LocalizedList Description);
+    LocalizedList Description,
+    int RoomCount,
+    int? PeopleInFlatMax,
+    int? PeopleSharingKitchenMax,
+    int? PeopleSharingBathroomMax);
 
-/// <summary>Daire kartı (oda tipi sayfası)</summary>
+/// <summary>
+/// Oda tipi sayfasındaki ODA kartı: tipin her odası ayrı listelenir, ait olduğu daireye bağlanır.
+/// Cover: odanın kendi etiketli fotoğrafı; yoksa dairenin kapağı. PhotoCount yalnızca bu odanın fotoğraflarını sayar.
+/// </summary>
+public record RoomListing(
+    Guid Id,
+    LocalizedText Name,
+    string ApartmentSlug,
+    LocalizedText ApartmentName,
+    int Floor,
+    int Beds,
+    int BedsFree,
+    int PeopleInFlat,
+    int? PeopleSharingKitchen,
+    int? PeopleSharingBathroom,
+    List<FeatureItem> Features,
+    MediaRef? Cover,
+    int PhotoCount);
+
+/// <summary>Daire kartı (daire sayfasında "aynı tipteki diğer daireler")</summary>
 public record ApartmentSummary(
     Guid Id,
     string Slug,

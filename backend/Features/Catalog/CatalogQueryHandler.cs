@@ -96,7 +96,8 @@ public class CatalogQueryHandler(AppDbContext db, AvailabilityService availabili
         var counts = await CountsAsync(s, FlatsOf(s, type.Id), ct);
         var c = Card(s, type, counts);
         return new RoomTypeDetail(c.Id, c.Slug, c.Name, c.Image, c.HasVideo, c.PhotoCount, c.PeopleInFlat, c.PeopleSharingKitchen,
-            c.PeopleSharingBathroom, c.MonthlyPrice, c.DepositAmount, c.Currency, c.FlatCount, c.BedsFree, Paragraphs(type.Description));
+            c.PeopleSharingBathroom, c.MonthlyPrice, c.DepositAmount, c.Currency, c.FlatCount, c.BedsFree, Paragraphs(type.Description),
+            c.RoomCount, c.PeopleInFlatMax, c.PeopleSharingKitchenMax, c.PeopleSharingBathroomMax);
     }
 
     private static RoomTypeCard Card(Structure s, RoomType t, Dictionary<Guid, RoomBedCounts> counts)
@@ -116,7 +117,11 @@ public class CatalogQueryHandler(AppDbContext db, AvailabilityService availabili
             flats.Where(f => f.PerBathroom is not null).Select(f => f.PerBathroom).Min(),
             price?.Monthly, price?.Deposit, "TRY",
             flats.Count,
-            flats.Sum(f => Free(f.ActiveRooms.Where(r => r.RoomTypeId == t.Id), counts)));
+            flats.Sum(f => Free(f.ActiveRooms.Where(r => r.RoomTypeId == t.Id), counts)),
+            flats.Sum(f => f.ActiveRooms.Count(r => r.RoomTypeId == t.Id)),
+            flats.Count > 0 ? flats.Max(f => f.Beds) : null,
+            flats.Where(f => f.PerKitchen is not null).Select(f => f.PerKitchen).Max(),
+            flats.Where(f => f.PerBathroom is not null).Select(f => f.PerBathroom).Max());
     }
 
     private static LocalizedList Paragraphs(LocalizedText? text)
@@ -126,6 +131,44 @@ public class CatalogQueryHandler(AppDbContext db, AvailabilityService availabili
             : value.Replace("\r\n", "\n").Split("\n\n", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
 
         return new LocalizedList(Split(text?.Tr), Split(text?.En));
+    }
+
+    // ───────── odalar (oda tipi sayfası) ─────────
+
+    /// <summary>Tipin tüm odaları (yayındaki dairelerde, aktif). Boş yatağı olanlar önde; daire sırası korunur.</summary>
+    public async Task<List<RoomListing>?> RoomsAsync(string typeSlug, CancellationToken ct)
+    {
+        var s = await LoadAsync(ct);
+        var type = s.Types.FirstOrDefault(x => x.Slug == typeSlug);
+        if (type is null) return null;
+
+        var flats = FlatsOf(s, type.Id);
+        var counts = await CountsAsync(s, flats, ct);
+        var list = new List<RoomListing>();
+
+        foreach (var f in flats)
+        {
+            var apartmentName = RoomNames.Apartment(f.Apartment.Name);
+            var apartmentCover = Cover(f.Apartment);
+
+            foreach (var r in f.ActiveRooms.Where(r => r.RoomTypeId == type.Id))
+            {
+                // Odanın kendi fotoğrafları: galeride bu odaya etiketlenenler
+                var photos = LiveMedia(f.Apartment)
+                    .Where(m => !m.IsVideo && m.TagKind == GalleryTagKind.Room && m.RoomId == r.Id)
+                    .OrderBy(m => m.OrderIndex).ToList();
+                var c = counts.TryGetValue(r.Id, out var value) ? value : new RoomBedCounts(0, 0);
+
+                list.Add(new RoomListing(
+                    r.Id, RoomNames.Room(r.Name), f.Apartment.Slug, apartmentName, f.Apartment.Floor,
+                    r.Beds, Math.Max(0, r.Beds - c.Occupied - c.Reserved),
+                    f.Beds, f.PerKitchen, f.PerBathroom, r.Features,
+                    photos.Count > 0 ? new MediaRef(photos[0].MediaAsset!.FilePath, photos[0].MediaAsset!.AltText) : apartmentCover,
+                    photos.Count));
+            }
+        }
+
+        return list.OrderBy(x => x.BedsFree > 0 ? 0 : 1).ToList();
     }
 
     // ───────── daireler ─────────
