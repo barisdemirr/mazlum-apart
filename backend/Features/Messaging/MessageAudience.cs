@@ -69,7 +69,7 @@ public partial class MessageAudienceHandler(AppDbContext db, EnrollmentQueryHand
 
     public static bool HasUnfilled(string text) => VarRegex().IsMatch(text);
 
-    private static string ChargeLabel(LedgerItem item, bool english)
+    public static string ChargeLabel(LedgerItem item, bool english)
     {
         var month = int.TryParse(item.Month.AsSpan(5, 2), out var m) && m is >= 1 and <= 12 ? m : 0;
         return item.Kind switch

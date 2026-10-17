@@ -47,6 +47,31 @@ public class SmsOptions
 }
 
 /// <summary>
+/// appsettings "PaymentReminders" bölümü: geciken ödemeler için günlük otomatik SMS (Hangfire tekrarlayan görevi).
+/// Enabled=true olsa bile SMS servisi (Sms:Enabled) kapalıysa hiçbir şey gönderilmez.
+/// Şablon değişkenleri: {ad} {tutar} (geciken toplam) {vade} (en eski geciken kalemin vadesi) {kalem}
+/// </summary>
+public class ReminderOptions
+{
+    public bool Enabled { get; set; }
+
+    /// <summary>Çalışma zamanı (cron, Türkiye saati). Varsayılan: her gün 10:00</summary>
+    public string Cron { get; set; } = "0 10 * * *";
+
+    /// <summary>Aynı öğrenciye iki otomatik SMS arasındaki en az gün: 3 = bugün gönderildiyse sonraki 2 gün beklenir, 4. gün tekrar gönderilir</summary>
+    public int IntervalDays { get; set; } = 3;
+
+    /// <summary>Bir çalışmada en fazla kaç öğrenciye SMS gider (en çok geciken önce)</summary>
+    public int MaxPerRun { get; set; } = 300;
+
+    public string TemplateTr { get; set; } =
+        "Sevgili {ad}, {tutar} tutarındaki {kalem} ödemenizin vadesi {vade} tarihinde geçmiştir. Ödemenizi yapmanızı rica ederiz. Ödemeyi zaten yaptıysanız bu mesajı göz ardı ediniz. Daha fazla bilgi için ofisimizle iletişime geçebilirsiniz.";
+
+    public string TemplateEn { get; set; } =
+        "Dear {ad}, your {kalem} payment of {tutar} was due on {vade}. Please make your payment. If you have already paid, please disregard this message. You can contact our office for more information.";
+}
+
+/// <summary>
 /// appsettings "Push" bölümü (Web Push / VAPID). Anahtar üretimi: npx web-push generate-vapid-keys
 /// PublicKey frontend'de de kullanılır; PrivateKey yalnızca burada.
 /// </summary>

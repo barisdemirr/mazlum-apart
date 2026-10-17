@@ -1,4 +1,6 @@
 using System.Text;
+using Hangfire;
+using Hangfire.SqlServer;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -127,6 +129,25 @@ builder.Services
         client.Timeout = TimeSpan.FromSeconds(Math.Clamp(sp.GetRequiredService<IOptions<SmsOptions>>().Value.TimeoutSeconds, 5, 60)))
     .RemoveAllLoggers(); // API şifresi Authorization başlığında gider: istek ayrıntıları ASLA günlüğe yazılmaz
 builder.Services.AddSingleton<MazlumApart.Features.Messaging.SmsGate>();
+
+// ---- Arka plan görevleri (Hangfire, SQL Server): günlük otomatik ödeme hatırlatma SMS'i ----
+// Hangfire kendi tablolarını [HangFire] şemasında ilk açılışta oluşturur. Panel (dashboard) bilinçli olarak AÇILMADI.
+builder.Services.Configure<ReminderOptions>(builder.Configuration.GetSection("PaymentReminders"));
+builder.Services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseSqlServerStorage(builder.Configuration.GetConnectionString("Default"), new SqlServerStorageOptions
+    {
+        CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+        SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+        QueuePollInterval = TimeSpan.Zero,
+        UseRecommendedIsolationLevel = true,
+        DisableGlobalLocks = true
+    }));
+builder.Services.AddHangfireServer(options => options.WorkerCount = 1);
+builder.Services.AddScoped<MazlumApart.Features.Messaging.PaymentReminderJob>();
+builder.Services.AddHostedService<MazlumApart.Features.Messaging.PaymentReminderScheduler>();
 builder.Services.AddSingleton<WebPushSender>();
 builder.Services.AddScoped<PushDispatcher>();
 builder.Services.AddSingleton<AdminAlerts>();
