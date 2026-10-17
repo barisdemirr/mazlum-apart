@@ -37,6 +37,9 @@ export const dictionaries = {
             scroll: "Kaydır",
             playTour: "Oda turunu izle",
             closeVideo: "Videoyu kapat",
+            slide: "Slayt",
+            prev: "Önceki",
+            next: "Sonraki",
         },
         strip: {
             front: ["Tüm faturalar fiyata dahil", "Sadece kız öğrenciler", "1 Eylül – 30 Haziran", "Online başvuru"],
@@ -727,6 +730,9 @@ export const dictionaries = {
             scroll: "Scroll",
             playTour: "Watch the room tour",
             closeVideo: "Close video",
+            slide: "Slide",
+            prev: "Previous",
+            next: "Next",
         },
         strip: {
             front: ["All bills included", "Female students only", "1 September – 30 June", "Apply online"],
