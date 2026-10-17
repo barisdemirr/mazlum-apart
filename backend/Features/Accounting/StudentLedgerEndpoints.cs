@@ -29,7 +29,7 @@ public record PaymentRow(
 
 public record StatementItem(
     Guid Id, ChargeKind Kind, string Month, DateOnly DueDate, string? Note, decimal Amount, decimal Net, decimal Allocated,
-    decimal Discounted, decimal Remaining, bool Reversed, string? ReversalNote, DateTime CreatedAt);
+    decimal Discounted, decimal Remaining, bool Reversed, string? ReversalNote, DateTime CreatedAt, DateOnly Deadline);
 
 public record HistoryRow(Guid Id, DateTime At, string By, string Action, string? Note);
 
@@ -63,7 +63,7 @@ public static class GetStudentAccount
 
             var items = ledger.Items.Select(i => new StatementItem(
                 i.Id, i.Kind, i.Month, i.DueDate, i.Note, i.Amount, i.Net, i.Allocated, i.Discounted, i.Remaining, i.Reversed,
-                reversalNotes.GetValueOrDefault(i.Id), i.CreatedAt)).ToList();
+                reversalNotes.GetValueOrDefault(i.Id), i.CreatedAt, i.Deadline)).ToList();
 
             var paymentRows = payments.Select(p => new PaymentRow(
                 p.Id, p.Kind, p.Amount, p.Date, p.Method, p.AccountId, accounts.GetValueOrDefault(p.AccountId, ""), p.Note,
@@ -296,7 +296,7 @@ public static class AddCharge
 
             var item = ledger.Items().First(i => i.Id == charge.Id);
             return new StatementItem(item.Id, item.Kind, item.Month, item.DueDate, item.Note, item.Amount, item.Net, item.Allocated,
-                item.Discounted, item.Remaining, item.Reversed, null, item.CreatedAt);
+                item.Discounted, item.Remaining, item.Reversed, null, item.CreatedAt, item.Deadline);
         }
     }
 

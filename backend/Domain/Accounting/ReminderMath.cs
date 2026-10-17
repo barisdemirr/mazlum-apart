@@ -15,8 +15,12 @@ namespace MazlumApart.Domain.Accounting;
 /// </summary>
 public static class ReminderMath
 {
-    /// <summary>Kalem için hatırlatmanın başlayabileceği son gün (bu günden SONRA gecikmiş sayılır)</summary>
-    public static DateOnly Deadline(LedgerItem item)
+    /// <summary>
+    /// Kalemin SON ÖDEME GÜNÜ (bu günden SONRA gecikmiş sayılır). Kira kaleminde ödenen oran kadar süre uzar; süre, bu kalemin vadesinden
+    /// bir sonraki kira vadesine kadar olan gündür (sonraki kira yoksa bir ay). Örnek: ilk ay kirası 16 Ekim'de vadeli, sonraki kira 5 Kasım (20 gün),
+    /// 12.500 TL'nin 11.380 TL'si ödendi → 20 × 0,91 = 18 gün → son gün 3 Kasım.
+    /// </summary>
+    public static DateOnly Deadline(LedgerItem item, IReadOnlyList<LedgerItem> all)
     {
         if (item.Kind != ChargeKind.Rent || item.Net <= 0m || item.Remaining <= 0m) return item.DueDate;
 
@@ -24,13 +28,15 @@ public static class ReminderMath
         if (covered <= 0m) return item.DueDate;
 
         var share = covered / item.Net;
-        var cycleDays = item.DueDate.AddMonths(1).DayNumber - item.DueDate.DayNumber; // vadeden sonraki vadeye gün sayısı (28–31)
+        var nextDue = all.Where(i => i.Kind == ChargeKind.Rent && i.Net > 0m && i.DueDate > item.DueDate)
+            .Select(i => (DateOnly?)i.DueDate).Min();
+        var cycleDays = (nextDue ?? item.DueDate.AddMonths(1)).DayNumber - item.DueDate.DayNumber;
         return item.DueDate.AddDays((int)Math.Floor(share * cycleDays));
     }
 
     /// <summary>Açık borcu olan ve (oranlanmış) son günü geçmiş kalem mi?</summary>
     public static bool IsOverdue(LedgerItem item, DateOnly today) =>
-        item.Net > 0m && item.Remaining > 0m && Deadline(item) < today;
+        item.Net > 0m && item.Remaining > 0m && item.Deadline < today;
 
     /// <summary>
     /// Son otomatik SMS'ten bu yana yeterince gün geçti mi? interval=3: 1. gün gönderilir, 2. ve 3. gün beklenir, 4. gün tekrar gönderilir.

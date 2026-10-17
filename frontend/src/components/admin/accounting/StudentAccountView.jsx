@@ -80,10 +80,10 @@ export default function StudentAccountView({ account, accounts }) {
                     <tbody>{account.items.map((i) => (
                         <tr key={i.id} className={i.reversed ? "opacity-50" : ""}>
                             <td className="font-semibold">{CHARGE_KIND[i.kind]}{i.kind === "rent" ? ` · ${monthLabel(i.month, { short: true })}` : ""}{i.note ? <span className="font-normal text-ad-muted"> · {i.note}</span> : null}{i.reversed && <Badge tone="neutral" className="ms-2">İptal</Badge>}</td>
-                            <td className="ad-num">{date(i.dueDate)}</td>
+                            <td className="ad-num" title={i.remaining > 0 && i.deadline !== i.dueDate ? `Planlanan vade: ${date(i.dueDate)}` : undefined}>{date(i.remaining > 0 && i.deadline ? i.deadline : i.dueDate)}</td>
                             <td className="ad-num text-end">{money(i.amount)}</td>
                             <td className="ad-num text-end text-ad-ok">{money(i.allocated)}</td>
-                            <td className={`ad-num text-end font-bold ${i.remaining > 0 && i.dueDate < today ? "text-ad-danger" : ""}`}>{money(i.remaining)}</td>
+                            <td className={`ad-num text-end font-bold ${i.remaining > 0 && (i.deadline ?? i.dueDate) < today ? "text-ad-danger" : ""}`}>{money(i.remaining)}</td>
                             <td className="text-end">{!closed && !i.reversed && i.amount > 0 && <button type="button" onClick={() => setDialog({ type: "reverse", item: i })} className="text-xs font-bold text-ad-danger hover:underline">Ters çevir</button>}</td>
                         </tr>
                     ))}</tbody>

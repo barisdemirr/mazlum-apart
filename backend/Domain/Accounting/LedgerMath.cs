@@ -3,7 +3,10 @@ using MazlumApart.Domain.Enums;
 
 namespace MazlumApart.Domain.Accounting;
 
-/// <summary>Bir borç kaleminin hesaplanmış durumu (ters kayıtlar hariç; her kalem tek satır)</summary>
+/// <summary>
+/// Bir borç kaleminin hesaplanmış durumu (ters kayıtlar hariç; her kalem tek satır).
+/// DueDate = planlanan vade; Deadline = kısmi ödeme oranına göre uzayan "son ödeme günü" (ReminderMath). Gecikme ve "vade" gösterimi Deadline'a göredir.
+/// </summary>
 public sealed record LedgerItem(
     Guid Id,
     ChargeKind Kind,
@@ -16,7 +19,8 @@ public sealed record LedgerItem(
     decimal Discounted,
     decimal Remaining,
     bool Reversed,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    DateOnly Deadline);
 
 /// <summary>"Ödemesi karşılanan süre": Eylül–Kasım tam ödendi, Aralık kirasının 5.000'i ödendi gibi</summary>
 public sealed record CoveredPeriod(string? FullThrough, PartialMonth? Partial);
@@ -69,7 +73,7 @@ public static class LedgerMath
                 var net = Round(c.Amount + reversals.GetValueOrDefault(c.Id));
                 var paid = allocated.GetValueOrDefault(c.Id);
                 return new LedgerItem(c.Id, c.Kind, c.Month, c.DueDate, c.Note, c.Amount, net, paid, 0m,
-                    Math.Max(0m, Round(net - paid)), net == 0m && c.Amount != 0m, c.CreatedAt);
+                    Math.Max(0m, Round(net - paid)), net == 0m && c.Amount != 0m, c.CreatedAt, c.DueDate);
             })
             .OrderBy(i => i.DueDate).ThenBy(i => i.CreatedAt)
             .ToList();
@@ -84,6 +88,10 @@ public static class LedgerMath
             items[k] = item with { Discounted = take, Remaining = Round(item.Remaining - take) };
             credit = Round(credit - take);
         }
+
+        // Kısmi ödeme oranına göre son ödeme günü (indirim dağıtımı bittikten sonra, kalanlar kesinleşince hesaplanır)
+        for (var k = 0; k < items.Count; k++)
+            items[k] = items[k] with { Deadline = ReminderMath.Deadline(items[k], items) };
 
         return items;
     }
@@ -122,7 +130,7 @@ public static class LedgerMath
         var remaining = Round(items.Sum(i => i.Remaining));
 
         var open = items.Where(i => i.Remaining > 0).ToList();
-        var overdue = Round(open.Where(i => i.DueDate < today).Sum(i => i.Remaining));
+        var overdue = Round(open.Where(i => i.Deadline < today).Sum(i => i.Remaining));
 
         var status = remaining == 0 ? (items.Count > 0 ? "paid" : "empty") : overdue > 0 ? "overdue" : "ok";
 

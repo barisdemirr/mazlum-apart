@@ -144,7 +144,7 @@ public partial class MessageAudienceHandler(AppDbContext db, EnrollmentQueryHand
                         ["telefon"] = row.Student.Phone,
                         ["oda"] = row.Room?.Label ?? (english ? "your room" : "odanız"),
                         ["tutar"] = FormatMoney(item?.Remaining ?? ledger.Remaining),
-                        ["vade"] = item is not null ? FormatDate(item.DueDate) : ledger.Next is not null ? FormatDate(ledger.Next.DueDate) : "",
+                        ["vade"] = item is not null ? FormatDate(item.Deadline) : ledger.Next is not null ? FormatDate(ledger.Next.Deadline) : "",
                         ["kalem"] = item is not null ? ChargeLabel(item, english) : (english ? "payment" : "ödeme")
                     };
                     foreach (var (k, v) in extra) vars[k] = v;

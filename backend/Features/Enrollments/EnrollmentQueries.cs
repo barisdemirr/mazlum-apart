@@ -19,7 +19,7 @@ public record SummaryDto(decimal Charged, decimal Collected, decimal Refunded, d
     string Status, NextItem? Next, CoveredPeriod Covered)
 {
     public static SummaryDto From(EnrollmentSummary s) => new(s.Charged, s.Collected, s.Refunded, s.Allocated, s.Remaining, s.Overdue, s.Advance, s.Status,
-        s.Next is null ? null : new NextItem(s.Next.Id, s.Next.Kind, s.Next.Month, s.Next.DueDate, s.Next.Remaining), s.Covered);
+        s.Next is null ? null : new NextItem(s.Next.Id, s.Next.Kind, s.Next.Month, s.Next.Deadline, s.Next.Remaining), s.Covered);
 }
 
 /// <summary>Öğrenciler listesinin satırı: kayıt + öğrenci + oda tipi + güncel oda + hesap özeti</summary>

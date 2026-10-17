@@ -64,10 +64,11 @@ public static class GetStudentPayments
                 {
                     var amount = i.Net;
                     var paid = LedgerMath.Round(i.Allocated + i.Discounted);
-                    var daysUntilDue = i.DueDate.DayNumber - today.DayNumber;
+                    var due = i.Remaining > 0 ? i.Deadline : i.DueDate; // kısmen ödenmiş kirada oranlanmış son ödeme günü
+                    var daysUntilDue = due.DayNumber - today.DayNumber;
                     var status = i.Remaining <= 0 ? "paid" : daysUntilDue < 0 ? "overdue" : paid > 0 ? "partial" : "upcoming";
                     var note = i.Kind is ChargeKind.ExtraStay or ChargeKind.Summer or ChargeKind.Other ? i.Note : null;
-                    return new ChargeRow(i.Id, i.Kind, null, i.Month, i.DueDate, note, amount, paid, i.Remaining, status, daysUntilDue);
+                    return new ChargeRow(i.Id, i.Kind, null, i.Month, due, note, amount, paid, i.Remaining, status, daysUntilDue);
                 })
                 .ToList();
 

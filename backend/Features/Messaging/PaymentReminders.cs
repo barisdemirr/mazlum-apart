@@ -77,7 +77,7 @@ public sealed class PaymentReminderJob(
             if (recent.Contains(e.Id) || e.Student is null) continue;
             if (!summaries.TryGetValue(e.Id, out var summary)) continue;
 
-            var overdue = summary.Items.Where(i => ReminderMath.IsOverdue(i, today)).OrderBy(i => i.DueDate).ToList();
+            var overdue = summary.Items.Where(i => ReminderMath.IsOverdue(i, today)).OrderBy(i => i.Deadline).ToList();
             if (overdue.Count == 0) continue;
 
             var phone = e.Student.Phone;
@@ -89,7 +89,7 @@ public sealed class PaymentReminderJob(
             {
                 ["ad"] = e.Student.FirstName,
                 ["tutar"] = MessageAudienceHandler.FormatMoney(overdue.Sum(i => i.Remaining)),
-                ["vade"] = MessageAudienceHandler.FormatDate(first.DueDate),
+                ["vade"] = MessageAudienceHandler.FormatDate(first.Deadline),
                 ["kalem"] = MessageAudienceHandler.ChargeLabel(first, english)
             };
             var filled = MessageAudienceHandler.Fill(english ? r.TemplateEn : r.TemplateTr, vars);
@@ -106,7 +106,7 @@ public sealed class PaymentReminderJob(
                 continue;
             }
 
-            candidates.Add(new Candidate(e, phone, analysis.Text, analysis.Parts, first.DueDate));
+            candidates.Add(new Candidate(e, phone, analysis.Text, analysis.Parts, first.Deadline));
         }
 
         if (candidates.Count == 0) return;

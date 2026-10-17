@@ -34,7 +34,7 @@ public static class DueLists
         {
             foreach (var item in ledger.Items.Where(i => i.Remaining > 0))
             {
-                var diff = item.DueDate.DayNumber - today.DayNumber;
+                var diff = item.Deadline.DayNumber - today.DayNumber; // oransal son ödeme günü
                 if (diff < 0) overdue.Add(ToRow(row, item, -diff));
                 else if (diff <= UpcomingDays) upcoming.Add(ToRow(row, item, diff));
             }
@@ -44,7 +44,7 @@ public static class DueLists
 
     private static DueRow ToRow(EnrollmentRow row, LedgerItem item, int days) =>
         new(row.Id, row.Status, row.Student, row.Room, row.RoomTypeName,
-            new DueItem(item.Id, item.Kind, item.Month, item.DueDate, item.Note, item.Remaining, days), row.LastContactAt);
+            new DueItem(item.Id, item.Kind, item.Month, item.Deadline, item.Note, item.Remaining, days), row.LastContactAt);
 }
 
 /// <summary>
