@@ -46,6 +46,16 @@ public static class GetRoomTypeRooms
     }
 }
 
+public static class GetAllRooms
+{
+    public class Endpoint : IEndpoint
+    {
+        public void MapEndpoint(IEndpointRouteBuilder app) =>
+            app.MapGet("/api/rooms", async (CatalogQueryHandler catalog, CancellationToken ct) => Results.Ok(await catalog.AllRoomsAsync(ct)))
+                .AllowAnonymous();
+    }
+}
+
 public static class GetApartmentDetail
 {
     public class Endpoint : IEndpoint

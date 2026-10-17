@@ -7,12 +7,13 @@ import SafeImage from "@/components/ui/SafeImage";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { localized } from "@/lib/i18n/localized";
 import { mediaUrl } from "@/lib/media";
+import { formatPrice } from "@/lib/format";
 
 /**
  * Oda TİPİ sayfasındaki oda kartı. Birim DAİRE değil ODAdır: bir dairede farklı tiplerde odalar olabilir,
  * bu yüzden tipe ait her oda kendi fotoğrafı ve boş yatak bilgisiyle listelenir; kart bulunduğu daireye gider.
  */
-function RoomCard({ room, typeSlug }) {
+export function RoomCard({ room, typeSlug = room.roomTypeSlug, showType = false, showPrice = false }) {
     const { t, tpl, locale } = useLanguage();
     const r = t.roomDetail.rooms;
     const name = localized(room.name, locale);
@@ -28,8 +29,13 @@ function RoomCard({ room, typeSlug }) {
             <LocalizedLink href={href} aria-label={`${name} · ${apartmentName}`} className="relative block aspect-[4/3] w-full overflow-hidden bg-orchid-powder">
                 <SafeImage src={room.cover ? mediaUrl(room.cover, "md") : null} alt={`${name} · ${apartmentName}`} loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 <div className="absolute inset-0 bg-gradient-to-t from-orchid-dark/70 via-transparent to-transparent" />
+                {showType && (
+                    <span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-orchid-pink shadow-sm backdrop-blur-md">
+                        {localized(room.roomTypeName, locale)}
+                    </span>
+                )}
                 {!hasFree && (
-                    <span className="absolute left-3 top-3 rounded-full bg-black/60 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white">{r.full}</span>
+                    <span className={`absolute ${showType ? "left-3 top-12" : "left-3 top-3"} rounded-full bg-black/60 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white`}>{r.full}</span>
                 )}
                 {room.photoCount > 0 && (
                     <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-black/40 px-2.5 py-1 text-xs font-medium text-white">
@@ -64,6 +70,15 @@ function RoomCard({ room, typeSlug }) {
                     </ul>
                 )}
                 <p className="text-[13px] text-orchid-muted">{tpl(r.people, { count: room.peopleInFlat })}</p>
+                {showPrice && room.monthlyPrice != null && (
+                    <div className="flex items-baseline justify-between gap-3 border-t border-orchid-petal/25 pt-3">
+                        <span className="text-sm text-orchid-muted">{t.rooms.monthlyPrice}</span>
+                        <span className="font-display text-2xl font-bold text-orchid-pink">
+                            {formatPrice(room.monthlyPrice, room.currency, locale)}{" "}
+                            <span className="font-sans text-xs font-normal text-orchid-muted">{t.common.perMonth}</span>
+                        </span>
+                    </div>
+                )}
                 <LocalizedLink href={href} className="mt-auto flex items-center gap-1 pt-1 text-sm font-bold text-orchid-pink hover:underline">
                     {r.view}
                     <Icon name="arrow_forward" className="text-[18px]" />

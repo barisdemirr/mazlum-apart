@@ -142,11 +142,24 @@ public class CatalogQueryHandler(AppDbContext db, AvailabilityService availabili
         var type = s.Types.FirstOrDefault(x => x.Slug == typeSlug);
         if (type is null) return null;
 
-        var flats = FlatsOf(s, type.Id);
-        var counts = await CountsAsync(s, flats, ct);
+        var counts = await CountsAsync(s, FlatsOf(s, type.Id), ct);
+        return BuildRooms(s, type, counts).OrderBy(x => x.BedsFree > 0 ? 0 : 1).ToList();
+    }
+
+    /// <summary>Tüm tiplerin tüm odaları (/odalar sayfası). Oda tipi sırası korunur; boş yatağı olanlar önde.</summary>
+    public async Task<List<RoomListing>> AllRoomsAsync(CancellationToken ct)
+    {
+        var s = await LoadAsync(ct);
+        var counts = await CountsAsync(s, s.Types.SelectMany(t => FlatsOf(s, t.Id)).ToList(), ct);
+        return s.Types.SelectMany(t => BuildRooms(s, t, counts)).OrderBy(x => x.BedsFree > 0 ? 0 : 1).ToList();
+    }
+
+    private static List<RoomListing> BuildRooms(Structure s, RoomType type, Dictionary<Guid, RoomBedCounts> counts)
+    {
+        var price = s.Prices.FirstOrDefault(p => p.RoomTypeId == type.Id)?.Monthly;
         var list = new List<RoomListing>();
 
-        foreach (var f in flats)
+        foreach (var f in FlatsOf(s, type.Id))
         {
             var apartmentName = RoomNames.Apartment(f.Apartment.Name);
             var apartmentCover = Cover(f.Apartment);
@@ -164,11 +177,11 @@ public class CatalogQueryHandler(AppDbContext db, AvailabilityService availabili
                     r.Beds, Math.Max(0, r.Beds - c.Occupied - c.Reserved),
                     f.Beds, f.PerKitchen, f.PerBathroom, r.Features,
                     photos.Count > 0 ? new MediaRef(photos[0].MediaAsset!.FilePath, photos[0].MediaAsset!.AltText) : apartmentCover,
-                    photos.Count));
+                    photos.Count, type.Slug, type.Name, price, "TRY"));
             }
         }
 
-        return list.OrderBy(x => x.BedsFree > 0 ? 0 : 1).ToList();
+        return list;
     }
 
     // ───────── daireler ─────────

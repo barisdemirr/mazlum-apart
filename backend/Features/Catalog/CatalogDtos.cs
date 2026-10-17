@@ -71,7 +71,11 @@ public record RoomListing(
     int? PeopleSharingBathroom,
     List<FeatureItem> Features,
     MediaRef? Cover,
-    int PhotoCount);
+    int PhotoCount,
+    string RoomTypeSlug,
+    LocalizedText RoomTypeName,
+    decimal? MonthlyPrice,
+    string Currency);
 
 /// <summary>Daire kartı (daire sayfasında "aynı tipteki diğer daireler")</summary>
 public record ApartmentSummary(

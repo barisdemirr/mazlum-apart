@@ -6,17 +6,18 @@ import LocalizedLink from "@/components/ui/LocalizedLink";
 import Icon from "@/components/ui/Icon";
 import Magnetic from "@/components/ui/Magnetic";
 import Reveal from "@/components/ui/Reveal";
-import RoomListCard from "./RoomListCard";
+import { RoomCard } from "@/components/room-detail/RoomCards";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { useSite } from "@/lib/site/SiteProvider";
+import { localized } from "@/lib/i18n/localized";
 import { EASE_OUT, SPRING_SOFT } from "@/lib/motion";
 
 const SORTS = ["recommended", "priceAsc", "priceDesc"];
 
 const sorters = {
     recommended: null, // backend'in verdiği sıra (panelden belirlenen görüntüleme sırası)
-    priceAsc: (a, b) => a.monthlyPrice - b.monthlyPrice,
-    priceDesc: (a, b) => b.monthlyPrice - a.monthlyPrice,
+    priceAsc: (a, b) => (a.monthlyPrice ?? Infinity) - (b.monthlyPrice ?? Infinity),
+    priceDesc: (a, b) => (b.monthlyPrice ?? -Infinity) - (a.monthlyPrice ?? -Infinity),
 };
 
 /** Sayfa başlığı kelime kelime yükselerek gelir */
@@ -35,14 +36,24 @@ function Word({ children, delay, className = "" }) {
     );
 }
 
-export default function RoomsList({ rooms, children }) {
-    const { t, tpl } = useLanguage();
+/** rooms: tek tek ODALAR (her biri kendi tipi, dairesi ve fiyatıyla); types: filtre sekmeleri için oda tipleri */
+export default function RoomsList({ rooms, types = [], children }) {
+    const { t, tpl, locale } = useLanguage();
     const [sort, setSort] = useState("recommended");
+    const [type, setType] = useState("all");
 
-    const sorted = useMemo(() => {
+    // Tipi olmayan (odası bulunmayan) tip için sekme gösterilmez
+    const filters = useMemo(() => {
+        const counts = new Map();
+        for (const room of rooms) counts.set(room.roomTypeSlug, (counts.get(room.roomTypeSlug) ?? 0) + 1);
+        return types.filter((item) => counts.has(item.slug)).map((item) => ({ key: item.slug, label: localized(item.name, locale), count: counts.get(item.slug) }));
+    }, [rooms, types, locale]);
+
+    const visible = useMemo(() => {
+        const filtered = type === "all" ? rooms : rooms.filter((room) => room.roomTypeSlug === type);
         const compare = sorters[sort];
-        return compare ? [...rooms].sort(compare) : rooms;
-    }, [rooms, sort]);
+        return compare ? [...filtered].sort(compare) : filtered;
+    }, [rooms, type, sort]);
 
     const site = useSite();
     const whatsapp = site.waHref(t.whatsapp.defaultMessage);
@@ -91,56 +102,74 @@ export default function RoomsList({ rooms, children }) {
                 >
                     {t.roomsPage.subtitle}
                 </motion.p>
+            </section>
 
-                {/* Sıralama: seçili sekmenin arkasındaki gradyan hap kayarak taşınır */}
-                {rooms.length > 1 && (
+            {/* ───────── Filtre ve sıralama çubuğu ───────── */}
+            {rooms.length > 0 && (
+                <section className="mx-auto w-full max-w-7xl px-4 pb-8 sm:px-8 lg:px-12">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.7, delay: 1.2, ease: EASE_OUT }}
-                        className="mt-8 flex w-full max-w-lg flex-col items-center gap-3"
+                        className="glass-card flex flex-col gap-4 rounded-[28px] p-4 shadow-lg shadow-orchid-pink/10 sm:p-5 lg:flex-row lg:items-center lg:justify-between"
                     >
-                        <div
-                            role="group"
-                            aria-label={t.roomsPage.sortLabel}
-                            className="glass-card flex w-full items-center rounded-full p-1.5 shadow-lg shadow-orchid-pink/10"
-                        >
-                            {SORTS.map((key) => {
-                                const active = sort === key;
+                        {/* Oda tipi filtresi */}
+                        <div role="group" aria-label={t.roomsPage.filterLabel} className="no-scrollbar -mx-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-1 lg:pb-0">
+                            {[{ key: "all", label: t.roomsPage.all, count: rooms.length }, ...filters].map((item) => {
+                                const active = type === item.key;
                                 return (
                                     <button
-                                        key={key}
+                                        key={item.key}
                                         type="button"
-                                        onClick={() => setSort(key)}
+                                        onClick={() => setType(item.key)}
                                         aria-pressed={active}
-                                        className={`relative flex-1 whitespace-nowrap rounded-full px-2 py-2.5 text-xs font-semibold transition-colors sm:text-sm ${
+                                        className={`relative shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
                                             active ? "text-white" : "text-orchid-muted hover:text-orchid-dark"
                                         }`}
                                     >
-                                        {active && (
-                                            <motion.span
-                                                layoutId="rooms-sort-pill"
-                                                transition={SPRING_SOFT}
-                                                className="aurora-btn absolute inset-0 rounded-full"
-                                            />
-                                        )}
-                                        <span className="relative">{t.roomsPage.sort[key]}</span>
+                                        {active && <motion.span layoutId="rooms-filter-pill" transition={SPRING_SOFT} className="aurora-btn absolute inset-0 rounded-full" />}
+                                        <span className="relative">
+                                            {item.label} <span className={`text-xs ${active ? "text-white/80" : "text-orchid-muted/70"}`}>{item.count}</span>
+                                        </span>
                                     </button>
                                 );
                             })}
                         </div>
-                        <span className="text-xs font-medium text-orchid-muted" aria-live="polite">
-                            {tpl(t.roomsPage.count, { count: rooms.length })}
-                        </span>
+
+                        {/* Sıralama */}
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <div role="group" aria-label={t.roomsPage.sortLabel} className="flex items-center rounded-full bg-white/60 p-1">
+                                {SORTS.map((key) => {
+                                    const active = sort === key;
+                                    return (
+                                        <button
+                                            key={key}
+                                            type="button"
+                                            onClick={() => setSort(key)}
+                                            aria-pressed={active}
+                                            className={`relative flex-1 whitespace-nowrap rounded-full px-3 py-2 text-xs font-semibold transition-colors sm:text-sm ${
+                                                active ? "text-white" : "text-orchid-muted hover:text-orchid-dark"
+                                            }`}
+                                        >
+                                            {active && <motion.span layoutId="rooms-sort-pill" transition={SPRING_SOFT} className="aurora-btn absolute inset-0 rounded-full" />}
+                                            <span className="relative">{t.roomsPage.sort[key]}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <span className="text-xs font-medium text-orchid-muted sm:min-w-16 sm:text-right" aria-live="polite">
+                                {tpl(t.roomsPage.count, { count: visible.length })}
+                            </span>
+                        </div>
                     </motion.div>
-                )}
-            </section>
+                </section>
+            )}
 
             {/* ───────── Oda listesi ───────── */}
             <section className="mx-auto w-full max-w-7xl px-4 pb-16 sm:px-8 lg:px-12">
                 {rooms.length > 0 ? (
                     <div className="grid grid-cols-1 items-start gap-8 md:grid-cols-2 lg:grid-cols-3">
-                        {sorted.map((room, i) => (
+                        {visible.map((room, i) => (
                             <motion.div
                                 key={room.id}
                                 layout
@@ -154,7 +183,7 @@ export default function RoomsList({ rooms, children }) {
                                     transition={{ duration: 0.8, delay: (i % 3) * 0.1, ease: EASE_OUT }}
                                     className="h-full"
                                 >
-                                    <RoomListCard room={room} />
+                                    <RoomCard room={room} showType showPrice />
                                 </motion.div>
                             </motion.div>
                         ))}

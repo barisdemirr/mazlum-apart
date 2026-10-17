@@ -20,6 +20,7 @@ export const getRoomTypeBySlug = (slug) => orNull(apiGet(`/api/room-types/${enc(
 export const getRoomTypeAvailability = (slug) => orNull(apiGet(`/api/room-types/${enc(slug)}/availability`, FRESH));
 
 /** GET /api/room-types/{slug}/rooms: tipin ODALARI (hangi dairede olduğu, kendi fotoğrafı, boş yatak). 404 -> null */
+export const getAllRooms = () => orNull(apiGet("/api/rooms", FRESH));
 export const getRoomTypeRooms = (slug) => orNull(apiGet(`/api/room-types/${enc(slug)}/rooms`, FRESH));
 
 /** GET /api/room-types/{slug}/apartments: daire özet kartları (404 -> null) */
