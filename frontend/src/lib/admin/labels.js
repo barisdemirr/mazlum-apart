@@ -16,6 +16,19 @@ export const ENROLLMENT_STATUS = {
     left: { label: "Ayrıldı", tone: "neutral" },
 };
 
+/** Tek SMS'in durumu (backend SmsMessageStatus, snake_case) */
+export const SMS_MESSAGE_STATUS = {
+    pending: { label: "Bekliyor", tone: "neutral" },
+    simulated: { label: "Simüle", tone: "neutral" },
+    waiting: { label: "Gönderildi", tone: "accent" },
+    delivered: { label: "İletildi", tone: "ok" },
+    not_delivered: { label: "İletilemedi", tone: "danger" },
+    expired: { label: "Zaman aşımı", tone: "warn" },
+    rejected: { label: "Reddedildi", tone: "danger" },
+    failed: { label: "Gönderilemedi", tone: "danger" },
+    unknown: { label: "Belirsiz", tone: "warn" },
+};
+
 export const APPLICATION_STATUS = {
     pending: { label: "Başvuru", tone: "brand" },
     approved: { label: "Onaylandı", tone: "ok" },

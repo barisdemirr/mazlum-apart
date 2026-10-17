@@ -4,6 +4,7 @@ import SectionTabs from "@/components/admin/SectionTabs";
 const TABS = [
     { href: "/admin/iletisim", label: "İletişim Geçmişi", icon: "forum" },
     { href: "/admin/iletisim/toplu-sms", label: "Toplu SMS", icon: "sms" },
+    { href: "/admin/iletisim/otomatik-sms", label: "Otomatik SMS", icon: "schedule_send" },
     { href: "/admin/iletisim/bildirim", label: "Toplu Bildirim", icon: "notifications_active" },
 ];
 
