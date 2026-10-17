@@ -12,7 +12,7 @@ import { fillTemplate, hasUnfilled, messageVars, smsInfo, whatsappLink } from "@
 import { CONTACT_PURPOSE } from "@/lib/admin/labels";
 
 /**
- * Öğrenciye mesaj: şablon seçilir, metin düzenlenir, WhatsApp açılır (ücretsiz, bağlantı ile) ya da SMS gönderilir (Verimor).
+ * Öğrenciye mesaj: şablon seçilir, metin düzenlenir, WhatsApp açılır (ücretsiz, bağlantı ile) ya da SMS gönderilir (Netgsm).
  * Her iki yolda da "son iletişim" kaydı (ContactLog) otomatik yazılır.
  *
  * row: enrollmentRow(...) | item: ilgili borç kalemi (isteğe bağlı) | purpose: iletişim amacı

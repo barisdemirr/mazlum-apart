@@ -3,7 +3,7 @@ import { monthLabel } from "@/lib/admin/month";
 
 /**
  * Mesajlaşma yardımcıları (WhatsApp bağlantısı + SMS). Saf fonksiyonlar, ağ yok.
- * SMS'in gerçek gönderimi backend'de (Verimor) yapılır; burada yalnızca metin hazırlanır ve uzunluk hesaplanır.
+ * SMS'in gerçek gönderimi backend'de (Netgsm) yapılır; burada yalnızca metin hazırlanır ve uzunluk hesaplanır.
  */
 
 /** "{ad}" gibi değişkenleri doldurur; değeri olmayan değişken olduğu gibi kalır (arayüz uyarır) */
