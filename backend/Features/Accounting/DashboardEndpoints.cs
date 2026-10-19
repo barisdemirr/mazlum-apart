@@ -109,7 +109,7 @@ public static class GetDashboard
                 carried.AddRange(olderRows.Where(r => r.Ledger.Remaining > 0).Select(r =>
                     new CarriedItem("student", r.Row.PeriodId, olderPeriods[r.Row.PeriodId], r.Ledger.Remaining, r.Row.Id, r.Row.Student, null)));
 
-                var olderBills = await db.Bills.AsNoTracking().Where(x => olderIds.Contains(x.PeriodId) && x.Status == BillStatus.Unpaid)
+                var olderBills = await db.Bills.AsNoTracking().Where(x => olderIds.Contains(x.PeriodId) && x.Status == BillStatus.Unpaid && !x.AwaitingInvoice)
                     .OrderBy(x => x.DueDate).ToListAsync(ct);
                 carried.AddRange(olderBills.Select(b =>
                     new CarriedItem("bill", b.PeriodId, olderPeriods[b.PeriodId], b.Amount, null, null, BillRules.ToRow(b, olderPeriods[b.PeriodId], today))));
@@ -164,7 +164,7 @@ public static class GetBadges
                 var applications = await db.Applications.CountAsync(x => x.PeriodId == periodId && x.Status == ApplicationStatus.Pending, ct);
                 var maintenance = await db.MaintenanceRequests.CountAsync(x => x.PeriodId == periodId && x.Status != MaintenanceStatus.Done, ct);
                 var soonLimit = today.AddDays(BillRules.SoonDays);
-                var bills = await db.Bills.CountAsync(x => x.PeriodId == periodId && x.Status == BillStatus.Unpaid && x.DueDate <= soonLimit, ct);
+                var bills = await db.Bills.CountAsync(x => x.PeriodId == periodId && x.Status == BillStatus.Unpaid && !x.AwaitingInvoice && x.DueDate <= soonLimit, ct);
                 return Results.Ok(new Response(applications, maintenance, bills));
             });
     }

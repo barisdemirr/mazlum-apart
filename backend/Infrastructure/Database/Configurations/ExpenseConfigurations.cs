@@ -48,12 +48,38 @@ public class BillConfiguration : IEntityTypeConfiguration<Bill>
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(8);
         builder.Property(x => x.Month).HasMaxLength(7).IsFixedLength().IsRequired();
         builder.Property(x => x.Note).HasMaxLength(300);
+        builder.Property(x => x.SubscriberNo).HasMaxLength(30);
         builder.Property(x => x.RowVersion).IsRowVersion();
 
         builder.HasOne<Period>().WithMany().HasForeignKey(x => x.PeriodId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<BillSubscription>().WithMany().HasForeignKey(x => x.SubscriptionId).OnDelete(DeleteBehavior.NoAction);
 
         builder.HasIndex(x => new { x.PeriodId, x.DueDate });
         builder.HasIndex(x => x.Status);
+
+        // Bir abonelik için bir ay yalnızca bir kez üretilir (silinmiş kayıt da sayılır: silinen ay yeniden üretilmez)
+        builder.HasIndex(x => new { x.SubscriptionId, x.Month }).IsUnique().HasFilter("[SubscriptionId] IS NOT NULL");
+    }
+}
+
+public class BillSubscriptionConfiguration : IEntityTypeConfiguration<BillSubscription>
+{
+    public void Configure(EntityTypeBuilder<BillSubscription> builder)
+    {
+        builder.ToTable("BillSubscriptions", t =>
+        {
+            t.HasCheckConstraint("CK_BillSubscriptions_DueDay", "[DueDay] BETWEEN 1 AND 31");
+            t.HasCheckConstraint("CK_BillSubscriptions_Amount", "[EstimatedAmount] > 0");
+        });
+
+        builder.Property(x => x.Kind).HasConversion<string>().HasMaxLength(12);
+        builder.Property(x => x.SubscriberNo).HasMaxLength(30).IsRequired();
+        builder.Property(x => x.Provider).HasMaxLength(60);
+        builder.Property(x => x.StartMonth).HasMaxLength(7).IsFixedLength().IsRequired();
+        builder.Property(x => x.Note).HasMaxLength(300);
+
+        // Aynı türde aynı abone numarası iki kez tanımlanamaz
+        builder.HasIndex(x => new { x.Kind, x.SubscriberNo }).IsUnique().HasFilter("[DeletedAt] IS NULL");
     }
 }
 

@@ -43,6 +43,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
     public DbSet<Expense> Expenses => Set<Expense>();
     public DbSet<Bill> Bills => Set<Bill>();
+    public DbSet<BillSubscription> BillSubscriptions => Set<BillSubscription>();
     public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
 
     // ---- Mesajlaşma & destek (aşama 6) ----

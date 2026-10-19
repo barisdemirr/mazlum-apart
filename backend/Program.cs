@@ -148,6 +148,12 @@ builder.Services.AddHangfire(config => config
 builder.Services.AddHangfireServer(options => options.WorkerCount = 1);
 builder.Services.AddScoped<MazlumApart.Features.Messaging.PaymentReminderJob>();
 builder.Services.AddHostedService<MazlumApart.Features.Messaging.PaymentReminderScheduler>();
+
+// Fatura abonelikleri: her ay için "fatura bekleniyor" kaydı (günlük görev; faturalar sayfası da eksikleri tamamlar)
+builder.Services.Configure<MazlumApart.Features.Accounting.BillSubscriptionOptions>(builder.Configuration.GetSection("BillSubscriptions"));
+builder.Services.AddScoped<MazlumApart.Features.Accounting.BillSubscriptionGenerator>();
+builder.Services.AddScoped<MazlumApart.Features.Accounting.BillSubscriptionJob>();
+builder.Services.AddHostedService<MazlumApart.Features.Accounting.BillSubscriptionScheduler>();
 builder.Services.AddSingleton<WebPushSender>();
 builder.Services.AddScoped<PushDispatcher>();
 builder.Services.AddSingleton<AdminAlerts>();
