@@ -60,6 +60,7 @@ export const TERM = { full: "Tam dönem", first: "1. yarı", second: "2. yarı" 
 export const BILL_KIND = { electricity: "Elektrik", water: "Su", gas: "Doğalgaz", internet: "İnternet", other: "Diğer" };
 export const BILL_STATE = {
     paid: { label: "Ödendi", tone: "ok" },
+    awaiting: { label: "Fatura bekleniyor", tone: "accent" }, // abonelikten üretildi, gerçek fatura henüz girilmedi
     overdue: { label: "Gecikmiş", tone: "danger" },
     soon: { label: "Yaklaşıyor", tone: "warn" },
     unpaid: { label: "Ödenmedi", tone: "neutral" },

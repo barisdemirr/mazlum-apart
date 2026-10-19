@@ -24,6 +24,16 @@ export const addBill = ({ periodId, kind, month, amount, dueDate, note }) =>
     admin.post("/bills", { periodId, kind, month, amount: n(amount), dueDate: dateOrNull(dueDate), note: note || null }, idem);
 export const payBill = ({ id, accountId, date }) => admin.post(`/bills/${id}/pay`, { accountId, date: dateOrNull(date) }, idem);
 export const deleteBill = ({ id }) => admin.del(`/bills/${id}`);
+/** Gelen faturaya göre tutar ve son ödeme tarihini günceller (abonelikten üretilen "fatura bekleniyor" kaydı gerçek faturaya döner) */
+export const updateBill = ({ id, amount, dueDate, note }) => admin.put(`/bills/${id}`, { amount: n(amount), dueDate: dateOrNull(dueDate), note: note || null });
+
+/* Fatura abonelikleri: abone numarası + tür; her ay için otomatik "fatura bekleniyor" kaydı üretilir */
+const subscriptionBody = ({ kind, subscriberNo, provider, dueDay, estimatedAmount, startMonth, note, active }) => ({
+    kind, subscriberNo, provider: provider || null, dueDay: Number(dueDay), estimatedAmount: n(estimatedAmount), startMonth: startMonth || null, note: note || null, active,
+});
+export const addBillSubscription = (values) => admin.post("/bill-subscriptions", subscriptionBody(values), idem);
+export const updateBillSubscription = ({ id, ...values }) => admin.put(`/bill-subscriptions/${id}`, subscriptionBody(values));
+export const deleteBillSubscription = ({ id }) => admin.del(`/bill-subscriptions/${id}`);
 
 export const addAccount = ({ type, name, iban }) => admin.post("/accounts", { type, name, iban: (iban || "").replace(/\s/g, "") || null });
 export const setOpening = ({ id, periodId, amount, date }) => admin.post(`/accounts/${id}/opening`, { periodId, amount: n(amount), date: dateOrNull(date) });
