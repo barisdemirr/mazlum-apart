@@ -25,7 +25,8 @@ export const saveSlide = ({ id, mediaId, title, subtitle, active }) => {
 export const deleteSlide = ({ id }) => admin.del(`/slides/${id}`);
 export const reorderSlides = ({ ids }) => admin.put("/slides/order", { ids });
 
-export const savePage = ({ key, title, body }) => admin.put(`/pages/${key}`, { title: loc(title), body: loc(body) });
+/** Yalnızca metin (Hakkımızda). Satır sonları olduğu gibi gider; site boş satırı paragraf, tek satır sonunu alt satır olarak gösterir. */
+export const savePage = ({ key, body }) => admin.put(`/pages/${key}`, { body: loc(body) });
 
 export const saveTemplate = ({ id, name, tr, en }) => admin.put(`/message-templates/${id}`, { name, tr, en });
 

@@ -3,3 +3,4 @@ export * from "./roomTypes";
 export * from "./homepage";
 export * from "./siteSettings";
 export * from "./applications";
+export * from "./pages";
