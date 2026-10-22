@@ -42,6 +42,8 @@ export async function generateMetadata({ params }) {
         title: { default: t.meta.title, template: "%s | Mazlum Apart" },
         description: t.meta.description,
         applicationName: "Mazlum Apart",
+        // Sekme ikonu ve Google sonuçlarındaki ikon: public/logo.png (kare 512x512)
+        icons: { icon: [{ url: "/logo.png", sizes: "512x512", type: "image/png" }], apple: [{ url: "/logo.png", sizes: "512x512", type: "image/png" }] },
         formatDetection: { telephone: false, address: false, email: false },
         openGraph: {
             title: t.meta.title,

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import Icon from "@/components/ui/Icon";
+import Logo from "@/components/ui/Logo";
 import LocalizedLink from "@/components/ui/LocalizedLink";
 import LanguageSwitch from "@/components/layout/LanguageSwitch";
 import LogoutDialog from "./LogoutDialog";
@@ -34,9 +35,7 @@ export default function PortalShell({ student, children }) {
             {/* ───────── Masaüstü yan menü ───────── */}
             <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col border-r border-orchid-petal/25 bg-white/60 p-5 backdrop-blur-xl lg:flex">
                 <LocalizedLink href="/ogrenci" className="group flex items-center gap-3 px-2 pt-1">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-full border border-orchid-petal/40 bg-gradient-to-tr from-orchid-powder via-orchid-lilac to-white font-display text-xl font-semibold italic text-orchid-pink shadow-inner transition-transform duration-300 group-hover:rotate-6">
-                        M
-                    </span>
+                    <Logo className="h-11 w-11 transition-transform duration-300 group-hover:scale-105" />
                     <span className="flex flex-col">
                         <span className="font-display text-2xl font-bold leading-none tracking-tight text-orchid-dark">
                             Mazlum<span className="ml-1 italic text-orchid-pink">Apart</span>
@@ -100,8 +99,8 @@ export default function PortalShell({ student, children }) {
             {/* ───────── Üst çubuk ───────── */}
             <header className="fixed inset-x-0 top-0 z-30 px-3 pt-3 sm:px-6 lg:left-72 lg:px-8 lg:pt-4">
                 <div className="glass-nav mx-auto flex h-16 max-w-5xl items-center justify-between gap-3 rounded-full pl-2 pr-2 sm:pl-3 lg:h-[72px] lg:pl-6">
-                    <LocalizedLink href="/ogrenci" aria-label="Mazlum Apart" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-orchid-petal/40 bg-gradient-to-tr from-orchid-powder via-orchid-lilac to-white font-display text-xl font-semibold italic text-orchid-pink lg:hidden">
-                        M
+                    <LocalizedLink href="/ogrenci" aria-label="Mazlum Apart" className="flex h-11 w-11 shrink-0 items-center justify-center lg:hidden">
+                        <Logo className="h-11 w-11" />
                     </LocalizedLink>
 
                     <span className="hidden items-center gap-2 rounded-full bg-orchid-powder/70 px-4 py-2 text-xs font-bold text-orchid-pink sm:flex">

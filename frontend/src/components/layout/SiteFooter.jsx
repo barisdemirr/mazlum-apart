@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import LocalizedLink from "@/components/ui/LocalizedLink";
 import Icon from "@/components/ui/Icon";
+import Logo from "@/components/ui/Logo";
 import { APPLY_HREF, NAV_ITEMS, STUDENT_LOGIN_HREF } from "./navigation";
 import { BRAND_NAME } from "@/lib/constants";
 import { useSite } from "@/lib/site/SiteProvider";
@@ -34,9 +35,7 @@ export default function SiteFooter() {
                     {/* Marka */}
                     <div className="flex flex-col gap-5 lg:col-span-2">
                         <div className="flex items-center gap-3">
-                            <span className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10 font-display text-xl font-semibold italic text-orchid-petal">
-                                M
-                            </span>
+                            <Logo className="h-10 w-10" />
                             <span className="font-display text-2xl font-bold tracking-tight">
                                 Mazlum<span className="ml-1 italic text-orchid-petal">Apart</span>
                             </span>

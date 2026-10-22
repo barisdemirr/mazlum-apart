@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Icon from "@/components/ui/Icon";
+import Logo from "@/components/ui/Logo";
 import LocalizedLink from "@/components/ui/LocalizedLink";
 import LanguageSwitch from "@/components/layout/LanguageSwitch";
 import LoginForm from "./LoginForm";
@@ -28,9 +29,7 @@ export default function LoginView({ from, expired }) {
 
                 <div className="flex items-center justify-between">
                     <LocalizedLink href="/" className="group flex items-center gap-3">
-                        <span className="flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-white/10 font-display text-xl font-semibold italic text-white backdrop-blur transition-transform duration-300 group-hover:rotate-6">
-                            M
-                        </span>
+                        <Logo className="h-11 w-11" />
                         <span className="font-display text-2xl font-bold leading-none tracking-tight">
                             Mazlum<span className="ml-1 italic text-orchid-petal">Apart</span>
                         </span>
