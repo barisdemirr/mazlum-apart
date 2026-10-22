@@ -14,8 +14,8 @@
  *   <app>-maskable-512.png   manifest, "maskable" (Android'in yuvarlak/squircle maskesi için güvenli alanlı)
  *   <app>-apple-180.png      iOS ana ekran ikonu (şeffaflık olmaz, düz zemin)
  *
- * Kaynak şeffaf arka planlıysa zemin rengi aşağıdaki BACKGROUND ile doldurulur (maskable ve apple için).
- * Kaynak zaten tam kenara taşan renkli bir kareyse görünüm aynen korunur.
+ * Logo küçültülmez (maskable dahil). Zemin rengi (maskable ve apple için, şeffaf yerler bu renkle dolar) kaynak görselin
+ * kenarlarından otomatik alınır; kenarlar şeffafsa aşağıdaki varsayılan renk kullanılır.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -35,6 +35,23 @@ const APPS = {
     student: { background: "#fff6f9" },
     admin: { background: "#f8f9ff" },
 };
+
+/** Görselin kenar piksellerinin ortalama rengi (yalnızca opak olanlar). Bulunamazsa null. */
+async function detectBackground(source) {
+    const size = 64;
+    const { data } = await sharp(source).resize(size, size, { fit: "cover" }).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+            if (x > 1 && x < size - 2 && y > 1 && y < size - 2) continue; // yalnızca kenar şeridi
+            const i = (y * size + x) * 4;
+            if (data[i + 3] < 250) continue;
+            r += data[i]; g += data[i + 1]; b += data[i + 2]; n++;
+        }
+    }
+    if (n < size) return null; // kenarın çoğu şeffaf
+    return { r: Math.round(r / n), g: Math.round(g / n), b: Math.round(b / n), alpha: 1 };
+}
 
 let failed = false;
 
@@ -63,18 +80,16 @@ for (const [app, { background }] of Object.entries(APPS)) {
         await square().resize(size, size).png({ compressionLevel: 9 }).toFile(path.join(dir, `${app}-${size}.png`));
     }
 
-    // "maskable": görsel güvenli alana (orta %80) küçülür, kalan alan düz zemin
-    const inner = Math.round(512 * 0.8);
-    const logo = await square().resize(inner, inner).png().toBuffer();
-    await sharp({ create: { width: 512, height: 512, channels: 4, background } })
-        .composite([{ input: logo, gravity: "centre" }])
-        .png({ compressionLevel: 9 })
-        .toFile(path.join(dir, `${app}-maskable-512.png`));
+    const detected = await detectBackground(source);
+    const bg = detected ?? background;
+
+    // "maskable": küçültme yok, görsel tüm alanı kaplar; şeffaf yerler zemin rengiyle dolar
+    await square().resize(512, 512).flatten({ background: bg }).png({ compressionLevel: 9 }).toFile(path.join(dir, `${app}-maskable-512.png`));
 
     // iOS: şeffaflık yok, tam kare (köşeleri iOS yuvarlar)
-    await square().resize(180, 180).flatten({ background }).png({ compressionLevel: 9 }).toFile(path.join(dir, `${app}-apple-180.png`));
+    await square().resize(180, 180).flatten({ background: bg }).png({ compressionLevel: 9 }).toFile(path.join(dir, `${app}-apple-180.png`));
 
-    console.log(`✓ ${app}: 192, 512, maskable-512, apple-180`);
+    console.log(`✓ ${app}: 192, 512, maskable-512, apple-180 (zemin: ${detected ? `otomatik rgb(${detected.r},${detected.g},${detected.b})` : "varsayılan " + background})`);
 }
 
 process.exit(failed ? 1 : 0);
