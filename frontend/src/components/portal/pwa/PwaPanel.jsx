@@ -85,10 +85,6 @@ export default function PwaPanel() {
                         )}
                         {pushOn && (
                             <>
-                                <button type="button" onClick={push.sendTest} className="flex h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-bold text-orchid-pink shadow-sm hover:bg-orchid-lilac">
-                                    <Icon name="notification_add" className="text-[19px]" />
-                                    {n.test}
-                                </button>
                                 {push.subscribed && (
                                     <button type="button" disabled={push.busy} onClick={push.disable} className="flex h-11 items-center gap-2 rounded-full px-5 text-sm font-semibold text-orchid-muted hover:bg-orchid-powder hover:text-orchid-pink disabled:opacity-60">
                                         {n.disable}
