@@ -7,6 +7,7 @@ import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import useCommand from "@/components/admin/useCommand";
 import DataTable from "@/components/admin/DataTable";
 import { Card, Chips, PageHeader, StatusBadge } from "@/components/admin/ui";
+import { SelectInput } from "@/components/admin/fields";
 import { useAdmin } from "@/components/admin/data/AdminDataProvider";
 import BillSubscriptionsPanel from "@/components/admin/accounting/BillSubscriptionsPanel";
 import { addBill, deleteBill, payBill, updateBill } from "@/lib/admin/commands/finance";
@@ -22,8 +23,11 @@ export default function BillsView({ data, accounts, subscriptions = [] }) {
     const { exec } = useCommand();
     const [dialog, setDialog] = useState(null);
     const [tab, setTab] = useState("bills");
+    const [month, setMonth] = useState(""); // "" = tüm aylar
     const closed = period.status === "closed";
     const rows = [...data.items, ...data.carriedOver];
+    const months = [...new Set(rows.map((b) => b.month))].sort().reverse();
+    const shown = month ? rows.filter((b) => b.month === month) : rows; // tablo ve Excel çıktısı bu liste
     const unpaid = rows.filter((b) => b.status === "unpaid" && !b.awaitingInvoice); // tahmini kayıtlar toplama girmez
     const awaiting = rows.filter((b) => b.status === "unpaid" && b.awaitingInvoice);
     const columns = [
@@ -49,7 +53,8 @@ export default function BillsView({ data, accounts, subscriptions = [] }) {
                 <Card><p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Gecikmiş</p><p className="ad-num mt-2 text-2xl font-extrabold text-ad-danger">{rows.filter((b) => b.state === "overdue").length}</p></Card>
                 <Card><p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Fatura bekleniyor</p><p className="ad-num mt-2 text-2xl font-extrabold">{awaiting.length}</p><p className="text-xs text-ad-muted">tutarı ve vadesi girilecek</p></Card>
             </div>
-            <DataTable columns={columns} rows={rows} rowKey={(b) => b.id} searchText={(b) => `${BILL_KIND[b.kind]} ${b.month} ${b.subscriberNo ?? ""}`} searchPlaceholder="Fatura ara" exportName="faturalar" empty={{ icon: "receipt_long", title: "Fatura yok" }} />
+            <DataTable columns={columns} rows={shown} rowKey={(b) => b.id} searchText={(b) => `${BILL_KIND[b.kind]} ${b.month} ${b.subscriberNo ?? ""}`} searchPlaceholder="Fatura ara" exportName={month ? `faturalar-${month}` : "faturalar"}
+                filters={<div className="w-full sm:w-44"><SelectInput value={month} onChange={(e) => setMonth(e.target.value)}><option value="">Tüm aylar</option>{months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}</SelectInput></div>} empty={{ icon: "receipt_long", title: "Fatura yok" }} />
             {dialog?.type === "add" && <ActionDialog title="Fatura ekle" command={addBill} extra={{ periodId: period.id }} initial={{ month: today.slice(0, 7), dueDate: today }} success="Fatura eklendi." onClose={() => setDialog(null)}
                 fields={[{ name: "kind", label: "Tür", type: "select", options: Object.entries(BILL_KIND), span: 1 }, { name: "month", label: "Ay (YYYY-AA)", type: "text", required: true, span: 1 }, { name: "amount", label: "Tutar", type: "number", required: true, span: 1 }, { name: "dueDate", label: "Son ödeme tarihi", type: "date", span: 1 }, { name: "note", label: "Not", type: "text" }]} />}
             {dialog?.type === "enter" && <ActionDialog title={dialog.item.awaitingInvoice ? "Gelen faturayı gir" : "Faturayı güncelle"} description={`${BILL_KIND[dialog.item.kind]} · ${monthLabel(dialog.item.month, { short: true })}${dialog.item.subscriberNo ? ` · Abone no ${dialog.item.subscriberNo}` : ""}`} command={updateBill} extra={{ id: dialog.item.id }} initial={{ amount: dialog.item.amount, dueDate: dialog.item.dueDate, note: dialog.item.note ?? "" }} success="Fatura güncellendi." onClose={() => setDialog(null)}
