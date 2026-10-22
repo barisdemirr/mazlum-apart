@@ -3,7 +3,6 @@ using System.Text.RegularExpressions;
 using Hangfire;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using MazlumApart.Domain.Entities;
 using MazlumApart.Domain.Enums;
 using MazlumApart.Infrastructure.Database;
@@ -18,16 +17,11 @@ namespace MazlumApart.Features.Accounting;
  * Gerçek fatura gelince yönetici ilgili kaydın tutarını ve son ödeme tarihini günceller (UpdateBill) ve kayıt normal faturaya dönüşür.
  *
  * Üretim üç yerden tetiklenir ve her biri aynı idempotent kodu çalıştırır (aynı ay iki kez üretilmez; veritabanında benzersiz dizin vardır):
- *   1. Günlük arka plan görevi (BillSubscriptions:Cron, varsayılan her gün 06:00 Türkiye saati)
+ *   1. Günlük arka plan görevi (hosting panelindeki zamanlanmış görev çağırır: GET /api/jobs/bill-subscriptions)
  *   2. Abonelik eklendiğinde / güncellendiğinde
  *   3. Faturalar sayfası açıldığında (görev çalışmamış olsa bile liste eksik kalmaz)
  * Elle silinen aylık kayıt yeniden üretilmez. Kapalı döneme ve dönemi olmayan aya kayıt üretilmez.
  */
-public sealed class BillSubscriptionOptions
-{
-    public string Cron { get; set; } = "0 6 * * *";
-}
-
 public sealed class BillSubscriptionGenerator(AppDbContext db, ILogger<BillSubscriptionGenerator> logger)
 {
     private const int MaxBackfillMonths = 36;
@@ -136,29 +130,6 @@ public sealed class BillSubscriptionJob(BillSubscriptionGenerator generator, ILo
         var created = await generator.EnsureAsync(ct);
         if (created > 0) logger.LogInformation("Abonelik faturası kaydı üretildi: {Count}", created);
     }
-}
-
-public sealed class BillSubscriptionScheduler(IRecurringJobManager jobs, IOptions<BillSubscriptionOptions> options, ILogger<BillSubscriptionScheduler> logger) : IHostedService
-{
-    // Türkiye kalıcı UTC+3: sunucu işletim sisteminden bağımsız
-    private static readonly TimeZoneInfo Turkey = TimeZoneInfo.CreateCustomTimeZone("TR", TimeSpan.FromHours(3), "Türkiye", "Türkiye");
-
-    public Task StartAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            jobs.AddOrUpdate<BillSubscriptionJob>(BillSubscriptionJob.JobId, job => job.RunAsync(CancellationToken.None), options.Value.Cron,
-                new RecurringJobOptions { TimeZone = Turkey });
-        }
-        catch (Exception ex)
-        {
-            // Hangfire veritabanına ulaşılamaz ya da cron geçersiz: uygulama yine de açılır (sayfa açılışında üretim yine çalışır)
-            logger.LogError(ex, "Fatura abonelik görevi kaydedilemedi.");
-        }
-        return Task.CompletedTask;
-    }
-
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
 /// <summary>

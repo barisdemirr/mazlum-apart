@@ -47,16 +47,14 @@ public class SmsOptions
 }
 
 /// <summary>
-/// appsettings "PaymentReminders" bölümü: geciken ödemeler için günlük otomatik SMS (Hangfire tekrarlayan görevi).
+/// appsettings "PaymentReminders" bölümü: geciken ödemeler için günlük otomatik SMS.
+/// Çalışma saati uygulamada DEĞİL, hosting panelindeki zamanlanmış görevde belirlenir (GET /api/jobs/payment-reminders).
 /// Enabled=true olsa bile SMS servisi (Sms:Enabled) kapalıysa hiçbir şey gönderilmez.
 /// Şablon değişkenleri: {ad} {tutar} (geciken toplam) {vade} (en eski geciken kalemin vadesi) {kalem}
 /// </summary>
 public class ReminderOptions
 {
     public bool Enabled { get; set; }
-
-    /// <summary>Çalışma zamanı (cron, Türkiye saati). Varsayılan: her gün 10:00</summary>
-    public string Cron { get; set; } = "0 10 * * *";
 
     /// <summary>Aynı öğrenciye iki otomatik SMS arasındaki en az gün: 3 = bugün gönderildiyse sonraki 2 gün beklenir, 4. gün tekrar gönderilir</summary>
     public int IntervalDays { get; set; } = 3;

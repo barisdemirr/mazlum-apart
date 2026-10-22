@@ -130,8 +130,11 @@ builder.Services
     .RemoveAllLoggers(); // API şifresi Authorization başlığında gider: istek ayrıntıları ASLA günlüğe yazılmaz
 builder.Services.AddSingleton<MazlumApart.Features.Messaging.SmsGate>();
 
-// ---- Arka plan görevleri (Hangfire, SQL Server): günlük otomatik ödeme hatırlatma SMS'i ----
+// ---- Arka plan görevleri (Hangfire, SQL Server): günlük otomatik ödeme hatırlatma SMS'i + fatura abonelikleri ----
 // Hangfire kendi tablolarını [HangFire] şemasında ilk açılışta oluşturur. Panel (dashboard) bilinçli olarak AÇILMADI.
+// Paylaşımlı IIS'te uygulama havuzu boşta ~5 dk sonra durur: uygulama içi cron (RecurringJob) zamanında ÇALIŞMAZ.
+// Bu yüzden görevler dışarıdan tetiklenir (Plesk > Zamanlanmış Görevler > URL getir): GET /api/jobs/{ad}?key=... (Features/Jobs).
+// İstek havuzu uyandırır, görevi Hangfire kuyruğuna atar; Hangfire işler (yeniden deneme + eşzamanlı çalışma kilidi korunur).
 builder.Services.Configure<ReminderOptions>(builder.Configuration.GetSection("PaymentReminders"));
 builder.Services.AddHangfire(config => config
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
@@ -145,15 +148,17 @@ builder.Services.AddHangfire(config => config
         UseRecommendedIsolationLevel = true,
         DisableGlobalLocks = true
     }));
+// Dış tetikleyici anahtarı ("Jobs:TriggerKey") + eski uygulama içi cron kayıtlarının Hangfire veritabanından silinmesi.
+// Temizlik Hangfire sunucusundan ÖNCE kaydedilir: hosted service'ler sırayla başlar, eski kayıt bir kez daha tetiklenmeden silinir.
+builder.Services.Configure<MazlumApart.Features.Jobs.JobTriggerOptions>(builder.Configuration.GetSection("Jobs"));
+builder.Services.AddHostedService<MazlumApart.Features.Jobs.RecurringJobCleanup>();
 builder.Services.AddHangfireServer(options => options.WorkerCount = 1);
 builder.Services.AddScoped<MazlumApart.Features.Messaging.PaymentReminderJob>();
-builder.Services.AddHostedService<MazlumApart.Features.Messaging.PaymentReminderScheduler>();
 
 // Fatura abonelikleri: her ay için "fatura bekleniyor" kaydı (günlük görev; faturalar sayfası da eksikleri tamamlar)
-builder.Services.Configure<MazlumApart.Features.Accounting.BillSubscriptionOptions>(builder.Configuration.GetSection("BillSubscriptions"));
 builder.Services.AddScoped<MazlumApart.Features.Accounting.BillSubscriptionGenerator>();
 builder.Services.AddScoped<MazlumApart.Features.Accounting.BillSubscriptionJob>();
-builder.Services.AddHostedService<MazlumApart.Features.Accounting.BillSubscriptionScheduler>();
+
 builder.Services.AddSingleton<WebPushSender>();
 builder.Services.AddScoped<PushDispatcher>();
 builder.Services.AddSingleton<AdminAlerts>();

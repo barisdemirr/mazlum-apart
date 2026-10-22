@@ -12,7 +12,7 @@ using MazlumApart.Shared;
 namespace MazlumApart.Features.Messaging;
 
 /*
- * OTOMATİK ÖDEME HATIRLATMA SMS'i (Hangfire tekrarlayan görevi). Koruma katmanları:
+ * OTOMATİK ÖDEME HATIRLATMA SMS'i (Hangfire görevi; günde bir kez DIŞARIDAN tetiklenir: Features/Jobs/JobTriggers.cs). Koruma katmanları:
  *  1. Kapalı gelir: PaymentReminders:Enabled=false. Ayrıca Sms:Enabled kapalıysa hiçbir şey yapılmaz (simüle kayıt da yazılmaz).
  *  2. Gecikme kuralı ReminderMath'te: kısmi ödenen kira, ödenen oran kadar süre "karşılanmış" sayılır.
  *  3. Aynı öğrenciye en az PaymentReminders:IntervalDays gün arayla (varsayılan 3: gönder, 2 gün bekle, tekrar gönder).
@@ -230,38 +230,6 @@ public sealed class PaymentReminderJob(
         else
             logger.LogInformation("Ödeme hatırlatması gönderildi: {Count} kişi, {Parts} boy.", rows.Count, batch.TotalParts);
     }
-}
-
-/// <summary>Uygulama açılırken tekrarlayan görevi kaydeder (kapalıysa kaldırır). Cron / saat değişikliği yeniden başlatmayla geçerli olur.</summary>
-public sealed class PaymentReminderScheduler(IRecurringJobManager jobs, IOptions<ReminderOptions> options, ILogger<PaymentReminderScheduler> logger) : IHostedService
-{
-    // Türkiye kalıcı UTC+3: sunucu işletim sisteminden bağımsız
-    private static readonly TimeZoneInfo Turkey = TimeZoneInfo.CreateCustomTimeZone("TR", TimeSpan.FromHours(3), "Türkiye", "Türkiye");
-
-    public Task StartAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            var o = options.Value;
-            if (!o.Enabled)
-            {
-                jobs.RemoveIfExists(PaymentReminderJob.JobId);
-                return Task.CompletedTask;
-            }
-
-            jobs.AddOrUpdate<PaymentReminderJob>(PaymentReminderJob.JobId, job => job.RunAsync(CancellationToken.None), o.Cron,
-                new RecurringJobOptions { TimeZone = Turkey });
-            logger.LogInformation("Ödeme hatırlatma görevi kaydedildi: {Cron} (Türkiye saati)", o.Cron);
-        }
-        catch (Exception ex)
-        {
-            // Hangfire veritabanına ulaşılamaz ya da cron geçersiz: uygulama yine de açılır
-            logger.LogError(ex, "Ödeme hatırlatma görevi kaydedilemedi.");
-        }
-        return Task.CompletedTask;
-    }
-
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
 
 /// <summary>Yönetici paneli: otomatik gönderilen SMS kayıtları (en yeni önce; sıralama ve arama arayüzde)</summary>

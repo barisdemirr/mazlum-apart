@@ -462,3 +462,19 @@ Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 { "status": "in_progress", "adminNote": "Tesisatçı yarın gelecek." }
+
+### Günlük görevler: dış tetikleyici (Plesk zamanlanmış görevi bunu çağırır). key = appsettings "Jobs:TriggerKey"
+@jobKey = 0a302dd8ff2c9f93de07428eb6d69e0c1360a265ebb8f015b9d38638ab263f22
+
+### Ödeme hatırlatma SMS'i -> 202 { job, jobId }
+GET {{api}}/api/jobs/payment-reminders?key={{jobKey}}
+
+### Fatura abonelikleri (başlıkla da olur) -> 202
+POST {{api}}/api/jobs/bill-subscriptions
+X-Job-Key: {{jobKey}}
+
+### Yanlış anahtar -> 401
+GET {{api}}/api/jobs/payment-reminders?key=yanlis
+
+### Bilinmeyen görev -> 404
+GET {{api}}/api/jobs/olmayan-gorev?key={{jobKey}}
