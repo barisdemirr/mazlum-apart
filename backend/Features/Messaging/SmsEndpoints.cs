@@ -228,6 +228,18 @@ public static class SendSms
                     }
                 }
 
+                // 4) Ön başvurular: SMS giden (ya da gitmiş olabilecek) kişiler "bilgilendirildi" olur
+                var preIds = c.Messages.Where(m => m.Recipient.PreRegistrationId is not null).Select(m => m.Recipient.PreRegistrationId!.Value).ToList();
+                if (preIds.Count > 0 && batch.Status is SmsBatchStatus.Sent or SmsBatchStatus.Simulated or SmsBatchStatus.Unknown)
+                {
+                    var contacted = await db.PreRegistrations.Where(x => preIds.Contains(x.Id)).ToListAsync(CancellationToken.None);
+                    foreach (var pre in contacted)
+                    {
+                        pre.ContactedAt = DateTime.UtcNow;
+                        if (pre.Status == PreRegistrationStatus.New) pre.Status = PreRegistrationStatus.Contacted;
+                    }
+                }
+
                 audit.Add("sms.send", "sms", batch.Id, rows.FirstOrDefault()?.PeriodId,
                     after: new { purpose = c.Purpose, recipients = rows.Count, skipped = c.Skipped.Count, parts = c.TotalParts, status = batch.Status, error = batch.ProviderError });
                 await db.SaveChangesAsync(CancellationToken.None);

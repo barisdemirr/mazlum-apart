@@ -21,19 +21,19 @@ public static class MessagePurposes
 }
 
 /// <summary>
-/// Alıcı: kayıtlı bir öğrenci (enrollmentId) ya da başvuru sahibi (applicationId). Telefon numarası İSTEMCİDEN ALINMAZ;
-/// her zaman veritabanındaki kayıttan okunur (panelden rastgele numaraya mesaj atılamaz).
+/// Alıcı: kayıtlı bir öğrenci (enrollmentId), başvuru sahibi (applicationId) ya da ön başvuru (preRegistrationId; yalnızca SMS).
+/// Telefon numarası İSTEMCİDEN ALINMAZ; her zaman veritabanındaki kayıttan okunur (panelden rastgele numaraya mesaj atılamaz).
 /// chargeId: {tutar}/{vade}/{kalem} hangi borç kalemine göre dolsun (verilmezse toplam kalan).
 /// vars: yalnızca sunucunun bilemeyeceği değişkenler — sifre, konu, durum.
 /// </summary>
-public record RecipientInput(Guid? EnrollmentId, Guid? ApplicationId, Guid? ChargeId, Dictionary<string, string>? Vars);
+public record RecipientInput(Guid? EnrollmentId, Guid? ApplicationId, Guid? ChargeId, Dictionary<string, string>? Vars, Guid? PreRegistrationId = null);
 
 public record SkippedRecipient(Guid? EnrollmentId, Guid? ApplicationId, string Name, string Reason);
 
 /// <summary>Çözümlenmiş alıcı: kim, hangi numara, şablon değişkenleri (tr/en için ayrı kalem adı)</summary>
 public sealed record ResolvedRecipient(
     Guid? EnrollmentId, Guid? ApplicationId, Guid? StudentId, Guid? PeriodId, string Name, string Phone,
-    Dictionary<string, string> VarsTr, Dictionary<string, string> VarsEn, HashSet<string> SecretKeys);
+    Dictionary<string, string> VarsTr, Dictionary<string, string> VarsEn, HashSet<string> SecretKeys, Guid? PreRegistrationId = null);
 
 /// <summary>
 /// Mesaj alıcılarını çözer ve şablon değişkenlerini SUNUCUDA doldurur (frontend messaging.js messageVars ile aynı anlam):
@@ -99,7 +99,16 @@ public partial class MessageAudienceHandler(AppDbContext db, EnrollmentQueryHand
         var applications = applicationIds.Count == 0 || !allowApplications
             ? new List<Application>()
             : await db.Applications.AsNoTracking().Where(x => applicationIds.Contains(x.Id)).ToListAsync(ct);
-        var typeIds = applications.Select(a => a.RoomTypeId).Distinct().ToList();
+        // Ön başvurular yalnızca SMS'te (allowApplications) alıcı olabilir
+        var preIds = inputs.Where(i => i.EnrollmentId is null && i.ApplicationId is null && i.PreRegistrationId is not null)
+            .Select(i => i.PreRegistrationId!.Value).Distinct().ToList();
+        var preRegistrations = preIds.Count == 0 || !allowApplications
+            ? new List<PreRegistration>()
+            : await db.PreRegistrations.AsNoTracking().Where(x => preIds.Contains(x.Id)).ToListAsync(ct);
+
+        var typeIds = applications.Select(a => a.RoomTypeId)
+            .Concat(preRegistrations.Where(p => p.RoomTypeId != null).Select(p => p.RoomTypeId!.Value))
+            .Distinct().ToList();
         var typeNames = typeIds.Count == 0
             ? new Dictionary<Guid, LocalizedText>()
             : (await db.RoomTypes.AsNoTracking().IgnoreQueryFilters().Where(x => typeIds.Contains(x.Id)).ToListAsync(ct)).ToDictionary(x => x.Id, x => x.Name);
@@ -180,6 +189,33 @@ public partial class MessageAudienceHandler(AppDbContext db, EnrollmentQueryHand
 
                 found.Add(new ResolvedRecipient(null, applicationId, null, app.PeriodId, app.FullName, app.Phone,
                     Vars(false), Vars(true), [.. extra.Keys.Where(SecretVars.Contains)]));
+                continue;
+            }
+
+            if (input.PreRegistrationId is { } preId)
+            {
+                var pre = preRegistrations.FirstOrDefault(p => p.Id == preId);
+                if (pre is null)
+                {
+                    skipped.Add(new SkippedRecipient(null, null, "", allowApplications ? "Ön başvuru bulunamadı" : "Bu kanal yalnızca kayıtlı öğrencilere gönderilir"));
+                    continue;
+                }
+
+                Dictionary<string, string> Vars(bool english)
+                {
+                    var type = pre.RoomTypeId is { } typeId ? typeNames.GetValueOrDefault(typeId) : null;
+                    var vars = new Dictionary<string, string>
+                    {
+                        ["ad"] = pre.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? pre.FullName,
+                        ["telefon"] = pre.Phone,
+                        ["oda"] = (english ? type?.En : type?.Tr) is { Length: > 0 } t ? t : (english ? "our rooms" : "odalarımız")
+                    };
+                    foreach (var (k, v) in extra) vars[k] = v;
+                    return vars;
+                }
+
+                found.Add(new ResolvedRecipient(null, null, null, null, pre.FullName, pre.Phone,
+                    Vars(false), Vars(true), [.. extra.Keys.Where(SecretVars.Contains)], preId));
                 continue;
             }
 

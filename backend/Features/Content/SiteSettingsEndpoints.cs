@@ -14,10 +14,13 @@ public record SiteSettingsDto(
 
 public record VideoRef(string Url, string? Poster);
 
+/// <summary>Sitedeki ön başvuru alanı: açık mı, yeni fiyatların açıklanacağı tarih (boşsa "yakında")</summary>
+public record PublicPreRegistration(bool Enabled, DateOnly? AnnounceDate);
+
 /// <summary>Herkese açık ayarlar: boş alanlar null döner ve sitede gösterilmez. IBAN burada YOK (yalnızca öğrenci portalında).</summary>
 public record PublicSiteSettingsDto(
     string? Phone, string? Whatsapp, string? Email, LocalizedText? Address, string? MapUrl, string? Instagram,
-    VideoRef? HeroVideo, string? MapImage);
+    VideoRef? HeroVideo, string? MapImage, PublicPreRegistration PreRegistration);
 
 public static class SiteSettingsStore
 {
@@ -55,7 +58,8 @@ public static class GetPublicSiteSettings
                 var map = s.MapMediaId is { } m && media.TryGetValue(m, out var image) ? image.FilePath : null;
 
                 return Results.Ok(new PublicSiteSettingsDto(
-                    Blank(s.Phone), Blank(s.Whatsapp), Blank(s.Email), s.Address.OrNull(), Blank(s.MapUrl), Blank(s.Instagram), hero, map));
+                    Blank(s.Phone), Blank(s.Whatsapp), Blank(s.Email), s.Address.OrNull(), Blank(s.MapUrl), Blank(s.Instagram), hero, map,
+                    new PublicPreRegistration(s.PreRegistrationEnabled, s.PriceAnnounceDate)));
             }).AllowAnonymous();
 
         private static string? Blank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;

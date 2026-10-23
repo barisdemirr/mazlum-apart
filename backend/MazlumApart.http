@@ -478,3 +478,39 @@ GET {{api}}/api/jobs/payment-reminders?key=yanlis
 
 ### Bilinmeyen görev -> 404
 GET {{api}}/api/jobs/olmayan-gorev?key={{jobKey}}
+
+### Ön başvuru ayarı: sitedeki alanı aç + fiyat açıklama tarihi
+PUT {{api}}/api/admin/pre-registrations/settings
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "enabled": true, "announceDate": "2027-05-15" }
+
+### Herkese açık site ayarları: preRegistration { enabled, announceDate } görünmeli
+GET {{api}}/api/site-settings
+
+### Siteden ön başvuru -> 200 { already: false } (aynısı tekrar gönderilirse already: true)
+POST {{api}}/api/pre-registrations
+Content-Type: application/json
+
+{ "fullName": "Deneme Öğrenci", "phone": "5551234567", "roomSlug": "tek-kisilik", "note": "Haziran'da gelmek istiyorum", "lang": "tr", "kvkk": true }
+
+### Yönetici: ön başvurular
+# @name preRegistrations
+GET {{api}}/api/admin/pre-registrations
+Authorization: Bearer {{adminToken}}
+
+### Yönetici: durum + not (status: new | contacted | registered | cancelled)
+PUT {{api}}/api/admin/pre-registrations/{{preRegistrations.response.body[0].id}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "status": "contacted", "adminNote": "Aradım, haziranda tekrar aranacak." }
+
+### Yönetici: ön başvurulara SMS önizleme (göndermez)
+POST {{api}}/api/admin/sms/preview
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "purpose": "announcement", "text": "Merhaba {ad}, yeni dönem fiyatları açıklandı. {oda} için başvurabilirsin.", "lang": "tr", "recipients": [{ "preRegistrationId": "{{preRegistrations.response.body[0].id}}" }] }
+

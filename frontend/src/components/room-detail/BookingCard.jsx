@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import LocalizedLink from "@/components/ui/LocalizedLink";
 import Icon from "@/components/ui/Icon";
@@ -8,6 +9,8 @@ import { useSite } from "@/lib/site/SiteProvider";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { localized } from "@/lib/i18n/localized";
 import { formatPrice } from "@/lib/format";
+import { preRegistrationTitle } from "@/services/preRegistrations";
+import PreRegistrationModal from "./PreRegistrationModal";
 
 /** Başvuru bağlantısı: oda tipi ve (seçildiyse) yatak formda otomatik seçili gelir */
 export function buildApplyHref(slug, bed) {
@@ -38,12 +41,19 @@ function Row({ label, children }) {
     );
 }
 
-/** Sağdaki yapışkan (sticky) başvuru kartı + mobil alt çubuk */
+/**
+ * Sağdaki yapışkan (sticky) başvuru kartı + mobil alt çubuk.
+ * Oda tipi doluysa ve panelden ön başvuru açıksa: "yeni dönem fiyatları … açıklanacak" kutusu ve ön başvuru düğmesi öne çıkar.
+ */
 export default function BookingCard({ room, summary, selectedBed, onClear }) {
     const { t, tpl, locale } = useLanguage();
     const site = useSite();
     const b = t.roomDetail.booking;
+    const p = t.roomDetail.preRegistration;
     const hasFree = summary.free > 0;
+    const preMode = !hasFree && site.preRegistration.enabled;
+    const preTitle = preRegistrationTitle(site.preRegistration.announceDate, p, tpl, locale);
+    const [preOpen, setPreOpen] = useState(false);
     const applyHref = buildApplyHref(room.slug, selectedBed);
     const ask = whatsappFor(site, t, tpl, locale, room, selectedBed);
     const price = formatPrice(room.monthlyPrice, room.currency, locale);
@@ -83,60 +93,90 @@ export default function BookingCard({ room, summary, selectedBed, onClear }) {
                     </Row>
                 </div>
 
-                {/* Seçilen yatak */}
-                <div className="rounded-2xl bg-orchid-white/70 p-4">
-                    <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-orchid-muted">{b.selected}</span>
-                    <AnimatePresence mode="wait" initial={false}>
-                        {selectedBed ? (
-                            <motion.div
-                                key={selectedBed.id}
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -8 }}
-                                transition={{ duration: 0.2 }}
-                                className="flex items-center justify-between gap-3"
-                            >
-                                <span className="flex items-center gap-2 text-sm font-semibold text-orchid-dark">
-                                    <Icon name="bed" filled className="text-[20px] text-orchid-pink" />
-                                    {localized(selectedBed.flatName, locale)} · {localized(selectedBed.roomName, locale)} · {localized(selectedBed.bedLabel, locale)}
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={onClear}
-                                    aria-label={b.clear}
-                                    title={b.clear}
-                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orchid-powder text-orchid-pink transition-colors hover:bg-orchid-pink hover:text-white"
+                {/* Seçilen yatak (ön başvuru modunda yatak seçilemez, gizlenir) */}
+                {!preMode && (
+                    <div className="rounded-2xl bg-orchid-white/70 p-4">
+                        <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-orchid-muted">{b.selected}</span>
+                        <AnimatePresence mode="wait" initial={false}>
+                            {selectedBed ? (
+                                <motion.div
+                                    key={selectedBed.id}
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -8 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="flex items-center justify-between gap-3"
                                 >
-                                    <Icon name="close" className="text-[16px]" />
-                                </button>
-                            </motion.div>
-                        ) : (
-                            <motion.span
-                                key="any"
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -8 }}
-                                transition={{ duration: 0.2 }}
-                                className="flex items-center gap-2 text-sm font-semibold text-orchid-dark"
-                            >
-                                <Icon name="shuffle" className="text-[20px] text-orchid-pink" />
-                                {b.anyBed}
-                            </motion.span>
-                        )}
-                    </AnimatePresence>
-                </div>
+                                    <span className="flex items-center gap-2 text-sm font-semibold text-orchid-dark">
+                                        <Icon name="bed" filled className="text-[20px] text-orchid-pink" />
+                                        {localized(selectedBed.flatName, locale)} · {localized(selectedBed.roomName, locale)} · {localized(selectedBed.bedLabel, locale)}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={onClear}
+                                        aria-label={b.clear}
+                                        title={b.clear}
+                                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orchid-powder text-orchid-pink transition-colors hover:bg-orchid-pink hover:text-white"
+                                    >
+                                        <Icon name="close" className="text-[16px]" />
+                                    </button>
+                                </motion.div>
+                            ) : (
+                                <motion.span
+                                    key="any"
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -8 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="flex items-center gap-2 text-sm font-semibold text-orchid-dark"
+                                >
+                                    <Icon name="shuffle" className="text-[20px] text-orchid-pink" />
+                                    {b.anyBed}
+                                </motion.span>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                )}
 
-                {!hasFree && <p className="text-xs leading-relaxed text-orchid-muted">{b.noVacancyHint}</p>}
+                {preMode ? (
+                    <div className="relative overflow-hidden rounded-3xl border border-orchid-petal/40 bg-gradient-to-br from-orchid-powder via-orchid-lilac/70 to-white p-5">
+                        <span aria-hidden="true" className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-orchid-pink/10 blur-2xl" />
+                        <div className="relative flex items-start gap-3">
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-orchid-pink shadow-sm">
+                                <Icon name="campaign" filled className="text-[21px]" />
+                            </span>
+                            <div className="min-w-0">
+                                <p className="font-display text-lg font-semibold leading-snug text-orchid-dark">{preTitle}</p>
+                                <p className="mt-1 text-xs leading-relaxed text-orchid-muted">{p.cardText}</p>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    !hasFree && <p className="text-xs leading-relaxed text-orchid-muted">{b.noVacancyHint}</p>
+                )}
 
                 <div className="flex flex-col gap-3">
-                    <LocalizedLink
-                        href={applyHref}
-                        data-cursor={b.applyShort}
-                        className="aurora-btn flex w-full items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-bold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                    >
-                        <span>{applyLabel}</span>
-                        <Icon name="arrow_forward" className="text-[18px]" />
-                    </LocalizedLink>
+                    {preMode && (
+                        <button
+                            type="button"
+                            onClick={() => setPreOpen(true)}
+                            data-cursor={p.ctaShort}
+                            className="aurora-btn flex w-full items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-bold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                            <Icon name="notifications_active" className="text-[18px]" />
+                            <span>{p.cta}</span>
+                        </button>
+                    )}
+                    {!preMode && (
+                        <LocalizedLink
+                            href={applyHref}
+                            data-cursor={b.applyShort}
+                            className="aurora-btn flex w-full items-center justify-center gap-2 rounded-full px-6 py-4 text-sm font-bold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                            <span>{applyLabel}</span>
+                            <Icon name="arrow_forward" className="text-[18px]" />
+                        </LocalizedLink>
+                    )}
                     {ask && (
                         <a
                             href={ask}
@@ -147,6 +187,11 @@ export default function BookingCard({ room, summary, selectedBed, onClear }) {
                             <Icon name="chat" filled className="text-[18px] text-[#25d366]" />
                             <span>{b.ask}</span>
                         </a>
+                    )}
+                    {preMode && (
+                        <LocalizedLink href={applyHref} className="self-center px-2 py-1 text-xs font-semibold text-orchid-muted underline-offset-4 transition-colors hover:text-orchid-pink hover:underline">
+                            {p.applyAnyway}
+                        </LocalizedLink>
                     )}
                 </div>
             </aside>
@@ -161,10 +206,18 @@ export default function BookingCard({ room, summary, selectedBed, onClear }) {
                         {hasFree ? `${b.vacancy}: ${summary.free}` : b.noVacancy}
                     </span>
                 </div>
-                <LocalizedLink href={applyHref} className="aurora-btn rounded-full px-6 py-3 text-sm font-bold text-white">
-                    {b.applyShort}
-                </LocalizedLink>
+                {preMode ? (
+                    <button type="button" onClick={() => setPreOpen(true)} className="aurora-btn shrink-0 rounded-full px-5 py-3 text-sm font-bold text-white">
+                        {p.ctaShort}
+                    </button>
+                ) : (
+                    <LocalizedLink href={applyHref} className="aurora-btn rounded-full px-6 py-3 text-sm font-bold text-white">
+                        {b.applyShort}
+                    </LocalizedLink>
+                )}
             </div>
+
+            <PreRegistrationModal open={preOpen} onClose={() => setPreOpen(false)} room={room} title={preTitle} />
         </>
     );
 }

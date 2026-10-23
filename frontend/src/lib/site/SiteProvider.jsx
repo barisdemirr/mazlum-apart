@@ -34,6 +34,8 @@ export function SiteProvider({ settings, children }) {
             address: localized(s.address, locale) || "",
             mapUrl: s.mapUrl ?? "",
             instagram: instagramUrl(s.instagram),
+            /** Dolu odalardaki ön başvuru alanı (panel > Ön Başvurular'dan açılır) */
+            preRegistration: { enabled: Boolean(s.preRegistration?.enabled), announceDate: s.preRegistration?.announceDate ?? null },
             /** WhatsApp bağlantısı; numara yoksa null döner */
             waHref: (message) => {
                 if (!whatsapp) return null;

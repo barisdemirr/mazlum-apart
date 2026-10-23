@@ -18,3 +18,9 @@ public enum PayWindow { Early, Mid }
 
 /// <summary>Kayıt süresi: tam dönem; yarım dönem açıksa 1. ya da 2. yarı</summary>
 public enum StayTerm { Full, First, Second }
+
+/// <summary>
+/// Ön başvuru durumu (frontend lib/admin/labels.js PRE_REGISTRATION_STATUS):
+///   new = yeni · contacted = bilgilendirildi (arandı / SMS gitti) · registered = kayıt oldu · cancelled = vazgeçti
+/// </summary>
+public enum PreRegistrationStatus { New, Contacted, Registered, Cancelled }

@@ -150,10 +150,10 @@ public static class GetDashboard
     }
 }
 
-/// <summary>Menü sayaçları (kenar çubuğu rozetleri): bekleyen başvuru, açık arıza, vadesi geçmiş/yaklaşan fatura</summary>
+/// <summary>Menü sayaçları (kenar çubuğu rozetleri): bekleyen başvuru, açık arıza, vadesi geçmiş/yaklaşan fatura, yeni ön başvuru</summary>
 public static class GetBadges
 {
-    public record Response(int NewApplications, int OpenMaintenance, int DueBills);
+    public record Response(int NewApplications, int OpenMaintenance, int DueBills, int NewPreRegistrations);
 
     public class Endpoint : IEndpoint
     {
@@ -165,7 +165,8 @@ public static class GetBadges
                 var maintenance = await db.MaintenanceRequests.CountAsync(x => x.PeriodId == periodId && x.Status != MaintenanceStatus.Done, ct);
                 var soonLimit = today.AddDays(BillRules.SoonDays);
                 var bills = await db.Bills.CountAsync(x => x.PeriodId == periodId && x.Status == BillStatus.Unpaid && !x.AwaitingInvoice && x.DueDate <= soonLimit, ct);
-                return Results.Ok(new Response(applications, maintenance, bills));
+                var preRegistrations = await db.PreRegistrations.CountAsync(x => x.Status == PreRegistrationStatus.New, ct); // dönemden bağımsız
+                return Results.Ok(new Response(applications, maintenance, bills, preRegistrations));
             });
     }
 }

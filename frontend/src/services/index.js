@@ -4,3 +4,4 @@ export * from "./homepage";
 export * from "./siteSettings";
 export * from "./applications";
 export * from "./pages";
+export * from "./preRegistrations";

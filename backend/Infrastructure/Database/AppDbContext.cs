@@ -30,6 +30,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     // ---- Kayıt & muhasebe defteri (aşama 4) ----
     public DbSet<Application> Applications => Set<Application>();
+    public DbSet<PreRegistration> PreRegistrations => Set<PreRegistration>();
     public DbSet<Enrollment> Enrollments => Set<Enrollment>();
     public DbSet<Placement> Placements => Set<Placement>();
     public DbSet<Charge> Charges => Set<Charge>();

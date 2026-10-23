@@ -34,6 +34,6 @@ export const todayInTurkey = () => turkeyDate(new Date().toISOString());
 export const getAdminContext = cache(async () => {
     const [periods, selectedId] = await Promise.all([adminGet("/periods"), readSelectedPeriodId()]);
     const period = pickPeriod(periods, selectedId);
-    const badges = period ? await adminGet("/badges", { periodId: period.id }) : { newApplications: 0, openMaintenance: 0, dueBills: 0 };
+    const badges = period ? await adminGet("/badges", { periodId: period.id }) : { newApplications: 0, openMaintenance: 0, dueBills: 0, newPreRegistrations: 0 };
     return { periods, period, badges, today: todayInTurkey() };
 });

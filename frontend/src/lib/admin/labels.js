@@ -29,6 +29,14 @@ export const SMS_MESSAGE_STATUS = {
     unknown: { label: "Belirsiz", tone: "warn" },
 };
 
+/** Ön başvuru durumu (backend PreRegistrationStatus) */
+export const PRE_REGISTRATION_STATUS = {
+    new: { label: "Yeni", tone: "brand" },
+    contacted: { label: "Bilgilendirildi", tone: "accent" },
+    registered: { label: "Kayıt oldu", tone: "ok" },
+    cancelled: { label: "Vazgeçti", tone: "neutral" },
+};
+
 export const APPLICATION_STATUS = {
     pending: { label: "Başvuru", tone: "brand" },
     approved: { label: "Onaylandı", tone: "ok" },

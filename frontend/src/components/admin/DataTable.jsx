@@ -12,7 +12,8 @@ const PAGE_SIZE = 15;
  *
  * columns: [{
  *   key, header, render?(row), align?: "end", sort?(row) -> değer, className?,
- *   export?: { type: "text"|"number"|"money"|"date", value(row) }   // Excel sütunu; yoksa dışa aktarılmaz
+ *   export?: { type: "text"|"number"|"money"|"date", value(row) },  // Excel sütunu; yoksa dışa aktarılmaz
+ *   hidden?: true                                                     // tabloda görünmez, yalnızca Excel'e yazılır
  * }]
  * searchText(row) verilirse arama kutusu çıkar. `filters` arama kutusunun yanına konur.
  * Dışa aktarma, ekrandaki FİLTRELENMİŞ satırları (tüm sayfalar) indirir.
@@ -57,6 +58,7 @@ export default function DataTable({
         });
     }, [filtered, sort, columns]);
 
+    const visibleColumns = columns.filter((c) => !c.hidden);
     const pages = Math.max(1, Math.ceil(sorted.length / pageSize));
     const current = Math.min(page, pages - 1);
     const visible = sorted.slice(current * pageSize, current * pageSize + pageSize);
@@ -96,7 +98,7 @@ export default function DataTable({
                     <table className="ad-table">
                         <thead>
                             <tr>
-                                {columns.map((col) => (
+                                {visibleColumns.map((col) => (
                                     <th key={col.key} className={col.align === "end" ? "!text-end" : ""} aria-sort={sort?.key === col.key ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}>
                                         {col.sort ? (
                                             <button type="button" onClick={() => toggleSort(col)} className="inline-flex items-center gap-1 uppercase tracking-[0.06em] hover:text-ad-ink">
@@ -117,7 +119,7 @@ export default function DataTable({
                                     data-click={onRowClick ? "1" : undefined}
                                     onClick={onRowClick ? () => onRowClick(row) : undefined}
                                 >
-                                    {columns.map((col) => (
+                                    {visibleColumns.map((col) => (
                                         <td key={col.key} className={`${col.align === "end" ? "text-end" : ""} ${col.className ?? ""}`}>
                                             {col.render ? col.render(row) : (row[col.key] ?? "")}
                                         </td>

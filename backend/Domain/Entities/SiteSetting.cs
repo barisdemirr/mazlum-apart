@@ -19,4 +19,11 @@ public class SiteSetting : BaseEntity
     /// <summary>Anasayfa tanıtım videosu (isteğe bağlı) ve konum görseli</summary>
     public Guid? HeroVideoMediaId { get; set; }
     public Guid? MapMediaId { get; set; }
+
+    /// <summary>
+    /// Ön başvuru: açıkken dolu oda ilanlarında "yeni dönem fiyatları {tarih} tarihinde açıklanacak, ön başvuru yap" alanı görünür.
+    /// Tarih boşsa ya da geçmişse "yakında açıklanacak" yazar.
+    /// </summary>
+    public bool PreRegistrationEnabled { get; set; }
+    public DateOnly? PriceAnnounceDate { get; set; }
 }
