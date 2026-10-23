@@ -66,7 +66,7 @@ export default function SiteHeader() {
                 <div className="glass-nav pointer-events-auto mx-auto flex h-16 max-w-[1180px] items-center justify-between rounded-full px-3 sm:h-20 sm:px-6">
                     {/* Marka */}
                     <LocalizedLink href="/" data-cursor="Mazlum" className="group flex items-center gap-3" onClick={closeMenu}>
-                        <Logo className="h-10 w-10 transition-transform duration-300 group-hover:scale-105 sm:h-11 sm:w-11" />
+                        <Logo className="h-10 w-10 rounded-full transition-transform duration-300 group-hover:scale-105 sm:h-11 sm:w-11" />
                         <span className="flex flex-col">
                             <span className="font-display text-xl font-bold leading-none tracking-tight text-orchid-dark sm:text-2xl">
                                 Mazlum<span className="ml-1 italic text-orchid-pink">Apart</span>
