@@ -12,6 +12,10 @@ public class UploadOptions
     /// <summary>Video süresi en fazla (saniye)</summary>
     public int MaxVideoSeconds { get; set; } = 180;
 
+    /// <summary>Öğrenci belgesi (PDF) en fazla (MB). Vercel vekilinin istek sınırı ~4,5 MB olduğu için 4'ün üstüne çıkarılmamalı.</summary>
+    public int MaxDocumentMb { get; set; } = 4;
+
     public long MaxImageBytes => MaxImageMb * 1024L * 1024L;
+    public long MaxDocumentBytes => MaxDocumentMb * 1024L * 1024L;
     public long MaxVideoBytes => MaxVideoMb * 1024L * 1024L;
 }

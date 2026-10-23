@@ -112,6 +112,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.Configure<UploadOptions>(builder.Configuration.GetSection("Uploads"));
 builder.Services.AddSingleton<ImageService>();
 builder.Services.AddSingleton<VideoService>();
+builder.Services.AddSingleton<DocumentStorage>();
 builder.Services.AddScoped<MediaUsageChecker>();
 builder.Services.AddScoped<AvailabilityService>();
 builder.Services.AddScoped<LedgerService>();

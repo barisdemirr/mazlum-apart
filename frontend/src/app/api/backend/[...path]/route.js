@@ -120,7 +120,7 @@ async function forward(request, { params }) {
         return problem(502, "Bağlantı hatası", "Sunucuya ulaşılamadı. Lütfen biraz sonra tekrar deneyin.");
     }
 
-    const out = new Headers({ "Cache-Control": "no-store" });
+    const out = new Headers({ "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
     for (const name of FORWARD_RESPONSE_HEADERS) {
         const value = upstream.headers.get(name);
         if (value) out.set(name, value);

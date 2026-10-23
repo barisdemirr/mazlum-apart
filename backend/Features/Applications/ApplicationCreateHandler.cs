@@ -18,16 +18,18 @@ namespace MazlumApart.Features.Applications;
 ///  - Yarım dönem yalnızca dönem ayarından açıldıysa seçilebilir.
 ///  - Aynı dönemde aynı T.C. ile reddedilmemiş ikinci başvuru olamaz.
 ///  - Seçilen yatak (bedId) hâlâ boş olmalı; doluysa 409 ve form yeniden seçtirir.
+///  - Web başvurusunda öğrenci belgesi (PDF) zorunludur; içerik DocumentStorage'da doğrulanır ve özel alana yazılır.
 ///  - İndirim kodu verildiyse geçerli (aktif, süresi dolmamış, hakkı kalmış, varsa T.C.'ye özel) olmalı; indirimli fiyat başvuruya yazılır.
 ///  - Konaklama türü: academic / yearly → açık AKADEMİK dönem; summer → açık YAZ dönemi (ikisi aynı anda açık olabilir).
 ///    12 ay yalnızca tam dönem ve oda tipinin yaz fiyatı tanımlıysa alınır; sadece yaz başvurusunda yatak tercihi alınmaz
 ///    (sitedeki yatak seçimi akademik dönemin doluluğunu gösterir).
 /// </summary>
-public class ApplicationCreateHandler(AppDbContext db, AvailabilityService availability, NumberGenerator numbers, AdminAlerts alerts, AuditWriter audit)
+public class ApplicationCreateHandler(AppDbContext db, AvailabilityService availability, NumberGenerator numbers, AdminAlerts alerts, AuditWriter audit, DocumentStorage documents)
 {
     public record Created(Guid Id, string ApplicationNo);
 
-    public async Task<Result<Created>> Create(ApplicationInput input, ApplicationSource source, string? ip, CancellationToken ct)
+    /// <param name="document">Öğrenci belgesi (PDF). Web başvurusunda ZORUNLU; ofis kaydında isteğe bağlı (sonradan panelden eklenebilir).</param>
+    public async Task<Result<Created>> Create(ApplicationInput input, ApplicationSource source, string? ip, CancellationToken ct, IFormFile? document = null)
     {
         var (planValid, requestedPlan) = ApplicantRules.ParseStayPlan(input.StayPlan);
         if (!planValid) return Error.Field("stayPlan", "Konaklama türü geçersiz.");
@@ -61,6 +63,8 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
 
         var v = new Validator();
         var applicant = ApplicantRules.Normalize(input, v);
+        if (source == ApplicationSource.Online && (document is null || document.Length == 0))
+            v.AddError("document", "Öğrenci belgeni (PDF) yükle.");
 
         // ---- oda tipi ----
         RoomType? roomType = input.RoomTypeId is { } rtId
@@ -143,6 +147,15 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
             preferredRoom = room.Id;
         }
 
+        // ---- öğrenci belgesi: tüm kontroller geçtikten sonra diske yazılır (reddedilen başvuru dosya bırakmaz) ----
+        StoredDocument? stored = null;
+        if (document is not null)
+        {
+            var saved = await documents.SavePdfAsync(document, ct);
+            if (!saved.IsSuccess) return saved.Error!;
+            stored = saved.Value;
+        }
+
         var year = TurkeyClock.Today.Year;
         var number = await numbers.NextAsync(NumberGenerator.ApplicationKey(year), ct);
         var application = new Application
@@ -167,13 +180,25 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
             DiscountCodeText = discount?.Code,
             ListPriceMonthly = discount is null ? null : price.Monthly,
             ListPriceSummerMonthly = discount is null ? null : price.SummerMonthly,
+            DocumentPath = stored?.Path,
+            DocumentName = stored?.FileName,
+            DocumentSize = stored?.Size,
+            DocumentSha256 = stored?.Sha256,
             Note = string.IsNullOrWhiteSpace(input.Note) ? null : input.Note.Trim()[..Math.Min(input.Note.Trim().Length, 1000)],
             Ip = ip
         };
 
         db.Applications.Add(application);
-        audit.Add("application.create", "application", application.Id, period.Id, after: new { application.No, source, stayPlan, discountCode = discount?.Code });
-        await db.SaveChangesAsync(ct);
+        audit.Add("application.create", "application", application.Id, period.Id, after: new { application.No, source, stayPlan, discountCode = discount?.Code, document = stored is not null });
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch
+        {
+            documents.Delete(stored?.Path); // kayıt yazılamadıysa dosya yetim kalmasın
+            throw;
+        }
 
         // Web'den gelen başvuru: yöneticilerin cihazlarına anında bildirim (arka planda, isteği bekletmez)
         if (source == ApplicationSource.Online)

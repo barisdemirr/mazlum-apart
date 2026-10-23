@@ -344,6 +344,22 @@ namespace MazlumApart.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("DocumentName")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("DocumentPath")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("DocumentSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("nchar(64)")
+                        .IsFixedLength();
+
+                    b.Property<long?>("DocumentSize")
+                        .HasColumnType("bigint");
+
                     b.Property<Guid?>("EnrollmentId")
                         .HasColumnType("uniqueidentifier");
 

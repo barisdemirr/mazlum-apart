@@ -8,6 +8,7 @@ import FloatingField from "./fields/FloatingField";
 import SearchSelect from "./fields/SearchSelect";
 import DatePicker from "./fields/DatePicker";
 import DiscountCodeField from "./DiscountCodeField";
+import DocumentField from "./DocumentField";
 import { FieldError, GroupLabel, Segmented, SelectionCard } from "./fields/Choice";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { localized } from "@/lib/i18n/localized";
@@ -399,6 +400,7 @@ export function StepSchool({ form, set, err, tick }) {
                 <Segmented options={options} value={form.grade} onChange={(v) => set("grade", v)} ariaLabelledBy="grade-label" invalid={Boolean(err("grade"))} />
                 <FieldError id="grade-error" message={err("grade")} />
             </div>
+            <DocumentField value={form.document} onChange={(file) => set("document", file)} error={err("document")} tick={tick} />
         </div>
     );
 }

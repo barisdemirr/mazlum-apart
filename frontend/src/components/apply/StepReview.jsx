@@ -91,6 +91,7 @@ export default function StepReview({ form, set, err, goTo, room, plan, period })
                         [a.school.faculty, form.faculty],
                         [a.school.department, form.department],
                         [a.school.grade, grade],
+                        [a.school.document, form.document?.name, true],
                     ]}
                 />
                 <Section

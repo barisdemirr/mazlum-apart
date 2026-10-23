@@ -8,7 +8,7 @@ import { Badge, StatusBadge } from "@/components/admin/ui";
 import WhatsAppButton from "@/components/admin/WhatsAppButton";
 import { useAdmin } from "@/components/admin/data/AdminDataProvider";
 import useCommand, { errorText } from "@/components/admin/useCommand";
-import { approveApplication, getApplication, rejectApplication } from "@/lib/admin/commands/registration";
+import { applicationDocumentUrl, approveApplication, getApplication, rejectApplication, uploadApplicationDocument } from "@/lib/admin/commands/registration";
 import { monthLabel } from "@/lib/admin/month";
 import { turkeyDate } from "@/lib/format";
 import { APPLICATION_STATUS, PAY_WINDOW, SOURCE, STAY_PLAN, TERM, date, money } from "@/lib/admin/labels";
@@ -21,6 +21,56 @@ const Info = ({ label, children }) => (
         <dd className="mt-0.5 break-words text-sm font-semibold">{children || <span className="text-ad-faint">—</span>}</dd>
     </div>
 );
+
+const kb = (bytes) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
+
+/** Öğrenci belgesi: aç / indir; yoksa (ofis kaydı) ya da yanlışsa yükle / değiştir */
+function DocumentBox({ application }) {
+    const { exec, busy } = useCommand();
+    const [doc, setDoc] = useState(application.documentName ? { name: application.documentName, size: application.documentSize } : null);
+    const [error, setError] = useState("");
+
+    const upload = async (file) => {
+        if (!file) return;
+        if (!/\.pdf$/i.test(file.name) || file.size > 4 * 1024 * 1024) {
+            setError("Yalnızca PDF, en fazla 4 MB.");
+            return;
+        }
+        setError("");
+        const out = await exec(uploadApplicationDocument, { id: application.id, file }, doc ? "Belge değiştirildi." : "Belge eklendi.");
+        if (out.ok) setDoc({ name: out.result.documentName, size: out.result.documentSize });
+    };
+
+    return (
+        <div className={`rounded-2xl border p-4 ${doc ? "border-ad-line" : "border-ad-warn/40 bg-ad-warn-soft"}`}>
+            <div className="flex flex-wrap items-center gap-3">
+                <Icon name="picture_as_pdf" filled className={`text-[28px] ${doc ? "text-ad-danger" : "text-ad-warn"}`} />
+                <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Öğrenci belgesi</p>
+                    {doc ? (
+                        <p className="truncate text-sm font-semibold" title={doc.name}>{doc.name} <span className="font-normal text-ad-muted">· {kb(doc.size)}</span></p>
+                    ) : (
+                        <p className="text-sm font-semibold text-ad-warn">Belge yüklenmemiş</p>
+                    )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    {doc && (
+                        <>
+                            <a href={applicationDocumentUrl(application.id)} target="_blank" rel="noopener noreferrer" className="ad-btn ad-btn-soft ad-btn-sm"><Icon name="visibility" className="text-[16px]" />Aç</a>
+                            <a href={applicationDocumentUrl(application.id, true)} className="ad-btn ad-btn-outline ad-btn-sm"><Icon name="download" className="text-[16px]" />İndir</a>
+                        </>
+                    )}
+                    <label className={`ad-btn ad-btn-outline ad-btn-sm cursor-pointer ${busy ? "pointer-events-none opacity-60" : ""}`}>
+                        <Icon name={busy ? "progress_activity" : "upload_file"} className={`text-[16px] ${busy ? "animate-spin" : ""}`} />
+                        {doc ? "Değiştir" : "Belge yükle"}
+                        <input type="file" accept="application/pdf,.pdf" className="sr-only" onChange={(e) => { upload(e.target.files?.[0]); e.target.value = ""; }} />
+                    </label>
+                </div>
+            </div>
+            {error && <p role="alert" className="mt-2 text-xs font-semibold text-ad-danger">{error}</p>}
+        </div>
+    );
+}
 
 /** Başvuru incelemesi: bilgiler + ödeme planı önizlemesi (backend hesaplar) + onay/ret */
 export default function ApplicationDialog({ application, onClose }) {
@@ -161,6 +211,8 @@ export default function ApplicationDialog({ application, onClose }) {
                             {s.guardians?.map((g, i) => <li key={i} className="font-semibold">{g.name} <span className="font-normal text-ad-muted">· +90 {g.phone}</span></li>)}
                         </ul>
                     </div>
+
+                    <DocumentBox application={application} />
 
                     <div className="rounded-2xl bg-ad-sunken p-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">

@@ -160,6 +160,7 @@ export function emptyForm({ roomSlug = "", period, stayPlan = "academic" }) {
         department: "",
         grade: "",
         guardians: [newGuardian()],
+        document: null, // öğrenci belgesi (File, PDF)
         kvkk: false,
     };
 }
@@ -207,6 +208,7 @@ export function validateStep(step, form, { period, rooms, terms }) {
         required("faculty");
         required("department");
         required("grade");
+        if (!form.document) errors.document = "documentRequired";
     }
 
     if (step === 4) {
@@ -226,8 +228,8 @@ export function validateStep(step, form, { period, rooms, terms }) {
  * Backend doğrulama hatalarını (problem+json `errors`: { alan: [mesaj] }) form alanlarına ve adıma çevirir.
  * Dönüş: { errors: { alan: kod }, step } ya da eşleşen alan yoksa null.
  */
-const SERVER_FIELD_STEP = { discountCode: 1, stayPlan: 1, roomSlug: 1, term: 1, entryDate: 1, payDay: 1, bedId: 1, firstName: 2, lastName: 2, tc: 2, birthDate: 2, phone: 2, address: 2, provinceId: 2, district: 2, school: 3, faculty: 3, department: 3, grade: 3 };
-const SERVER_FIELD_CODE = { discountCode: "discountInvalid", tc: "tc", phone: "phone", birthDate: "birthDate", entryDate: "dateInvalid" };
+const SERVER_FIELD_STEP = { discountCode: 1, stayPlan: 1, roomSlug: 1, term: 1, entryDate: 1, payDay: 1, bedId: 1, firstName: 2, lastName: 2, tc: 2, birthDate: 2, phone: 2, address: 2, provinceId: 2, district: 2, school: 3, faculty: 3, department: 3, grade: 3, document: 3 };
+const SERVER_FIELD_CODE = { document: "documentInvalid", discountCode: "discountInvalid", tc: "tc", phone: "phone", birthDate: "birthDate", entryDate: "dateInvalid" };
 
 export function mapServerErrors(serverErrors, guardians = []) {
     const errors = {};
@@ -245,6 +247,27 @@ export function mapServerErrors(serverErrors, guardians = []) {
         }
     }
     return Object.keys(errors).length ? { errors, step } : null;
+}
+
+/* ───────────────────────── Öğrenci belgesi (PDF) ─────────────────────────
+ * Sunucu ayrıca içeriği denetler (imza, betik, gömülü dosya); burası kullanıcıya hızlı geri bildirim içindir.
+ * Sınır 4 MB: Vercel vekilinin istek sınırı ~4,5 MB. */
+export const MAX_DOCUMENT_MB = 4;
+
+/** Seçilen dosyayı denetler: sorun yoksa null, varsa hata kodu (dictionaries.apply.errors) */
+export async function inspectPdf(file) {
+    if (!file) return "documentRequired";
+    if (!/\.pdf$/i.test(file.name ?? "") || (file.type && file.type !== "application/pdf")) return "documentType";
+    if (file.size === 0) return "documentInvalid";
+    if (file.size > MAX_DOCUMENT_MB * 1024 * 1024) return "documentSize";
+    try {
+        const head = new Uint8Array(await file.slice(0, 1024).arrayBuffer());
+        const text = String.fromCharCode(...head);
+        if (!text.includes("%PDF-")) return "documentInvalid";
+    } catch {
+        return "documentInvalid";
+    }
+    return null;
 }
 
 /* ───────────────────────── Ödeme planı ─────────────────────────

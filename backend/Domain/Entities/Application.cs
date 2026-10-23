@@ -39,6 +39,12 @@ public class Application : BaseEntity
     public decimal? ListPriceSummerMonthly { get; set; }
     public string? Note { get; set; }
 
+    /// <summary>Öğrenci belgesi (PDF): App_Data altındaki yol (istemciye gösterilmez), temizlenmiş özgün ad, boyut, SHA-256</summary>
+    public string? DocumentPath { get; set; }
+    public string? DocumentName { get; set; }
+    public long? DocumentSize { get; set; }
+    public string? DocumentSha256 { get; set; }
+
     public DateTime? DecidedAt { get; set; }
     public Guid? DecidedById { get; set; }
     public string? RejectReason { get; set; }

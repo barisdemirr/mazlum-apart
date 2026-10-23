@@ -16,7 +16,8 @@ public record ApplicationRow(
     Guid Id, string No, ApplicationSource Source, ApplicationStatus Status, DateTime CreatedAt,
     string FullName, string Tc, string Phone, Guid RoomTypeId, string RoomTypeName, string? PreferredRoom,
     DateOnly EntryDate, PayWindow PayWindow, StayTerm Term, decimal PriceMonthly, decimal PriceDeposit, Guid? EnrollmentId,
-    StayPlan StayPlan, decimal? PriceSummerMonthly, string? DiscountCode = null, decimal? ListPriceMonthly = null);
+    StayPlan StayPlan, decimal? PriceSummerMonthly, string? DiscountCode = null, decimal? ListPriceMonthly = null,
+    string? DocumentName = null, long? DocumentSize = null);
 
 public record PlanLine(ChargeKind Kind, string Month, decimal Amount, DateOnly DueDate, string Note);
 
@@ -41,7 +42,7 @@ public static class ApplicationQueries
             a.Id, a.No, a.Source, a.Status, a.CreatedAt, a.FullName, a.Tc, a.Phone, a.RoomTypeId,
             types.TryGetValue(a.RoomTypeId, out var t) ? t.Name.Tr : "",
             a.PreferredRoomId is { } r && rooms.TryGetValue(r, out var room) ? $"{room.Apartment?.Name} · {room.Name}" : null,
-            a.EntryDate, a.PayWindow, a.Term, a.PriceMonthly, a.PriceDeposit, a.EnrollmentId, a.StayPlan, a.PriceSummerMonthly, a.DiscountCodeText, a.ListPriceMonthly)).ToList();
+            a.EntryDate, a.PayWindow, a.Term, a.PriceMonthly, a.PriceDeposit, a.EnrollmentId, a.StayPlan, a.PriceSummerMonthly, a.DiscountCodeText, a.ListPriceMonthly, a.DocumentPath is null ? null : a.DocumentName, a.DocumentSize)).ToList();
     }
 
     /// <summary>Başvurunun dönem sonu: 1. yarı kaydında yarının bitişi, diğerlerinde dönem sonu</summary>

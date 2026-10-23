@@ -25,6 +25,9 @@ public class ApplicationConfiguration : IEntityTypeConfiguration<Application>
         builder.Property(x => x.RejectReason).HasMaxLength(500);
         builder.Property(x => x.Ip).HasMaxLength(45);
         builder.Property(x => x.DiscountCodeText).HasMaxLength(20);
+        builder.Property(x => x.DocumentPath).HasMaxLength(200);
+        builder.Property(x => x.DocumentName).HasMaxLength(150);
+        builder.Property(x => x.DocumentSha256).HasMaxLength(64).IsFixedLength();
 
         builder.HasOne<Period>().WithMany().HasForeignKey(x => x.PeriodId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<RoomType>().WithMany().HasForeignKey(x => x.RoomTypeId).OnDelete(DeleteBehavior.Restrict);

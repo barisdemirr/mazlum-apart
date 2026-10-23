@@ -27,6 +27,16 @@ export const createApplication = (i) =>
         note: i.note || null,
     });
 
+/** Öğrenci belgesi (PDF) ekler ya da değiştirir. Yanıt: { documentName, documentSize } */
+export const uploadApplicationDocument = ({ id, file }) => {
+    const form = new FormData();
+    form.append("document", file, file.name);
+    return admin.upload(`/applications/${id}/document`, form);
+};
+
+/** Belgeyi açma / indirme adresi (vekil üzerinden, yönetici oturumuyla) */
+export const applicationDocumentUrl = (id, download = false) => `/api/backend/admin/applications/${id}/document${download ? "?download=true" : ""}`;
+
 /** Yanıt: { enrollmentId, studentId, phone, initialPassword, charges } — initialPassword YALNIZCA burada döner */
 export const approveApplication = ({ id }) => admin.post(`/applications/${id}/approve`);
 

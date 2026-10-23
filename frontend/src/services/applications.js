@@ -1,5 +1,5 @@
 import { apiGet } from "@/lib/api";
-import { bffPost } from "@/lib/api/bff";
+import { bffUpload } from "@/lib/api/bff";
 
 /**
  * Başvuru formunun ayarları (GET /api/applications/config):
@@ -14,10 +14,14 @@ export async function getApplicationConfig() {
 }
 
 /**
- * Başvuruyu gönderir (tarayıcıdan, vekil üzerinden). Dönüş: { applicationNo }.
+ * Başvuruyu gönderir (tarayıcıdan, vekil üzerinden). multipart: "data" = başvuru JSON'u, "document" = öğrenci belgesi (PDF).
+ * Dönüş: { applicationNo }.
  * Hata: ApiError. status 400 -> errors { alan: [mesaj] } (form hangi adıma döneceğini bundan seçer), 409 -> yatak/T.C. çakışması,
  * 429 -> çok fazla deneme.
  */
-export async function submitApplication(payload) {
-    return bffPost("/applications", payload);
+export async function submitApplication(payload, document) {
+    const form = new FormData();
+    form.append("data", JSON.stringify(payload));
+    if (document) form.append("document", document, document.name);
+    return bffUpload("/applications", form, { timeout: 90_000 });
 }

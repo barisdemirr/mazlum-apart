@@ -73,6 +73,7 @@ export default function ApplicationsView({ applications, roomTypes }) {
             ),
             export: { type: "money", value: (a) => a.priceMonthly },
         },
+        { key: "document", header: "Öğrenci belgesi", hidden: true, export: { value: (a) => (a.documentName ? "Var" : "Yok") } },
         { key: "discountCode", header: "İndirim kodu", hidden: true, export: { value: (a) => a.discountCode ?? "" } },
         { key: "listPrice", header: "Liste kirası", hidden: true, export: { type: "money", value: (a) => a.listPriceMonthly ?? "" } },
         { key: "summerPrice", header: "Yaz kirası", hidden: true, export: { type: "money", value: (a) => a.priceSummerMonthly ?? "" } },

@@ -228,7 +228,7 @@ export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }
                 department: form.department.trim(),
                 grade: form.grade,
                 guardians: form.guardians.map((g) => ({ name: g.name.trim(), phone: g.phone })),
-            });
+            }, form.document);
             setApplicationNo(result.applicationNo);
             setStatus("done");
         } catch (error) {

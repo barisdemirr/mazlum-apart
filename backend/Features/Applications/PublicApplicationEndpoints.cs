@@ -1,4 +1,7 @@
+using System.Text.Json;
+using Microsoft.AspNetCore.Http.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using MazlumApart.Domain.Accounting;
 using MazlumApart.Domain.Enums;
 using MazlumApart.Features.Periods;
@@ -56,7 +59,10 @@ public static class GetApplicationConfig
     }
 }
 
-/// <summary>Web sitesinden başvuru. IP başına 10 dakikada 5 istek. Dönüş: { applicationNo }</summary>
+/// <summary>
+/// Web sitesinden başvuru. IP başına 10 dakikada 5 istek. Dönüş: { applicationNo }
+/// multipart/form-data: "data" = başvuru (ApplicationInput JSON), "document" = öğrenci belgesi (PDF, zorunlu, en fazla 4 MB).
+/// </summary>
 public static class SubmitApplication
 {
     public record Response(string ApplicationNo);
@@ -64,11 +70,32 @@ public static class SubmitApplication
     public class Endpoint : IEndpoint
     {
         public void MapEndpoint(IEndpointRouteBuilder app) =>
-            app.MapPost("/api/applications", async (ApplicationInput input, HttpContext http, ApplicationCreateHandler handler, CancellationToken ct) =>
-                    (await handler.Create(input with { PeriodId = null, RoomTypeId = null }, ApplicationSource.Online, ClientIp.Get(http), ct))
-                    .ToHttp(created => Results.Ok(new Response(created.ApplicationNo))))
+            app.MapPost("/api/applications", async (HttpRequest request, HttpContext http, ApplicationCreateHandler handler,
+                    IOptions<JsonOptions> json, CancellationToken ct) =>
+                {
+                    if (!request.HasFormContentType) return Error.Field("document", "Öğrenci belgeni (PDF) yükle.").ToProblem();
+                    var form = await request.ReadFormAsync(ct);
+                    if (form.Files.Count > 1) return Error.Field("document", "Yalnızca bir PDF yükle.").ToProblem();
+
+                    ApplicationInput? input;
+                    try
+                    {
+                        input = JsonSerializer.Deserialize<ApplicationInput>(form["data"].ToString(), json.Value.SerializerOptions);
+                    }
+                    catch (JsonException)
+                    {
+                        input = null;
+                    }
+                    if (input is null) return Error.Field("form", "Başvuru bilgileri okunamadı. Sayfayı yenileyip tekrar deneyin.").ToProblem();
+
+                    return (await handler.Create(input with { PeriodId = null, RoomTypeId = null }, ApplicationSource.Online, ClientIp.Get(http), ct,
+                            form.Files.GetFile("document")))
+                        .ToHttp(created => Results.Ok(new Response(created.ApplicationNo)));
+                })
                 .AllowAnonymous()
-                .RequireRateLimiting(RatePolicies.PublicForm);
+                .RequireRateLimiting(RatePolicies.PublicForm)
+                .DisableAntiforgery()
+                .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(6 * 1024 * 1024));
     }
 }
 
