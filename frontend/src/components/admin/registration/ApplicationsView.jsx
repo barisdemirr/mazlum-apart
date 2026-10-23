@@ -4,10 +4,10 @@ import { useMemo, useState } from "react";
 import Icon from "@/components/ui/Icon";
 import { useAdmin } from "@/components/admin/data/AdminDataProvider";
 import DataTable from "@/components/admin/DataTable";
-import { Avatar, Chips, PageHeader, StatusBadge } from "@/components/admin/ui";
+import { Avatar, Badge, Chips, PageHeader, StatusBadge } from "@/components/admin/ui";
 import { SelectInput } from "@/components/admin/fields";
 import { turkeyDate } from "@/lib/format";
-import { APPLICATION_STATUS, PAY_WINDOW, SOURCE, TERM, date, money } from "@/lib/admin/labels";
+import { APPLICATION_STATUS, PAY_WINDOW, SOURCE, STAY_PLAN, TERM, date, money } from "@/lib/admin/labels";
 import ApplicationDialog from "./ApplicationDialog";
 import OfficeApplicationDialog from "./OfficeApplicationDialog";
 
@@ -19,12 +19,16 @@ export default function ApplicationsView({ applications, roomTypes }) {
     const { period } = useAdmin();
     const [tab, setTab] = useState("pending");
     const [roomType, setRoomType] = useState("");
+    const [stayPlan, setStayPlan] = useState("");
     const [openId, setOpenId] = useState(null);
     const [officeOpen, setOfficeOpen] = useState(false);
 
     const all = applications.items;
     const count = (s) => all.filter((a) => a.status === s).length;
-    const rows = useMemo(() => all.filter((a) => (tab === "all" || a.status === tab) && (!roomType || a.roomTypeId === roomType)), [all, tab, roomType]);
+    const rows = useMemo(
+        () => all.filter((a) => (tab === "all" || a.status === tab) && (!roomType || a.roomTypeId === roomType) && (!stayPlan || a.stayPlan === stayPlan)),
+        [all, tab, roomType, stayPlan]
+    );
     const current = all.find((a) => a.id === openId) ?? null;
     const canCreate = period.status === "active" && period.applicationsOpen;
 
@@ -46,9 +50,29 @@ export default function ApplicationsView({ applications, roomTypes }) {
         { key: "phone", header: "Telefon", render: (a) => <span className="ad-num whitespace-nowrap">+90 {a.phone}</span>, export: { value: (a) => a.phone } },
         { key: "room", header: "Oda tipi", sort: (a) => a.roomTypeName, render: (a) => <span className="whitespace-nowrap">{a.roomTypeName}</span>, export: { value: (a) => a.roomTypeName } },
         { key: "entry", header: "Giriş", sort: (a) => a.entryDate, render: (a) => <span className="ad-num">{date(a.entryDate)}</span>, export: { type: "date", value: (a) => a.entryDate } },
+        {
+            key: "stay",
+            header: "Konaklama",
+            sort: (a) => a.stayPlan,
+            render: (a) => <Badge tone={STAY_PLAN[a.stayPlan]?.tone ?? "neutral"}>{STAY_PLAN[a.stayPlan]?.label ?? a.stayPlan}</Badge>,
+            export: { value: (a) => STAY_PLAN[a.stayPlan]?.long ?? a.stayPlan },
+        },
         { key: "term", header: "Süre", render: (a) => TERM[a.term], export: { value: (a) => TERM[a.term] } },
         { key: "window", header: "Ödeme günü", render: (a) => PAY_WINDOW[a.payWindow], export: { value: (a) => PAY_WINDOW[a.payWindow] } },
-        { key: "price", header: "Aylık kira", align: "end", sort: (a) => a.priceMonthly, render: (a) => <span className="ad-num">{money(a.priceMonthly)}</span>, export: { type: "money", value: (a) => a.priceMonthly } },
+        {
+            key: "price",
+            header: "Aylık kira",
+            align: "end",
+            sort: (a) => a.priceMonthly,
+            render: (a) => (
+                <span className="ad-num">
+                    {money(a.priceMonthly)}
+                    {a.priceSummerMonthly != null && <span className="block text-[11px] text-ad-muted">yaz {money(a.priceSummerMonthly)}</span>}
+                </span>
+            ),
+            export: { type: "money", value: (a) => a.priceMonthly },
+        },
+        { key: "summerPrice", header: "Yaz kirası", hidden: true, export: { type: "money", value: (a) => a.priceSummerMonthly ?? "" } },
         { key: "source", header: "Kaynak", render: (a) => SOURCE[a.source], export: { value: (a) => SOURCE[a.source] } },
         { key: "created", header: "Tarih", sort: (a) => a.createdAt, render: (a) => <span className="ad-num">{date(turkeyDate(a.createdAt))}</span>, export: { type: "date", value: (a) => turkeyDate(a.createdAt) } },
         { key: "status", header: "Durum", render: (a) => <StatusBadge map={APPLICATION_STATUS} value={a.status} />, export: { value: (a) => APPLICATION_STATUS[a.status].label } },
@@ -90,12 +114,20 @@ export default function ApplicationsView({ applications, roomTypes }) {
                 searchText={(a) => `${a.fullName} ${a.tc} ${a.phone} ${a.no}`}
                 searchPlaceholder="Ad, T.C. no, telefon veya başvuru no ara"
                 filters={
-                    <div className="w-full sm:w-52">
-                        <SelectInput value={roomType} onChange={(e) => setRoomType(e.target.value)}>
-                            <option value="">Tüm oda tipleri</option>
-                            {roomTypes.map((r) => <option key={r.id} value={r.id}>{r.name.tr}</option>)}
-                        </SelectInput>
-                    </div>
+                    <>
+                        <div className="w-full sm:w-52">
+                            <SelectInput value={roomType} onChange={(e) => setRoomType(e.target.value)}>
+                                <option value="">Tüm oda tipleri</option>
+                                {roomTypes.map((r) => <option key={r.id} value={r.id}>{r.name.tr}</option>)}
+                            </SelectInput>
+                        </div>
+                        <div className="w-full sm:w-48">
+                            <SelectInput value={stayPlan} onChange={(e) => setStayPlan(e.target.value)}>
+                                <option value="">Tüm konaklama türleri</option>
+                                {Object.entries(STAY_PLAN).map(([k, v]) => <option key={k} value={k}>{v.long}</option>)}
+                            </SelectInput>
+                        </div>
+                    </>
                 }
                 onRowClick={(a) => setOpenId(a.id)}
                 exportName="basvurular"

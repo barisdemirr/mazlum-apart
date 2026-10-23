@@ -15,6 +15,8 @@ export const refundAdvance = ({ enrollmentId, amount, date, accountId, note }) =
 export const addCharge = ({ enrollmentId, kind, month, amount, dueDate, note }) =>
     admin.post(`/enrollments/${enrollmentId}/charges`, { kind, month: month || null, amount: n(amount), dueDate: dateOrNull(dueDate), note: note || null }, idem);
 export const reverseCharge = ({ id, reason }) => admin.post(`/charges/${id}/reverse`, { reason });
+/** Kalem tutarını değiştirir: eski kalem ters kayıtla kapanır, aynı tür/ay/vadeyle yeni tutarda kalem açılır */
+export const amendCharge = ({ id, amount, reason }) => admin.post(`/charges/${id}/amend`, { amount: n(amount), reason });
 
 export const addExpense = ({ periodId, categoryId, amount, date, accountId, description }) =>
     admin.post("/expenses", { periodId, categoryId, amount: n(amount), date: dateOrNull(date), accountId, description: description || null }, idem);

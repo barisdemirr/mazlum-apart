@@ -2,13 +2,14 @@ import { apiGet } from "@/lib/api";
 import { bffPost } from "@/lib/api/bff";
 
 /**
- * Başvuru formunun ayarları: açık dönem ve yarım dönem durumu (GET /api/applications/config).
- * Dönem yoksa period null gelir ve sayfa "başvurular kapalı" mesajını gösterir.
- * Dönüş: { period: {id,name,start,end} | null, halfTerm: {enabled, firstEnd, secondStart}, applicationsOpen }
+ * Başvuru formunun ayarları (GET /api/applications/config):
+ *   { period: akademik dönem | null, halfTerm, applicationsOpen, yearly: { end, summerPrices } | null, summer: { period, prices } | null }
+ * Ne akademik ne yaz dönemi açıksa null döner ve sayfa "başvurular kapalı" mesajını gösterir.
  */
 export async function getApplicationConfig() {
     const config = await apiGet("/api/applications/config", { revalidate: 30, tags: ["application-config"] });
-    return config?.period && config.applicationsOpen ? config : null;
+    const academic = Boolean(config?.period && config.applicationsOpen);
+    return academic || config?.summer ? config : null;
 }
 
 /**

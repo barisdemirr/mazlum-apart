@@ -15,7 +15,8 @@ namespace MazlumApart.Features.Applications;
 public record ApplicationRow(
     Guid Id, string No, ApplicationSource Source, ApplicationStatus Status, DateTime CreatedAt,
     string FullName, string Tc, string Phone, Guid RoomTypeId, string RoomTypeName, string? PreferredRoom,
-    DateOnly EntryDate, PayWindow PayWindow, StayTerm Term, decimal PriceMonthly, decimal PriceDeposit, Guid? EnrollmentId);
+    DateOnly EntryDate, PayWindow PayWindow, StayTerm Term, decimal PriceMonthly, decimal PriceDeposit, Guid? EnrollmentId,
+    StayPlan StayPlan, decimal? PriceSummerMonthly);
 
 public record PlanLine(ChargeKind Kind, string Month, decimal Amount, DateOnly DueDate, string Note);
 
@@ -40,12 +41,16 @@ public static class ApplicationQueries
             a.Id, a.No, a.Source, a.Status, a.CreatedAt, a.FullName, a.Tc, a.Phone, a.RoomTypeId,
             types.TryGetValue(a.RoomTypeId, out var t) ? t.Name.Tr : "",
             a.PreferredRoomId is { } r && rooms.TryGetValue(r, out var room) ? $"{room.Apartment?.Name} · {room.Name}" : null,
-            a.EntryDate, a.PayWindow, a.Term, a.PriceMonthly, a.PriceDeposit, a.EnrollmentId)).ToList();
+            a.EntryDate, a.PayWindow, a.Term, a.PriceMonthly, a.PriceDeposit, a.EnrollmentId, a.StayPlan, a.PriceSummerMonthly)).ToList();
     }
 
     /// <summary>Başvurunun dönem sonu: 1. yarı kaydında yarının bitişi, diğerlerinde dönem sonu</summary>
     public static DateOnly PlanEnd(Period period, StayTerm term) =>
         term == StayTerm.First && period.HalfTermFirstEnd is { } firstEnd ? firstEnd : period.EndDate;
+
+    /// <summary>Başvurunun ödeme planı (önizleme ve onay aynı hesabı kullanır): konaklama türüne göre 12 ayda yaz ayları eklenir</summary>
+    public static List<ChargeDraft> Plan(Application app, Period period) =>
+        PaymentPlan.ForStay(app.StayPlan, app.EntryDate, app.PayWindow, app.PriceMonthly, app.PriceDeposit, PlanEnd(period, app.Term), app.PriceSummerMonthly);
 }
 
 public static class GetApplications
@@ -98,7 +103,7 @@ public static class GetApplication
 
             var period = await db.Periods.AsNoTracking().FirstAsync(x => x.Id == app.PeriodId, ct);
             var row = (await ApplicationQueries.RowsAsync(db, db.Applications.AsNoTracking().Where(x => x.Id == id), ct)).Single();
-            var plan = PaymentPlan.Generate(app.EntryDate, app.PayWindow, app.PriceMonthly, app.PriceDeposit, ApplicationQueries.PlanEnd(period, app.Term))
+            var plan = ApplicationQueries.Plan(app, period)
                 .Select(d => new PlanLine(d.Kind, d.Month, d.Amount, d.DueDate, d.Note)).ToList();
 
             return new ApplicationDetail(row, app.Applicant, app.Note, app.RejectReason, app.DecidedAt,
@@ -238,14 +243,16 @@ public static class ApproveApplication
                 Status = EnrollmentStatus.Approved,
                 PayWindow = app.PayWindow,
                 Term = app.Term,
+                StayPlan = app.StayPlan,
                 EntryDate = app.EntryDate,
                 MonthlyPrice = app.PriceMonthly,
-                DepositPrice = app.PriceDeposit
+                DepositPrice = app.PriceDeposit,
+                SummerMonthlyPrice = app.PriceSummerMonthly
             };
             db.Enrollments.Add(enrollment);
 
             var ledger = new EnrollmentLedger(db, enrollment, [], [], []);
-            var drafts = PaymentPlan.Generate(app.EntryDate, app.PayWindow, app.PriceMonthly, app.PriceDeposit, ApplicationQueries.PlanEnd(period, app.Term));
+            var drafts = ApplicationQueries.Plan(app, period);
             foreach (var d in drafts) ledger.AddCharge(d.Kind, d.Month, d.Amount, d.DueDate, d.Note, adminId);
 
             app.Status = ApplicationStatus.Approved;

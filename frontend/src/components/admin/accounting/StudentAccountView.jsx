@@ -8,7 +8,7 @@ import WhatsAppButton from "@/components/admin/WhatsAppButton";
 import useCommand from "@/components/admin/useCommand";
 import { Badge, Card, PageHeader, StatusBadge } from "@/components/admin/ui";
 import { adaptRow, describeCovered } from "@/lib/admin/adapters";
-import { addCharge, cancelPayment, recordPayment, refundAdvance, resetStudentPassword, reverseCharge } from "@/lib/admin/commands/finance";
+import { addCharge, amendCharge, cancelPayment, recordPayment, refundAdvance, resetStudentPassword, reverseCharge } from "@/lib/admin/commands/finance";
 import { monthLabel } from "@/lib/admin/month";
 import { turkeyDate } from "@/lib/format";
 import { CHARGE_KIND, ENROLLMENT_STATUS, METHOD, PAY_STATUS, date, money } from "@/lib/admin/labels";
@@ -46,6 +46,22 @@ export default function StudentAccountView({ account, accounts }) {
             fields={[{ name: "amount", label: "Tutar", type: "number", required: true, span: 1 }, { name: "date", label: "Tarih", type: "date", span: 1 }, accountField, { name: "note", label: "Not", type: "text" }]} />,
         charge: <ActionDialog title="Borç / indirim ekle" description={name} command={addCharge} extra={{ enrollmentId: e.id }} initial={{ kind: "other", dueDate: today, month: today.slice(0, 7) }} success="Kalem eklendi." onClose={close} note="İndirim için türü “İndirim” seçin; tutar pozitif yazılır."
             fields={[{ name: "kind", label: "Tür", type: "select", options: Object.entries(CHARGE_KIND), span: 1 }, { name: "amount", label: "Tutar", type: "number", required: true, span: 1 }, { name: "month", label: "Ay (YYYY-AA)", type: "text", span: 1 }, { name: "dueDate", label: "Vade", type: "date", span: 1 }, { name: "note", label: "Not", type: "text" }]} />,
+        amend: dialog?.item && (
+            <ActionDialog
+                title="Tutarı değiştir"
+                description={`${CHARGE_KIND[dialog.item.kind]}${dialog.item.month && ["rent", "summer"].includes(dialog.item.kind) ? ` · ${monthLabel(dialog.item.month, { short: true })}` : ""} · şu an ${money(dialog.item.amount)}`}
+                command={amendCharge}
+                extra={{ id: dialog.item.id }}
+                initial={{ amount: dialog.item.amount }}
+                success="Tutar güncellendi."
+                onClose={close}
+                note="Eski kalem ters kayıtla kapanır, aynı ay ve vadeyle yeni tutarda kalem açılır. Ödenmiş kısım yeni kaleme otomatik sayılır. İşlem geçmişine yazılır."
+                fields={[
+                    { name: "amount", label: "Yeni tutar", type: "number", required: true, span: 1 },
+                    { name: "reason", label: "Neden", type: "text", required: true, hint: "Örn. “Yaz fiyatı anlaşmaya göre düzeltildi”" },
+                ]}
+            />
+        ),
         reverse: dialog?.item && <ActionDialog title="Kalemi ters çevir" description={`${CHARGE_KIND[dialog.item.kind]} · ${money(dialog.item.amount)}`} command={reverseCharge} extra={{ id: dialog.item.id }} success="Kalem iptal edildi (ters kayıt)." saveLabel="Ters çevir" danger onClose={close} fields={REASON} />,
         cancel: dialog?.item && <ActionDialog title="Tahsilatı iptal et" description={`${money(dialog.item.amount)} · ${date(dialog.item.date)}`} command={cancelPayment} extra={{ id: dialog.item.id }} success="Tahsilat iptal edildi." saveLabel="İptal et" danger onClose={close} fields={REASON} note="Kasa/banka hareketi ters kayıtla düzeltilir; dağıtılan tutar avansa döner." />,
     };
@@ -79,12 +95,19 @@ export default function StudentAccountView({ account, accounts }) {
                     <thead><tr><th>Kalem</th><th>Vade</th><th className="!text-end">Tutar</th><th className="!text-end">Ödenen</th><th className="!text-end">Kalan</th><th /></tr></thead>
                     <tbody>{account.items.map((i) => (
                         <tr key={i.id} className={i.reversed ? "opacity-50" : ""}>
-                            <td className="font-semibold">{CHARGE_KIND[i.kind]}{i.kind === "rent" ? ` · ${monthLabel(i.month, { short: true })}` : ""}{i.note ? <span className="font-normal text-ad-muted"> · {i.note}</span> : null}{i.reversed && <Badge tone="neutral" className="ms-2">İptal</Badge>}</td>
+                            <td className="font-semibold">{CHARGE_KIND[i.kind]}{i.kind === "rent" || i.kind === "summer" ? ` · ${monthLabel(i.month, { short: true })}` : ""}{i.note ? <span className="font-normal text-ad-muted"> · {i.note}</span> : null}{i.reversed && <Badge tone="neutral" className="ms-2">İptal</Badge>}</td>
                             <td className="ad-num" title={i.remaining > 0 && i.deadline !== i.dueDate ? `Planlanan vade: ${date(i.dueDate)}` : undefined}>{date(i.remaining > 0 && i.deadline ? i.deadline : i.dueDate)}</td>
                             <td className="ad-num text-end">{money(i.amount)}</td>
                             <td className="ad-num text-end text-ad-ok">{money(i.allocated)}</td>
                             <td className={`ad-num text-end font-bold ${i.remaining > 0 && (i.deadline ?? i.dueDate) < today ? "text-ad-danger" : ""}`}>{money(i.remaining)}</td>
-                            <td className="text-end">{!closed && !i.reversed && i.amount > 0 && <button type="button" onClick={() => setDialog({ type: "reverse", item: i })} className="text-xs font-bold text-ad-danger hover:underline">Ters çevir</button>}</td>
+                            <td className="text-end">
+                                {!closed && !i.reversed && i.amount > 0 && (
+                                    <span className="flex justify-end gap-3 whitespace-nowrap">
+                                        <button type="button" onClick={() => setDialog({ type: "amend", item: i })} className="text-xs font-bold text-ad-brand hover:underline">Tutarı değiştir</button>
+                                        <button type="button" onClick={() => setDialog({ type: "reverse", item: i })} className="text-xs font-bold text-ad-danger hover:underline">Ters çevir</button>
+                                    </span>
+                                )}
+                            </td>
                         </tr>
                     ))}</tbody>
                 </table></div>

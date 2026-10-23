@@ -110,8 +110,10 @@ public static class GetRoomOptions
             if (enrollment is null) return Error.NotFound("Kayıt bulunamadı.");
             var period = await db.Periods.AsNoTracking().FirstAsync(x => x.Id == enrollment.PeriodId, ct);
 
+            // 12 ay kalanın yerleşimi 31 Ağustos'a kadar sürer: oda uygunluğu yaz aylarını da kapsar
+            var lastDay = enrollment.StayPlan == StayPlan.Yearly ? PaymentPlan.SummerEnd(period.EndDate) : period.EndDate;
             var start = from ?? enrollment.EntryDate;
-            var end = to ?? period.EndDate;
+            var end = to is null || to == period.EndDate ? lastDay : to.Value;
             if (start > end) return Error.Field("from", "Başlangıç tarihi bitişten sonra olamaz.");
 
             var rooms = await db.Rooms.AsNoTracking().Include(x => x.Apartment)

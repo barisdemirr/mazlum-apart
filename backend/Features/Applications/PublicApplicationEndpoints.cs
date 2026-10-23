@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using MazlumApart.Domain.Accounting;
 using MazlumApart.Domain.Enums;
 using MazlumApart.Features.Periods;
 using MazlumApart.Infrastructure.Database;
@@ -7,30 +8,48 @@ using MazlumApart.Shared;
 namespace MazlumApart.Features.Applications;
 
 /// <summary>
-/// Başvuru formunun ayarları (frontend getApplicationConfig): açık dönem + yarım dönem durumu.
-/// Yarım dönem kapalıyken (varsayılan) form yalnızca tam dönemdir. Açık dönem yoksa period null ve applicationsOpen false.
+/// Başvuru formunun ayarları (frontend getApplicationConfig):
+///  - period / halfTerm / applicationsOpen: başvuruya açık AKADEMİK dönem (yoksa period null, applicationsOpen false)
+///  - yearly: 12 aylık kayıt — bitiş (31 Ağustos) ve oda tipi başına Temmuz–Ağustos aylık fiyatı (fiyatı olmayan oda tipinde 12 ay seçilemez)
+///  - summer: başvuruya açık YAZ dönemi ve fiyatları (yoksa null → formda "sadece yaz" seçilemez)
 /// </summary>
 public static class GetApplicationConfig
 {
     public record PeriodRef(Guid Id, string Name, DateOnly Start, DateOnly End);
 
-    public record Response(PeriodRef? Period, HalfTermDto HalfTerm, bool ApplicationsOpen);
+    public record RoomPrice(Guid RoomTypeId, decimal Monthly, decimal Deposit);
+
+    public record YearlyConfig(DateOnly End, Dictionary<Guid, decimal> SummerPrices);
+
+    public record SummerConfig(PeriodRef Period, List<RoomPrice> Prices);
+
+    public record Response(PeriodRef? Period, HalfTermDto HalfTerm, bool ApplicationsOpen, YearlyConfig? Yearly, SummerConfig? Summer);
 
     public class Endpoint : IEndpoint
     {
         public void MapEndpoint(IEndpointRouteBuilder app) =>
             app.MapGet("/api/applications/config", async (AppDbContext db, CancellationToken ct) =>
             {
-                var p = await db.Periods.AsNoTracking()
+                var open = await db.Periods.AsNoTracking()
                     .Where(x => x.Status == PeriodStatus.Active && x.ApplicationsOpen)
-                    .OrderBy(x => x.Type == PeriodType.Academic ? 0 : 1).ThenByDescending(x => x.StartDate)
-                    .FirstOrDefaultAsync(ct);
+                    .OrderByDescending(x => x.StartDate)
+                    .ToListAsync(ct);
+                var p = open.FirstOrDefault(x => x.Type == PeriodType.Academic);
+                var s = open.FirstOrDefault(x => x.Type == PeriodType.Summer);
+
+                var ids = open.Select(x => x.Id).ToList();
+                var prices = await db.RoomTypePrices.AsNoTracking().Where(x => ids.Contains(x.PeriodId)).ToListAsync(ct);
+
+                YearlyConfig? yearly = p is null ? null : new YearlyConfig(PaymentPlan.SummerEnd(p.EndDate),
+                    prices.Where(x => x.PeriodId == p.Id && x.SummerMonthly != null).ToDictionary(x => x.RoomTypeId, x => x.SummerMonthly!.Value));
+                SummerConfig? summer = s is null ? null : new SummerConfig(new PeriodRef(s.Id, s.Name, s.StartDate, s.EndDate),
+                    prices.Where(x => x.PeriodId == s.Id).Select(x => new RoomPrice(x.RoomTypeId, x.Monthly, x.Deposit)).ToList());
 
                 return Results.Ok(p is null
-                    ? new Response(null, new HalfTermDto(false, null, null), false)
+                    ? new Response(null, new HalfTermDto(false, null, null), false, null, summer)
                     : new Response(new PeriodRef(p.Id, p.Name, p.StartDate, p.EndDate),
                         p.HalfTermEnabled ? new HalfTermDto(true, p.HalfTermFirstEnd, p.HalfTermSecondStart) : new HalfTermDto(false, null, null),
-                        true));
+                        true, yearly, summer));
             }).AllowAnonymous();
     }
 }

@@ -9,7 +9,7 @@ import useCommand from "@/components/admin/useCommand";
 import { createApplication } from "@/lib/admin/commands/registration";
 import { GRADES, isValidPhone, isValidTc, newGuardian, onlyDigits } from "@/lib/application";
 import { getDistricts, getProvinces } from "@/lib/locations";
-import { PAY_WINDOW, TERM, money } from "@/lib/admin/labels";
+import { PAY_WINDOW, STAY_PLAN, TERM, money } from "@/lib/admin/labels";
 
 /** Sunucu doğrulama anahtarlarını form alanlarına çevirir (guardians[0].name -> g-<id>-name, roomSlug -> roomTypeId ...) */
 function mapServerErrors(error, form) {
@@ -37,7 +37,7 @@ const empty = () => ({
     address: "", provinceId: "", district: "",
     school: "", faculty: "", department: "", grade: "",
     guardians: [newGuardian()],
-    roomTypeId: "", term: "full", entryDate: "", payWindow: "early",
+    roomTypeId: "", term: "full", entryDate: "", payWindow: "early", stayPlan: "",
 });
 
 /**
@@ -55,9 +55,13 @@ export default function OfficeApplicationDialog({ open, roomTypes, onClose, onCr
     const provinces = useMemo(() => getProvinces().slice().sort((a, b) => a.name.localeCompare(b.name, "tr")), []);
     const districts = useMemo(() => getDistricts(form.provinceId), [form.provinceId]);
 
-    // Yarım dönem yalnızca dönem ayarından açıldıysa seçilebilir
+    // Konaklama türü dönemin türünden gelir: yaz döneminde "sadece yaz"; akademik dönemde akademik ya da 12 ay
+    const summerPeriod = period.type === "summer";
+    const stayPlan = summerPeriod ? "summer" : form.stayPlan || "academic";
+    const yearly = stayPlan === "yearly";
+    // Yarım dönem yalnızca dönem ayarından açıldıysa ve akademik kayıtta seçilebilir
     const half = period.halfTerm;
-    const halfOpen = Boolean(half?.enabled && half.firstEnd && half.secondStart);
+    const halfOpen = !summerPeriod && !yearly && Boolean(half?.enabled && half.firstEnd && half.secondStart);
     const range = form.term === "first" ? { start: period.start, end: half?.firstEnd ?? period.end } : form.term === "second" ? { start: half?.secondStart ?? period.start, end: period.end } : { start: period.start, end: period.end };
 
     const setGuardian = (id, field, value) => setForm((f) => ({ ...f, guardians: f.guardians.map((g) => (g.id === id ? { ...g, [field]: value } : g)) }));
@@ -95,7 +99,7 @@ export default function OfficeApplicationDialog({ open, roomTypes, onClose, onCr
 
         const out = await exec(
             createApplication,
-            { ...form, periodId: period.id },
+            { ...form, stayPlan, term: halfOpen ? form.term : "full", periodId: period.id },
             "Başvuru kaydedildi. Onaylamak için listeden açın."
         );
         if (!out.ok) {
@@ -116,7 +120,7 @@ export default function OfficeApplicationDialog({ open, roomTypes, onClose, onCr
         <FormDialog
             open={open}
             title="Ofis kaydı"
-            description={`${period.name} dönemine başvuru ekleyin. Kaydet'ten sonra başvuruyu inceleyip onaylarsınız.`}
+            description={`${period.name}${summerPeriod ? " (yaz dönemi)" : ""} dönemine başvuru ekleyin. Kaydet'ten sonra başvuruyu inceleyip onaylarsınız.`}
             onClose={onClose}
             onSubmit={submit}
             busy={busy}
@@ -183,12 +187,29 @@ export default function OfficeApplicationDialog({ open, roomTypes, onClose, onCr
                 </button>
             </div>
 
+            {!summerPeriod && (
+                <Field label="Konaklama türü" error={errors.stayPlan} hint={yearly ? "Temmuz–Ağustos, oda tipinin yaz fiyatından ödeme planına eklenir." : "“Sadece yaz” kaydı yaz dönemi seçiliyken yapılır."} className="sm:col-span-2">
+                    <SelectInput
+                        value={stayPlan}
+                        onChange={(e) => setForm((f) => ({ ...f, stayPlan: e.target.value, term: "full", roomTypeId: e.target.value === "yearly" && roomTypes.find((r) => r.id === f.roomTypeId)?.summerMonthly == null ? "" : f.roomTypeId }))}
+                    >
+                        <option value="academic">{STAY_PLAN.academic.long}</option>
+                        <option value="yearly">{STAY_PLAN.yearly.long}</option>
+                    </SelectInput>
+                </Field>
+            )}
             <Field label="Oda tipi" required error={errors.roomTypeId} className="sm:col-span-2">
                 <SelectInput value={form.roomTypeId} error={errors.roomTypeId} onChange={set("roomTypeId")}>
                     <option value="">Seçin</option>
-                    {roomTypes.filter((r) => r.active).map((r) => (
-                        <option key={r.id} value={r.id} disabled={r.monthly == null}>{r.name.tr}{r.monthly != null ? ` · ${money(r.monthly)}/ay` : " · fiyat tanımlı değil"}</option>
-                    ))}
+                    {roomTypes.filter((r) => r.active).map((r) => {
+                        const noPrice = r.monthly == null || (yearly && r.summerMonthly == null);
+                        const text = r.monthly == null
+                            ? " · fiyat tanımlı değil"
+                            : yearly
+                              ? r.summerMonthly == null ? " · yaz fiyatı tanımlı değil" : ` · ${money(r.monthly)}/ay, yaz ${money(r.summerMonthly)}/ay`
+                              : ` · ${money(r.monthly)}/ay`;
+                        return <option key={r.id} value={r.id} disabled={noPrice}>{r.name.tr}{text}</option>;
+                    })}
                 </SelectInput>
             </Field>
             {halfOpen && (

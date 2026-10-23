@@ -12,6 +12,7 @@ public class RoomTypePriceConfiguration : IEntityTypeConfiguration<RoomTypePrice
         {
             t.HasCheckConstraint("CK_RoomTypePrices_Monthly", "[Monthly] > 0");
             t.HasCheckConstraint("CK_RoomTypePrices_Deposit", "[Deposit] >= 0");
+            t.HasCheckConstraint("CK_RoomTypePrices_SummerMonthly", "[SummerMonthly] IS NULL OR [SummerMonthly] > 0");
         });
 
         builder.HasOne<Period>().WithMany().HasForeignKey(x => x.PeriodId).OnDelete(DeleteBehavior.Restrict);

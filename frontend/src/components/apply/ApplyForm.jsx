@@ -11,7 +11,19 @@ import StepReview from "./StepReview";
 import { StepGuardians, StepPersonal, StepRoom, StepSchool } from "./StepsForm";
 import { submitApplication } from "@/services/applications";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import { buildPaymentPlan, clampEntry, earliestEntry, emptyForm, mapServerErrors, termOptions, termRange, validateStep } from "@/lib/application";
+import {
+    buildPaymentPlan,
+    clampEntry,
+    defaultStayPlan,
+    earliestEntry,
+    emptyForm,
+    mapServerErrors,
+    roomsForStay,
+    stayConfig,
+    termOptions,
+    termRange,
+    validateStep,
+} from "@/lib/application";
 import { formatDate, formatPrice } from "@/lib/format";
 import { EASE_OUT } from "@/lib/motion";
 
@@ -61,12 +73,20 @@ function SubmitButton({ submitting, label, onClick }) {
 export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }) {
     const { t, tpl, locale } = useLanguage();
     const a = t.apply;
-    // Seçili kayıt süresinin aralığı (tam dönem ya da yarıyıl): tarih sınırları, plan ve doğrulama bunu kullanır
-    const terms = useMemo(() => termOptions(config), [config]);
-
     const startRoom = rooms.some((room) => room.slug === initialRoomSlug) ? initialRoomSlug : "";
-    const [form, setFormState] = useState(() => emptyForm({ roomSlug: startRoom, period: config.period }));
-    const period = useMemo(() => ({ ...config.period, ...termRange(config, form.term) }), [config, form.term]);
+    const [form, setFormState] = useState(() => {
+        const stayPlan = defaultStayPlan(config);
+        const startRooms = roomsForStay(rooms, config, stayPlan);
+        const roomSlug = startRooms.some((room) => room.slug === startRoom && !room.unavailable) ? startRoom : "";
+        return emptyForm({ roomSlug, period: stayConfig(config, stayPlan).period, stayPlan });
+    });
+    // Konaklama türünün dönemi (akademik / yaz) ve o türün fiyatlarıyla oda tipleri
+    const stay = useMemo(() => stayConfig(config, form.stayPlan), [config, form.stayPlan]);
+    const stayRooms = useMemo(() => roomsForStay(rooms, config, form.stayPlan), [rooms, config, form.stayPlan]);
+    const openRooms = useMemo(() => stayRooms.filter((item) => !item.unavailable), [stayRooms]);
+    // Seçili kayıt süresinin aralığı (tam dönem ya da yarıyıl): tarih sınırları, plan ve doğrulama bunu kullanır
+    const terms = useMemo(() => termOptions(stay), [stay]);
+    const period = useMemo(() => ({ ...stay.period, ...termRange(stay, form.term) }), [stay, form.term]);
     const [step, setStep] = useState(1);
     const [direction, setDirection] = useState(1);
     const [maxReached, setMaxReached] = useState(1);
@@ -78,12 +98,13 @@ export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }
     const [sheetOpen, setSheetOpen] = useState(false);
     const topRef = useRef(null);
 
-    const room = rooms.find((item) => item.slug === form.roomSlug) ?? null;
+    const room = openRooms.find((item) => item.slug === form.roomSlug) ?? null;
     const plan = useMemo(
-        () => buildPaymentPlan({ room, entryDate: form.entryDate, payDay: form.payDay, period, locale }),
-        [room, form.entryDate, form.payDay, period, locale]
+        () => buildPaymentPlan({ room, entryDate: form.entryDate, payDay: form.payDay, period, locale, stayPlan: form.stayPlan, yearlyEnd: config.yearly?.end }),
+        [room, form.entryDate, form.payDay, period, locale, form.stayPlan, config.yearly?.end]
     );
-    const selectedBed = bedRequest?.available && bedRequest.roomSlug === form.roomSlug ? bedRequest : null;
+    // Sitedeki yatak seçimi akademik dönemin doluluğudur: sadece yaz başvurusunda yatak tercihi gönderilmez
+    const selectedBed = form.stayPlan !== "summer" && bedRequest?.available && bedRequest.roomSlug === form.roomSlug ? bedRequest : null;
 
     /* ── durum yardımcıları ── */
     const clearErrors = (keys) =>
@@ -95,9 +116,20 @@ export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }
         });
 
     const set = (field, value) => {
+        if (field === "stayPlan") {
+            // Tür değişince: tam döneme dönülür, giriş tarihi yeni dönemin sınırlarına çekilir, o türde fiyatı olmayan oda bırakılır
+            setFormState((f) => {
+                const nextStay = stayConfig(config, value);
+                const nextRooms = roomsForStay(rooms, config, value);
+                const keepRoom = nextRooms.some((item) => item.slug === f.roomSlug && !item.unavailable);
+                return { ...f, stayPlan: value, term: "full", roomSlug: keepRoom ? f.roomSlug : "", entryDate: clampEntry(f.entryDate, termRange(nextStay, "full")) };
+            });
+            clearErrors(["stayPlan", "term", "entryDate", "roomSlug"]);
+            return;
+        }
         if (field === "term") {
             // Süre değişince giriş tarihi yeni sürenin sınırlarına çekilir
-            setFormState((f) => ({ ...f, term: value, entryDate: clampEntry(f.entryDate, termRange(config, value)) }));
+            setFormState((f) => ({ ...f, term: value, entryDate: clampEntry(f.entryDate, termRange(stay, value)) }));
             clearErrors(["term", "entryDate"]);
             return;
         }
@@ -130,7 +162,7 @@ export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }
             document.querySelector(`[data-field="${first}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
         }, 60);
     };
-    const validate = (n) => validateStep(n, form, { period, rooms, terms: terms.map((term) => term.id) });
+    const validate = (n) => validateStep(n, form, { period, rooms: openRooms, terms: terms.map((term) => term.id) });
 
     const next = () => {
         const errs = validate(step);
@@ -169,6 +201,7 @@ export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }
         setSubmitError("");
         try {
             const result = await submitApplication({
+                stayPlan: form.stayPlan,
                 roomSlug: form.roomSlug,
                 bedId: selectedBed?.id ?? null,
                 term: form.term,
@@ -243,7 +276,17 @@ export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }
                         <AnimatePresence mode="wait" custom={direction} initial={false}>
                             <motion.div key={step} custom={direction} variants={stepVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.38, ease: EASE_OUT }}>
                                 <h2 className="mb-6 font-display text-3xl font-medium text-orchid-dark">{a.steps[step - 1]}</h2>
-                                {step === 1 && <StepRoom {...stepProps} rooms={rooms} terms={terms} period={period} bedRequest={bedRequest} cameFromDetail={Boolean(startRoom) && form.roomSlug === startRoom} />}
+                                {step === 1 && (
+                                    <StepRoom
+                                        {...stepProps}
+                                        config={config}
+                                        rooms={stayRooms}
+                                        terms={terms}
+                                        period={period}
+                                        bedRequest={form.stayPlan === "summer" ? null : bedRequest}
+                                        cameFromDetail={Boolean(startRoom) && form.roomSlug === startRoom}
+                                    />
+                                )}
                                 {step === 2 && <StepPersonal {...stepProps} />}
                                 {step === 3 && <StepSchool {...stepProps} />}
                                 {step === 4 && <StepGuardians {...stepProps} setForm={setForm} />}

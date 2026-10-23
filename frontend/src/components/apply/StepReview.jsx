@@ -47,6 +47,8 @@ export default function StepReview({ form, set, err, goTo, room, plan, period })
     const [kvkkOpen, setKvkkOpen] = useState(false);
     const grade = a.school.grades[["prep", "1", "2", "3", "4", "5", "6"].indexOf(form.grade)] ?? "";
     const payDay = form.payDay === "early" ? a.room.payDayEarly : form.payDay === "mid" ? a.room.payDayMid : "";
+    const stayText = form.stayPlan === "yearly" ? a.room.stay.yearly : form.stayPlan === "summer" ? a.room.stay.summer : a.room.stay.academic;
+    const notes = form.stayPlan === "yearly" ? r.notesYearly : form.stayPlan === "summer" ? r.notesSummer : r.notes;
 
     return (
         <div className="flex flex-col gap-6">
@@ -57,6 +59,7 @@ export default function StepReview({ form, set, err, goTo, room, plan, period })
                     editLabel={a.edit}
                     onEdit={() => goTo(1)}
                     rows={[
+                        [a.room.stay.label, stayText],
                         [a.summary.room, room ? localized(room.name, locale) : ""],
                         [r.labels.term, `${form.term === "first" ? a.room.firstTerm : form.term === "second" ? a.room.secondTerm : a.room.fullTerm} (${formatDate(period.start)} – ${formatDate(period.end)})`],
                         [a.summary.entry, formatDate(form.entryDate)],
@@ -101,7 +104,7 @@ export default function StepReview({ form, set, err, goTo, room, plan, period })
             <PaymentPlan plan={plan} room={room} payDay={form.payDay} />
 
             <div className="flex flex-col gap-3">
-                {r.notes.map((note, i) => (
+                {notes.map((note, i) => (
                     <motion.div
                         key={note}
                         initial={{ opacity: 0, x: -14 }}

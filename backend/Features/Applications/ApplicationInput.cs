@@ -7,6 +7,7 @@ namespace MazlumApart.Features.Applications;
 /// <summary>
 /// Başvuru girişi. Web formu (frontend services/applications.js submitApplication) ve ofis kaydı aynı alanları kullanır.
 /// Web: roomSlug + bedId? + payDay. Ofis: roomTypeId + payWindow (+ periodId). İkisinden biri yeterli.
+/// stayPlan: academic | yearly | summer (boşsa: açık akademik dönem varsa academic, yoksa summer).
 /// </summary>
 public record ApplicationInput(
     Guid? PeriodId,
@@ -30,7 +31,8 @@ public record ApplicationInput(
     string? Department,
     string? Grade,
     List<GuardianInput>? Guardians,
-    string? Note);
+    string? Note,
+    string? StayPlan = null);
 
 public record GuardianInput(string? Name, string? Phone);
 
@@ -101,6 +103,14 @@ public static class ApplicantRules
 
     public static StayTerm? ParseTerm(string? value) =>
         string.IsNullOrWhiteSpace(value) ? StayTerm.Full : QueryParsing.TryParseEnum<StayTerm>(value, out var t) ? t : null;
+
+    /// <summary>Boş -> (true, null): varsayılanı çağıran seçer. Geçersiz -> (false, null).</summary>
+    public static (bool Valid, StayPlan? Plan) ParseStayPlan(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return (true, null);
+        if (QueryParsing.TryParseEnum<StayPlan>(value, out var plan)) return (true, plan);
+        return (false, null);
+    }
 
     public static PayWindow? ParsePayWindow(string? value) =>
         string.IsNullOrWhiteSpace(value) ? Domain.Enums.PayWindow.Early : QueryParsing.TryParseEnum<PayWindow>(value, out var w) ? w : null;

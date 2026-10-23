@@ -11,7 +11,7 @@ import useCommand, { errorText } from "@/components/admin/useCommand";
 import { approveApplication, getApplication, rejectApplication } from "@/lib/admin/commands/registration";
 import { monthLabel } from "@/lib/admin/month";
 import { turkeyDate } from "@/lib/format";
-import { APPLICATION_STATUS, PAY_WINDOW, SOURCE, TERM, date, money } from "@/lib/admin/labels";
+import { APPLICATION_STATUS, PAY_WINDOW, SOURCE, STAY_PLAN, TERM, date, money } from "@/lib/admin/labels";
 import { getProvinceName } from "@/lib/locations";
 import { GRADE_LABELS } from "./OfficeApplicationDialog";
 
@@ -125,6 +125,7 @@ export default function ApplicationDialog({ application, onClose }) {
         >
             <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge map={APPLICATION_STATUS} value={application.status} />
+                {application.stayPlan && application.stayPlan !== "academic" && <Badge tone={STAY_PLAN[application.stayPlan].tone} icon={application.stayPlan === "summer" ? "sunny" : "event_available"}>{STAY_PLAN[application.stayPlan].long}</Badge>}
                 {readOnlyPeriod && application.status === "pending" && <Badge tone="warn">Kapalı dönem: onaylanamaz</Badge>}
                 {application.status === "rejected" && detail?.rejectReason && <span className="text-xs text-ad-muted">Neden: {detail.rejectReason}</span>}
             </div>
@@ -149,6 +150,7 @@ export default function ApplicationDialog({ application, onClose }) {
                         <Info label="Giriş tarihi">{date(application.entryDate)}</Info>
                         <Info label="Ödeme penceresi">{PAY_WINDOW[application.payWindow]}</Info>
                         <Info label="Süre">{TERM[application.term]}</Info>
+                        <Info label="Konaklama türü">{STAY_PLAN[application.stayPlan]?.long}</Info>
                     </dl>
 
                     {detail.note && <p className="rounded-2xl bg-ad-sunken p-4 text-sm"><b>Not:</b> {detail.note}</p>}
@@ -165,15 +167,16 @@ export default function ApplicationDialog({ application, onClose }) {
                             <p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Ödeme planı{application.status === "pending" ? " (onayda oluşur)" : ""}</p>
                             <span className="text-xs text-ad-muted">Başvurudaki fiyat sabitlenmiştir</span>
                         </div>
-                        <div className="mt-2 grid grid-cols-3 gap-3 text-sm">
+                        <div className={`mt-2 grid gap-3 text-sm ${application.priceSummerMonthly != null ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
                             <Info label="Kayıtta ödenecek">{money(detail.dueAtRegistration)}</Info>
                             <Info label="Aylık kira">{money(application.priceMonthly)}</Info>
-                            <Info label="Dönem toplamı">{money(detail.periodTotal)}</Info>
+                            {application.priceSummerMonthly != null && <Info label="Yaz kirası (Tem–Ağu)">{money(application.priceSummerMonthly)}</Info>}
+                            <Info label={application.stayPlan === "yearly" ? "12 ay toplamı" : "Dönem toplamı"}>{money(detail.periodTotal)}</Info>
                         </div>
                         <ul className="mt-3 flex flex-wrap gap-1.5">
                             {plan.slice(0, 14).map((c, i) => (
-                                <li key={i} className="rounded-full bg-ad-surface px-2.5 py-1 text-[11px] font-semibold text-ad-body ring-1 ring-ad-line">
-                                    {c.kind === "deposit" ? "Depozito" : monthLabel(c.month, { short: true })} · {date(c.dueDate).slice(0, 5)}
+                                <li key={i} className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${c.kind === "summer" ? "bg-ad-warn-soft text-ad-warn ring-ad-line" : "bg-ad-surface text-ad-body ring-ad-line"}`}>
+                                    {c.kind === "deposit" ? "Depozito" : monthLabel(c.month, { short: true })}{c.kind === "summer" ? " (yaz)" : ""} · {date(c.dueDate).slice(0, 5)}
                                 </li>
                             ))}
                         </ul>

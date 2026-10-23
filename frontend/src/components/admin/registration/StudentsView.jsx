@@ -7,7 +7,7 @@ import WhatsAppButton from "@/components/admin/WhatsAppButton";
 import { Avatar, Badge, Chips, PageHeader, StatusBadge } from "@/components/admin/ui";
 import { SelectInput } from "@/components/admin/fields";
 import { adaptRow, describeCovered } from "@/lib/admin/adapters";
-import { ENROLLMENT_STATUS, PAY_STATUS, date, money } from "@/lib/admin/labels";
+import { ENROLLMENT_STATUS, PAY_STATUS, STAY_PLAN, date, money } from "@/lib/admin/labels";
 
 /** Seçili dönemin kayıtlı öğrencileri. Satıra tıklayınca öğrenci detayı açılır. */
 export default function StudentsView({ enrollments, roomTypes }) {
@@ -16,6 +16,7 @@ export default function StudentsView({ enrollments, roomTypes }) {
     const [tab, setTab] = useState("live");
     const [roomType, setRoomType] = useState("");
     const [pay, setPay] = useState("");
+    const [stayPlan, setStayPlan] = useState("");
 
     const isLive = (r) => !["cancelled", "left"].includes(r.enrollment.status);
     const counts = useMemo(
@@ -33,6 +34,7 @@ export default function StudentsView({ enrollments, roomTypes }) {
         if (tab === "ended" && isLive(r)) return false;
         if (roomType && r.enrollment.roomTypeId !== roomType) return false;
         if (pay && r.summary.status !== pay) return false;
+        if (stayPlan && r.enrollment.stayPlan !== stayPlan) return false;
         return true;
     });
 
@@ -43,7 +45,10 @@ export default function StudentsView({ enrollments, roomTypes }) {
                 <div className="flex items-center gap-2.5">
                     <Avatar name={`${r.student.firstName} ${r.student.lastName}`} />
                     <div className="min-w-0">
-                        <div className="truncate font-bold">{r.student.firstName} {r.student.lastName}</div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="truncate font-bold">{r.student.firstName} {r.student.lastName}</span>
+                            {r.enrollment.stayPlan !== "academic" && <Badge tone={STAY_PLAN[r.enrollment.stayPlan]?.tone}>{STAY_PLAN[r.enrollment.stayPlan]?.label}</Badge>}
+                        </div>
                         <div className="text-[11px] text-ad-muted">{r.student.department || r.student.school || "—"}</div>
                     </div>
                 </div>
@@ -58,6 +63,7 @@ export default function StudentsView({ enrollments, roomTypes }) {
             export: { value: (r) => r.room?.label ?? "" },
         },
         { key: "type", header: "Oda tipi", render: (r) => <span className="whitespace-nowrap">{r.roomType?.name.tr}</span>, export: { value: (r) => r.roomType?.name.tr ?? "" } },
+        { key: "stay", header: "Konaklama", hidden: true, export: { value: (r) => STAY_PLAN[r.enrollment.stayPlan]?.long ?? "" } },
         { key: "entry", header: "Giriş", sort: (r) => r.enrollment.entryDate, render: (r) => <span className="ad-num">{date(r.enrollment.entryDate)}</span>, export: { type: "date", value: (r) => r.enrollment.entryDate } },
         { key: "status", header: "Durum", render: (r) => <StatusBadge map={ENROLLMENT_STATUS} value={r.enrollment.status} />, export: { value: (r) => ENROLLMENT_STATUS[r.enrollment.status].label } },
         {
@@ -115,6 +121,12 @@ export default function StudentsView({ enrollments, roomTypes }) {
                                 <option value="overdue">Gecikmiş</option>
                                 <option value="ok">Güncel</option>
                                 <option value="paid">Ödendi</option>
+                            </SelectInput>
+                        </div>
+                        <div className="w-full sm:w-44">
+                            <SelectInput value={stayPlan} onChange={(e) => setStayPlan(e.target.value)}>
+                                <option value="">Tüm konaklama türleri</option>
+                                {Object.entries(STAY_PLAN).map(([k, v]) => <option key={k} value={k}>{v.long}</option>)}
                             </SelectInput>
                         </div>
                     </>

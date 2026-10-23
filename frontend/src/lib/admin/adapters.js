@@ -14,6 +14,7 @@ export function adaptRow(r) {
             entryDate: r.entryDate,
             payWindow: r.payWindow,
             term: r.term,
+            stayPlan: r.stayPlan ?? "academic",
             roomTypeId: r.roomTypeId,
             endedAt: r.endedAt ?? null,
             endReason: r.endReason ?? null,

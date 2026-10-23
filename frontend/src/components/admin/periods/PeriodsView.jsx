@@ -19,6 +19,7 @@ export default function PeriodsView({ overview, roomTypes }) {
     const [dialog, setDialog] = useState(null); // "new" | {edit} | {price}
     const [closing, setClosing] = useState(null);
     const closed = period.status === "closed";
+    const academic = period.type !== "summer";
 
     const sorted = [...periods].sort((a, b) => b.start.localeCompare(a.start));
     const counts = (id) => {
@@ -35,7 +36,7 @@ export default function PeriodsView({ overview, roomTypes }) {
         <div>
             <PageHeader
                 title="Dönemler & Fiyatlar"
-                description="Her dönemin muhasebesi ayrıdır; yeni dönem sıfırdan başlar. Fiyatlar yalnızca o dönemdeki YENİ başvuruları etkiler, mevcut kayıtlar kayıt anındaki fiyatı korur."
+                description="Her dönemin muhasebesi ayrıdır; yeni dönem sıfırdan başlar. Akademik ve yaz dönemi aynı anda açık olabilir. Fiyatlar yalnızca o dönemdeki YENİ başvuruları etkiler, mevcut kayıtlar kayıt anındaki fiyatı korur."
                 actions={<button type="button" onClick={() => setDialog("new")} className="ad-btn ad-btn-primary"><Icon name="rocket_launch" className="text-[20px]" />Yeni dönem başlat</button>}
             />
 
@@ -61,18 +62,32 @@ export default function PeriodsView({ overview, roomTypes }) {
                 })}
             </div>
 
-            <Card title={`Fiyatlar · ${period.name}`} description={closed ? "Kapalı dönemin fiyatları değiştirilemez." : "Aylık kira ve depozito. Depozito 1 aylık kiradır ve dönemin son ayının (haziran) kirası yerine sayılır; son ay için ayrıca kira istenmez."}>
+            <Card
+                title={`Fiyatlar · ${period.name}`}
+                description={
+                    closed
+                        ? "Kapalı dönemin fiyatları değiştirilemez."
+                        : academic
+                          ? "Aylık kira ve depozito. Depozito 1 aylık kiradır ve dönemin son ayının (haziran) kirası yerine sayılır. Yaz kirası, 12 ay kalanların Temmuz–Ağustos aylık kirasıdır; boş bırakılan oda tipinde sitede 12 ay seçilemez."
+                          : "Yaz dönemi aylık kirası ve depozitosu. Sitede “Sadece yaz” seçenler bu fiyatlarla kayıt olur."
+                }
+            >
                 <div className="ad-scroll mt-4 overflow-x-auto">
                     <table className="ad-table">
-                        <thead><tr><th>Oda tipi</th><th className="!text-end">Aylık kira</th><th className="!text-end">Depozito</th><th /></tr></thead>
+                        <thead><tr><th>Oda tipi</th><th className="!text-end">Aylık kira</th><th className="!text-end">Depozito</th>{academic && <th className="!text-end">Yaz kirası (12 ay)</th>}<th /></tr></thead>
                         <tbody>
                             {roomTypes.map((rt) => {
-                                const price = rt.monthly != null ? { monthly: rt.monthly, deposit: rt.deposit } : null;
+                                const price = rt.monthly != null ? { monthly: rt.monthly, deposit: rt.deposit, summerMonthly: rt.summerMonthly ?? null } : null;
                                 return (
                                     <tr key={rt.id}>
                                         <td className="font-bold">{rt.name.tr}</td>
                                         <td className="ad-num text-end">{price ? money(price.monthly) : <Badge tone="warn">Fiyat girilmedi</Badge>}</td>
                                         <td className="ad-num text-end">{price ? money(price.deposit) : "—"}</td>
+                                        {academic && (
+                                            <td className="ad-num text-end">
+                                                {price?.summerMonthly != null ? money(price.summerMonthly) : <span className="text-xs text-ad-muted">12 ay kapalı</span>}
+                                            </td>
+                                        )}
                                         <td className="text-end">{!closed && <button type="button" onClick={() => setDialog({ price: rt, row: price })} className="text-xs font-bold text-ad-brand hover:underline">{price ? "Düzenle" : "Fiyat gir"}</button>}</td>
                                     </tr>
                                 );
@@ -95,9 +110,18 @@ function NewPeriodDialog({ onClose }) {
     const { exec, busy } = useCommand();
     const latest = [...periods].filter((p) => p.type === "academic").sort((a, b) => b.start.localeCompare(a.start))[0];
     const nextYear = latest ? Number(latest.start.slice(0, 4)) + 1 : new Date().getFullYear();
-    const [f, setF] = useState({ type: "academic", name: `${nextYear}–${nextYear + 1} Akademik`, start: `${nextYear}-09-01`, end: `${nextYear + 1}-06-30`, copyFromPeriodId: period?.id ?? "" });
+    // Yaz dönemi: en yakın yaz (bu yıl Ağustos bitmediyse bu yıl, yoksa gelecek yıl), 1 Temmuz – 31 Ağustos
+    const today = new Date();
+    const summerYear = today.getMonth() >= 8 ? today.getFullYear() + 1 : today.getFullYear();
+    const defaults = {
+        academic: { name: `${nextYear}–${nextYear + 1} Akademik`, start: `${nextYear}-09-01`, end: `${nextYear + 1}-06-30` },
+        summer: { name: `${summerYear} Yaz`, start: `${summerYear}-07-01`, end: `${summerYear}-08-31` },
+    };
+    const [f, setF] = useState({ type: "academic", ...defaults.academic, copyFromPeriodId: period?.id ?? "" });
     const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
-    const active = periods.filter((p) => p.status === "active");
+    const setType = (e) => setF((x) => ({ ...x, type: e.target.value, ...defaults[e.target.value] }));
+    // Yalnızca AYNI türdeki aktif dönem kapanır (akademik ve yaz dönemi birlikte açık kalabilir)
+    const active = periods.filter((p) => p.status === "active" && p.type === f.type);
 
     const submit = async (e) => {
         e.preventDefault();
@@ -109,7 +133,7 @@ function NewPeriodDialog({ onClose }) {
     };
     return (
         <FormDialog open title="Yeni dönem başlat" description="Yeni dönem sıfırdan başlar: kayıt, borç ve hesap hareketi kopyalanmaz." onClose={onClose} onSubmit={submit} busy={busy} saveLabel="Dönemi başlat">
-            <Field label="Tip" required><SelectInput value={f.type} onChange={set("type")}><option value="academic">Akademik dönem</option><option value="summer">Yaz dönemi</option></SelectInput></Field>
+            <Field label="Tip" required hint={f.type === "summer" ? "Sitede “Sadece yaz” seçenler bu döneme başvurur. Akademik dönem açık kalır." : undefined}><SelectInput value={f.type} onChange={setType}><option value="academic">Akademik dönem</option><option value="summer">Yaz dönemi</option></SelectInput></Field>
             <Field label="Dönem adı" required><TextInput value={f.name} onChange={set("name")} /></Field>
             <Field label="Başlangıç" required><DateInput value={f.start} onChange={set("start")} /></Field>
             <Field label="Bitiş" required><DateInput value={f.end} onChange={set("end")} /></Field>
@@ -146,7 +170,8 @@ function EditPeriodDialog({ period, onClose }) {
 function PriceDialog({ roomType, row, onClose }) {
     const { period } = useAdmin();
     const { exec, busy } = useCommand();
-    const [f, setF] = useState({ monthly: row?.monthly ?? "", deposit: row?.deposit ?? "" });
+    const academic = period.type !== "summer";
+    const [f, setF] = useState({ monthly: row?.monthly ?? "", deposit: row?.deposit ?? "", summerMonthly: row?.summerMonthly ?? "" });
     const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
     const submit = async (e) => {
         e.preventDefault();
@@ -157,6 +182,11 @@ function PriceDialog({ roomType, row, onClose }) {
         <FormDialog open title={`${roomType.name.tr} fiyatı`} description={period.name} onClose={onClose} onSubmit={submit} busy={busy} saveLabel="Kaydet" columns={1}>
             <Field label="Aylık kira" required><NumberInput suffix="₺" min="0" step="0.01" value={f.monthly} onChange={set("monthly")} autoFocus /></Field>
             <Field label="Depozito" required hint="Kayıtta bir kez alınır. 1 aylık kiradır ve son ay kirası yerine sayılır."><NumberInput suffix="₺" min="0" step="0.01" value={f.deposit} onChange={set("deposit")} /></Field>
+            {academic && (
+                <Field label="Yaz kirası (12 ay kalanlar için)" hint="Temmuz ve Ağustos'un aylık kirası. Boş bırakırsanız bu oda tipine sitede 12 aylık kayıt alınmaz.">
+                    <NumberInput suffix="₺" min="0" step="0.01" value={f.summerMonthly} onChange={set("summerMonthly")} />
+                </Field>
+            )}
             <p className="rounded-xl bg-ad-warn-soft px-3 py-2 text-xs text-ad-warn">Bu değişiklik yalnızca bundan sonraki başvuruları etkiler. Mevcut kayıtların ödeme planı değişmez. İşlem geçmişine yazılır.</p>
         </FormDialog>
     );

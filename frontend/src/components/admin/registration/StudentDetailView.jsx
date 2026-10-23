@@ -11,7 +11,7 @@ import { DateInput, Field, SelectInput } from "@/components/admin/fields";
 import { Avatar, Badge, Card, EmptyState, PageHeader, StatusBadge } from "@/components/admin/ui";
 import { adaptRow, describeCovered } from "@/lib/admin/adapters";
 import { endEnrollment } from "@/lib/admin/commands/registration";
-import { CONTACT_PURPOSE, ENROLLMENT_STATUS, MAINT_STATUS, PAY_STATUS, PAY_WINDOW, TERM, date, money } from "@/lib/admin/labels";
+import { CONTACT_PURPOSE, ENROLLMENT_STATUS, MAINT_STATUS, PAY_STATUS, PAY_WINDOW, STAY_PLAN, TERM, date, money } from "@/lib/admin/labels";
 import { turkeyDate } from "@/lib/format";
 import { getProvinceName } from "@/lib/locations";
 import { GRADE_LABELS } from "./OfficeApplicationDialog";
@@ -84,6 +84,7 @@ export default function StudentDetailView({ detail, contacts, maintenance }) {
             <div className="mb-4 flex flex-wrap items-center gap-2">
                 <StatusBadge map={ENROLLMENT_STATUS} value={e.status} />
                 {!ended && <StatusBadge map={PAY_STATUS} value={summary.status} />}
+                {e.stayPlan && e.stayPlan !== "academic" && <Badge tone={STAY_PLAN[e.stayPlan].tone} icon={e.stayPlan === "summer" ? "sunny" : "event_available"}>{STAY_PLAN[e.stayPlan].long}</Badge>}
                 {closedPeriod && <Badge tone="warn">Kapalı dönem: salt okunur</Badge>}
                 {ended && <span className="text-xs text-ad-muted">{date(e.endedAt)} · {e.endReason}</span>}
             </div>
@@ -182,6 +183,7 @@ export default function StudentDetailView({ detail, contacts, maintenance }) {
                         <dl className="mt-4 grid grid-cols-2 gap-4">
                             <Info label="Oda tipi">{roomType?.name.tr}</Info>
                             <Info label="Süre">{TERM[e.term]}</Info>
+                            <Info label="Konaklama türü">{STAY_PLAN[e.stayPlan]?.long}</Info>
                             <Info label="Giriş">{date(e.entryDate)}</Info>
                             <Info label="Ödeme günü">{PAY_WINDOW[e.payWindow]}</Info>
                             <Info label="Aylık kira"><span className="ad-num">{money(e.price.monthly)}</span></Info>

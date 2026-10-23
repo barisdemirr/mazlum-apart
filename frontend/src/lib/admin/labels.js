@@ -65,6 +65,13 @@ export const PAY_WINDOW = { early: "Ayın 1–5'i", mid: "Ayın 15–20'si" };
 export const SOURCE = { online: "Web sitesi", office: "Ofis" };
 export const TERM = { full: "Tam dönem", first: "1. yarı", second: "2. yarı" };
 
+/** Konaklama türü (backend StayPlan): başvuru formunda öğrenci seçer */
+export const STAY_PLAN = {
+    academic: { label: "Akademik", tone: "neutral", long: "Akademik dönem (10 ay)" },
+    yearly: { label: "12 ay", tone: "accent", long: "12 ay (yaz dahil)" },
+    summer: { label: "Sadece yaz", tone: "warn", long: "Sadece yaz" },
+};
+
 export const BILL_KIND = { electricity: "Elektrik", water: "Su", gas: "Doğalgaz", internet: "İnternet", other: "Diğer" };
 export const BILL_STATE = {
     paid: { label: "Ödendi", tone: "ok" },

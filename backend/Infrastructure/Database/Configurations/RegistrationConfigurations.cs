@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using MazlumApart.Domain.Entities;
+using MazlumApart.Domain.Enums;
 
 namespace MazlumApart.Infrastructure.Database.Configurations;
 
@@ -14,6 +15,7 @@ public class ApplicationConfiguration : IEntityTypeConfiguration<Application>
         builder.Property(x => x.Source).HasConversion<string>().HasMaxLength(10);
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(10);
         builder.Property(x => x.Term).HasConversion<string>().HasMaxLength(10);
+        builder.Property(x => x.StayPlan).HasConversion<string>().HasMaxLength(10).HasDefaultValue(StayPlan.Academic);
         builder.Property(x => x.PayWindow).HasConversion<string>().HasMaxLength(10);
         builder.Property(x => x.Applicant).HasJsonConversion();
         builder.Property(x => x.Tc).HasMaxLength(11).IsFixedLength().IsRequired();
@@ -44,6 +46,7 @@ public class EnrollmentConfiguration : IEntityTypeConfiguration<Enrollment>
 
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(10);
         builder.Property(x => x.Term).HasConversion<string>().HasMaxLength(10);
+        builder.Property(x => x.StayPlan).HasConversion<string>().HasMaxLength(10).HasDefaultValue(StayPlan.Academic);
         builder.Property(x => x.PayWindow).HasConversion<string>().HasMaxLength(10);
         builder.Property(x => x.EndReason).HasMaxLength(500);
 

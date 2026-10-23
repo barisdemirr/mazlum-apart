@@ -514,3 +514,23 @@ Content-Type: application/json
 
 { "purpose": "announcement", "text": "Merhaba {ad}, yeni dönem fiyatları açıklandı. {oda} için başvurabilirsin.", "lang": "tr", "recipients": [{ "preRegistrationId": "{{preRegistrations.response.body[0].id}}" }] }
 
+### Başvuru formu ayarları: akademik dönem + yearly { end, summerPrices } + summer { period, prices }
+GET {{api}}/api/applications/config
+
+### Dönem fiyatı + 12 ay için yaz kirası (summerMonthly boşsa o oda tipine 12 ay alınmaz)
+PUT {{api}}/api/admin/periods/{{periodId}}/prices/{{roomTypeId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "monthly": 12000, "deposit": 12000, "summerMonthly": 9000 }
+
+### Kalemin tutarını değiştir (eski kalem ters kayıt, yenisi aynı ay ve vadeyle). chargeId: öğrenci hesabındaki kalemin id'si
+@chargeId = 00000000-0000-0000-0000-000000000000
+
+###
+POST {{api}}/api/admin/charges/{{chargeId}}/amend
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "amount": 8500, "reason": "Yaz fiyatı anlaşmaya göre düzeltildi" }
+

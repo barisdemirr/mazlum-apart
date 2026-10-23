@@ -353,6 +353,64 @@ public static class ReverseCharge
     }
 }
 
+/// <summary>
+/// Kalem tutarını değiştirme (ör. 12 ay kaydında yaz kirası, sonradan anlaşılan fiyat): kalemler değişmez kayıt olduğu için
+/// eski kalem ters kayıtla kapanır, aynı tür / ay / vade ile yeni tutarda kalem açılır. Ödenmiş kısmı avansa döner ve
+/// otomatik yeniden dağıtılır. İndirim ve ters kayıt kalemleri değiştirilemez (iptal edip yenisi eklenir).
+/// </summary>
+public static class AmendCharge
+{
+    public record Command(decimal Amount, string? Reason);
+
+    public class Handler(AppDbContext db, LedgerService ledgers, AuditWriter audit)
+    {
+        public async Task<Result<Guid>> Handle(Guid chargeId, Command cmd, Guid adminId, CancellationToken ct)
+        {
+            var reason = cmd.Reason?.Trim() ?? "";
+            var v = new Validator().Required("reason", reason, "Değişiklik nedenini yazın.").MaxLength("reason", reason, 300);
+            if (Money.Check(cmd.Amount) is { } money) v.AddError("amount", money);
+            if (!v.IsValid) return v.ToFailure<Guid>();
+
+            var target = await db.Charges.AsNoTracking().FirstOrDefaultAsync(x => x.Id == chargeId, ct);
+            if (target is null) return Error.NotFound("Kalem bulunamadı.");
+            if (target.ReversalOfId is not null || target.Kind == ChargeKind.Discount || target.Amount <= 0)
+                return Error.Conflict("Yalnızca borç kalemlerinin tutarı değiştirilebilir. İndirimi iptal edip yenisini ekleyin.");
+
+            var period = await db.Periods.AsNoTracking().FirstAsync(x => x.Id == target.PeriodId, ct);
+            if (PeriodRules.RequireOpen(period, "Tutar değişikliği") is { } closed) return closed;
+
+            var ledger = await ledgers.LoadAsync(target.EnrollmentId, ct);
+            if (ledger is null) return Error.NotFound("Kayıt bulunamadı.");
+
+            var before = ledger.Items().FirstOrDefault(i => i.Id == chargeId);
+            if (before is null || before.Net == 0) return Error.Conflict("Bu kalem iptal edilmiş; tutarı değiştirilemez.");
+
+            var amount = decimal.Round(cmd.Amount, 2);
+            if (amount == before.Net) return Error.Field("amount", "Yeni tutar mevcut tutarla aynı.");
+
+            var reversed = ledger.Reverse(chargeId, $"Tutar değişikliği: {reason}", adminId);
+            if (!reversed.IsSuccess) return reversed.Error!;
+
+            var charge = ledger.AddCharge(target.Kind, target.Month, amount, target.DueDate,
+                string.IsNullOrWhiteSpace(target.Note) ? reason : target.Note, adminId);
+            ledger.AutoAllocate();
+
+            audit.Add("charge.amend", "charge", chargeId, target.PeriodId,
+                before: new { before.Kind, before.Month, amount = before.Net, before.Allocated },
+                after: new { chargeId = charge.Id, amount }, note: reason);
+            await db.SaveChangesAsync(ct);
+            return charge.Id;
+        }
+    }
+
+    public class Endpoint : IEndpoint
+    {
+        public void MapEndpoint(IEndpointRouteBuilder app) =>
+            app.MapPost("/api/admin/charges/{id:guid}/amend", async (Guid id, Command cmd, ClaimsPrincipal user, Handler h, CancellationToken ct) =>
+                (await h.Handle(id, cmd, user.GetUserId(), ct)).ToHttp(newId => Results.Ok(new { id = newId })));
+    }
+}
+
 /// <summary>Tahsilatlar sayfası: seçili dönemin tüm tahsilat ve iadeleri (iptal edilenler dahil) + dönem toplamları</summary>
 public static class GetPayments
 {

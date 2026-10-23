@@ -17,5 +17,10 @@ export const updatePeriod = ({ id, name, start, end, applicationsOpen, halfTerm 
 
 export const closePeriod = ({ id }) => admin.post(`/periods/${id}/close`);
 
-export const savePrice = ({ periodId, roomTypeId, monthly, deposit }) =>
-    admin.put(`/periods/${periodId}/prices/${roomTypeId}`, { monthly: Number(monthly), deposit: Number(deposit) });
+/** summerMonthly: akademik dönemde 12 ay kalanların Temmuz–Ağustos aylık kirası; boş bırakılırsa o oda tipine 12 aylık kayıt alınmaz */
+export const savePrice = ({ periodId, roomTypeId, monthly, deposit, summerMonthly }) =>
+    admin.put(`/periods/${periodId}/prices/${roomTypeId}`, {
+        monthly: Number(monthly),
+        deposit: Number(deposit),
+        summerMonthly: summerMonthly === "" || summerMonthly == null ? null : Number(summerMonthly),
+    });

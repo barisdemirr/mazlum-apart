@@ -26,7 +26,7 @@ public record SummaryDto(decimal Charged, decimal Collected, decimal Refunded, d
 public record EnrollmentRow(
     Guid Id, Guid PeriodId, EnrollmentStatus Status, DateOnly EntryDate, PayWindow PayWindow, StayTerm Term,
     decimal MonthlyPrice, decimal DepositPrice, DateOnly? EndedAt, string? EndReason,
-    StudentRef Student, Guid RoomTypeId, string RoomTypeName, RoomRef? Room, SummaryDto Summary, DateTime? LastContactAt);
+    StudentRef Student, Guid RoomTypeId, string RoomTypeName, RoomRef? Room, SummaryDto Summary, DateTime? LastContactAt, StayPlan StayPlan);
 
 /// <summary>Kayıt listeleri ve detayları için ortak okuma (takip yok)</summary>
 public class EnrollmentQueryHandler(AppDbContext db, LedgerService ledgers)
@@ -69,7 +69,7 @@ public class EnrollmentQueryHandler(AppDbContext db, LedgerService ledgers)
             e.RoomTypeId, e.RoomType?.Name.Tr ?? "",
             CurrentRoom(byEnrollment[e.Id], day),
             SummaryDto.From(summaries[e.Id]),
-            lastContacts.TryGetValue(e.Id, out var last) ? last : null), summaries[e.Id])).ToList();
+            lastContacts.TryGetValue(e.Id, out var last) ? last : null, e.StayPlan), summaries[e.Id])).ToList();
     }
 
     /// <summary>Verilen gündeki yerleşim; yoksa en son yerleşim</summary>

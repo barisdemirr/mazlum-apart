@@ -7,4 +7,7 @@ public class RoomTypePrice : BaseEntity
     public Guid RoomTypeId { get; set; }
     public decimal Monthly { get; set; }
     public decimal Deposit { get; set; }
+
+    /// <summary>Akademik dönemde: 12 ay kalanların Temmuz–Ağustos aylık kirası. Boşsa o oda tipine 12 aylık kayıt alınmaz.</summary>
+    public decimal? SummerMonthly { get; set; }
 }

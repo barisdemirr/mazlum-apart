@@ -62,8 +62,8 @@ export default function PaymentPlan({ plan, room, payDay }) {
                 {plan.rents.map((rent) => (
                     <PlanRow
                         key={rent.key}
-                        icon={rent.atRegistration ? "key" : "event"}
-                        title={rent.atRegistration ? r.firstRent : tpl(r.rent, { month: rent.month })}
+                        icon={rent.atRegistration ? "key" : rent.summer ? "sunny" : "event"}
+                        title={rent.atRegistration ? r.firstRent : tpl(rent.summer ? r.summerRent : r.rent, { month: rent.month })}
                         sub={rent.atRegistration ? rent.month : null}
                         when={rent.atRegistration ? r.firstRentWhen : rent.dueDate ? tpl(r.dueBy, { date: formatDate(rent.dueDate) }) : r.dueDateMissing}
                         amount={rent.amount}

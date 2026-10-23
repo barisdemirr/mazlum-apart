@@ -38,7 +38,8 @@ public static class GetOccupancy
                 from p in db.Placements.AsNoTracking()
                 join e in db.Enrollments.AsNoTracking() on p.EnrollmentId equals e.Id
                 join s in db.Students.IgnoreQueryFilters().AsNoTracking() on e.StudentId equals s.Id
-                where p.PeriodId == periodId && p.StartDate <= today && p.EndDate >= today
+                // Gün bazlı: o gün odada kalan herkes (yaz döneminde akademik dönemden 12 ay kalanlar dahil)
+                where p.StartDate <= today && p.EndDate >= today
                 select new { p.Id, p.RoomId, EnrollmentId = e.Id, StudentId = s.Id, Name = s.FirstName + " " + s.LastName, s.Phone, p.StartDate, p.EndDate })
                 .ToListAsync(ct);
             var byRoom = live.ToLookup(x => x.RoomId);

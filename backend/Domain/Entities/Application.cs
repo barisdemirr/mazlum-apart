@@ -24,10 +24,13 @@ public class Application : BaseEntity
     public Guid RoomTypeId { get; set; }
     public Guid? PreferredRoomId { get; set; }          // sitede seçilen yatağın odası (tercih; yerleşimi yönetici yapar)
     public StayTerm Term { get; set; } = StayTerm.Full;
+    public StayPlan StayPlan { get; set; } = StayPlan.Academic;
     public DateOnly EntryDate { get; set; }
     public PayWindow PayWindow { get; set; } = PayWindow.Early;
     public decimal PriceMonthly { get; set; }
     public decimal PriceDeposit { get; set; }
+    /// <summary>12 aylık kayıtta Temmuz–Ağustos aylık kirası (dönem fiyatındaki yaz fiyatının kopyası); diğerlerinde null</summary>
+    public decimal? PriceSummerMonthly { get; set; }
     public string? Note { get; set; }
 
     public DateTime? DecidedAt { get; set; }

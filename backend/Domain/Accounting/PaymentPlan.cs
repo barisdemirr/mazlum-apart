@@ -18,6 +18,30 @@ public static class PaymentPlan
 
     public static string MonthKey(DateOnly date) => $"{date.Year:D4}-{date.Month:D2}";
 
+    /// <summary>12 aylık kaydın bitişi: akademik dönemin bittiği yılın 31 Ağustos'u</summary>
+    public static DateOnly SummerEnd(DateOnly academicEnd) =>
+        academicEnd.Month <= 8 ? new DateOnly(academicEnd.Year, 8, 31) : academicEnd;
+
+    /// <summary>
+    /// Konaklama türüne göre plan: akademik ve sadece yaz = normal plan (planEnd: dönem ya da yarı sonu);
+    /// 12 ay = normal plan + dönem sonundan 31 Ağustos'a kadar her ay için "yaz" kalemi (yaz fiyatı, seçilen ödeme gününde).
+    /// Depozito her durumda planEnd ayının (Haziran) kirası yerine sayılır.
+    /// </summary>
+    public static List<ChargeDraft> ForStay(StayPlan plan, DateOnly entryDate, PayWindow window, decimal monthly, decimal deposit, DateOnly planEnd, decimal? summerMonthly)
+    {
+        var drafts = Generate(entryDate, window, monthly, deposit, planEnd);
+        if (plan != StayPlan.Yearly) return drafts;
+
+        var dueDay = DueDay(window);
+        var last = SummerEnd(planEnd);
+        for (var cursor = new DateOnly(planEnd.Year, planEnd.Month, 1).AddMonths(1); cursor <= last; cursor = cursor.AddMonths(1))
+        {
+            var due = new DateOnly(cursor.Year, cursor.Month, Math.Min(dueDay, DateTime.DaysInMonth(cursor.Year, cursor.Month)));
+            drafts.Add(new ChargeDraft(ChargeKind.Summer, MonthKey(cursor), summerMonthly ?? monthly, due, "Yaz konaklaması (12 ay)"));
+        }
+        return drafts;
+    }
+
     public static List<ChargeDraft> Generate(DateOnly entryDate, PayWindow window, decimal monthly, decimal deposit, DateOnly periodEnd)
     {
         var drafts = new List<ChargeDraft>

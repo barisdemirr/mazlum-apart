@@ -20,6 +20,14 @@ public enum PayWindow { Early, Mid }
 public enum StayTerm { Full, First, Second }
 
 /// <summary>
+/// Konaklama türü (frontend STAY_PLAN). Başvuru formunda öğrenci seçer:
+///   academic = akademik dönem (Eylül–Haziran, 10 ay)
+///   yearly   = 12 ay: akademik dönem + Temmuz–Ağustos (yaz ayları akademik kaydın planına "yaz" kalemi olarak, yaz fiyatından eklenir)
+///   summer   = sadece yaz: açık YAZ dönemine kayıt (kendi fiyatı, doluluğu, ödeme planı)
+/// </summary>
+public enum StayPlan { Academic, Yearly, Summer }
+
+/// <summary>
 /// Ön başvuru durumu (frontend lib/admin/labels.js PRE_REGISTRATION_STATUS):
 ///   new = yeni · contacted = bilgilendirildi (arandı / SMS gitti) · registered = kayıt oldu · cancelled = vazgeçti
 /// </summary>

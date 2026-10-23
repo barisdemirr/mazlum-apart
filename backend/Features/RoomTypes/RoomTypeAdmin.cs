@@ -22,7 +22,8 @@ public record RoomTypeAdminDto(
     int Beds,
     int Apartments,
     decimal? Monthly,
-    decimal? Deposit);
+    decimal? Deposit,
+    decimal? SummerMonthly = null);
 
 /// <summary>Oda tipi girişi: ad (TR zorunlu), slug (boşsa addan), açıklama, kapak (medya id), sitede göster, sıra</summary>
 public record RoomTypeInput(LocalizedText? Name, string? Slug, LocalizedText? Description, Guid? CoverMediaId, bool Active, int Order);
@@ -47,7 +48,7 @@ public static class GetRoomTypesAdmin
                 return new RoomTypeAdminDto(
                     t.Id, t.Slug, t.Name, t.Description ?? new LocalizedText(), t.CoverMediaId, t.CoverMedia?.FilePath, t.IsActive, t.OrderIndex,
                     own.Count, own.Where(r => r.Status == RoomStatus.Active).Sum(r => r.Beds), own.Select(r => r.ApartmentId).Distinct().Count(),
-                    price?.Monthly, price?.Deposit);
+                    price?.Monthly, price?.Deposit, price?.SummerMonthly);
             }).ToList();
         }
     }

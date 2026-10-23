@@ -7,6 +7,7 @@ export const createApplication = (i) =>
     admin.post("/applications", {
         periodId: i.periodId,
         roomTypeId: i.roomTypeId,
+        stayPlan: i.stayPlan || null,
         term: i.term,
         entryDate: i.entryDate,
         payWindow: i.payWindow,

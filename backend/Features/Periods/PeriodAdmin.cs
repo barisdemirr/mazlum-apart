@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using MazlumApart.Domain.Accounting;
 using MazlumApart.Domain.Entities;
 using MazlumApart.Domain.Enums;
 using MazlumApart.Infrastructure.Database;
@@ -50,7 +51,8 @@ public static class GetPeriods
 }
 
 /// <summary>
-/// Yeni dönem: aktif dönem(ler) KAPANIR, yeni dönem aktif başlar; hiçbir kayıt ya da muhasebe hareketi kopyalanmaz.
+/// Yeni dönem: AYNI TÜRDEKİ aktif dönem KAPANIR, yeni dönem aktif başlar; hiçbir kayıt ya da muhasebe hareketi kopyalanmaz.
+/// Akademik ve yaz dönemi aynı anda açık olabilir (yaz kayıtları sürerken yeni akademik dönemin kayıtları da sürer).
 /// copyFromPeriodId verilirse yalnızca o dönemin fiyatları kopyalanır. Akademik dönem varsayılanı 1 Eylül – 30 Haziran.
 /// </summary>
 public static class CreatePeriod
@@ -75,7 +77,7 @@ public static class CreatePeriod
 
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-            var closing = await db.Periods.Where(x => x.Status == PeriodStatus.Active).ToListAsync(ct);
+            var closing = await db.Periods.Where(x => x.Status == PeriodStatus.Active && x.Type == cmd.Type).ToListAsync(ct);
             foreach (var p in closing)
             {
                 p.Status = PeriodStatus.Closed;
@@ -91,7 +93,11 @@ public static class CreatePeriod
             {
                 var prices = await db.RoomTypePrices.AsNoTracking().Where(x => x.PeriodId == from).ToListAsync(ct);
                 foreach (var p in prices)
-                    db.RoomTypePrices.Add(new RoomTypePrice { PeriodId = period.Id, RoomTypeId = p.RoomTypeId, Monthly = p.Monthly, Deposit = p.Deposit });
+                    db.RoomTypePrices.Add(new RoomTypePrice
+                    {
+                        PeriodId = period.Id, RoomTypeId = p.RoomTypeId, Monthly = p.Monthly, Deposit = p.Deposit,
+                        SummerMonthly = cmd.Type == PeriodType.Academic ? p.SummerMonthly : null
+                    });
                 copied = prices.Count;
             }
 
@@ -152,7 +158,11 @@ public static class UpdatePeriod
             // Dönem dışında kalacak kayıt ya da yerleşim oluşmasın
             if (await db.Enrollments.AnyAsync(x => x.PeriodId == id && x.EntryDate < cmd.Start, ct))
                 return Error.Conflict("Bu tarihten önce giriş yapan kayıtlar var; başlangıç tarihi ileri alınamaz.");
-            if (await db.Placements.AnyAsync(x => x.PeriodId == id && x.EndDate > cmd.End, ct))
+            // 12 ay kalanların yerleşimi yaz sonuna (31 Ağustos) kadar sürebilir
+            var yearly = db.Enrollments.Where(e => e.PeriodId == id && e.StayPlan == StayPlan.Yearly).Select(e => e.Id);
+            var summerEnd = PaymentPlan.SummerEnd(cmd.End);
+            if (await db.Placements.AnyAsync(x => x.PeriodId == id &&
+                    ((yearly.Contains(x.EnrollmentId) && x.EndDate > summerEnd) || (!yearly.Contains(x.EnrollmentId) && x.EndDate > cmd.End)), ct))
                 return Error.Conflict("Bitiş tarihinden sonrasına uzanan yerleşimler var.");
             if (await db.Applications.AnyAsync(x => x.PeriodId == id && x.Status == ApplicationStatus.Pending && (x.EntryDate < cmd.Start || x.EntryDate > cmd.End), ct))
                 return Error.Conflict("Giriş tarihi yeni aralığın dışında kalan bekleyen başvurular var.");
@@ -212,7 +222,8 @@ public static class ClosePeriod
     }
 }
 
-public record PriceDto(Guid RoomTypeId, decimal Monthly, decimal Deposit);
+/// <summary>summerMonthly: akademik dönemde 12 ay kalanların Temmuz–Ağustos aylık kirası (boşsa 12 aylık kayıt alınmaz)</summary>
+public record PriceDto(Guid RoomTypeId, decimal Monthly, decimal Deposit, decimal? SummerMonthly);
 
 public static class GetPeriodPrices
 {
@@ -221,14 +232,17 @@ public static class GetPeriodPrices
         public void MapEndpoint(IEndpointRouteBuilder app) =>
             app.MapGet("/api/admin/periods/{id:guid}/prices", async (Guid id, AppDbContext db, CancellationToken ct) =>
                 Results.Ok(await db.RoomTypePrices.AsNoTracking().Where(x => x.PeriodId == id)
-                    .Select(x => new PriceDto(x.RoomTypeId, x.Monthly, x.Deposit)).ToListAsync(ct)));
+                    .Select(x => new PriceDto(x.RoomTypeId, x.Monthly, x.Deposit, x.SummerMonthly)).ToListAsync(ct)));
     }
 }
 
-/// <summary>Dönem fiyatı (aylık kira + depozito). Kapalı dönemin fiyatı değişmez; değişiklik yalnızca yeni başvuruları etkiler.</summary>
+/// <summary>
+/// Dönem fiyatı (aylık kira + depozito; akademik dönemde isteğe bağlı yaz aylık fiyatı). Kapalı dönemin fiyatı değişmez;
+/// değişiklik yalnızca yeni başvuruları etkiler (kayıtlar fiyatın kopyasını taşır, sonradan kalem kalem düzeltilebilir).
+/// </summary>
 public static class SavePeriodPrice
 {
-    public record Command(decimal Monthly, decimal Deposit);
+    public record Command(decimal Monthly, decimal Deposit, decimal? SummerMonthly);
 
     public class Handler(AppDbContext db, AuditWriter audit)
     {
@@ -242,14 +256,18 @@ public static class SavePeriodPrice
             var validator = new Validator()
                 .Positive("monthly", cmd.Monthly, "Aylık kira sıfırdan büyük olmalı.")
                 .Must("deposit", cmd.Deposit >= 0, "Depozito eksi olamaz.")
-                .Must("monthly", cmd.Monthly < 10_000_000 && cmd.Deposit < 10_000_000, "Tutar çok büyük.");
+                .Must("monthly", cmd.Monthly < 10_000_000 && cmd.Deposit < 10_000_000, "Tutar çok büyük.")
+                .Must("summerMonthly", cmd.SummerMonthly is null || cmd.SummerMonthly > 0, "Yaz fiyatı sıfırdan büyük olmalı (12 ay kaydı almayacaksanız boş bırakın).")
+                .Must("summerMonthly", cmd.SummerMonthly is null || cmd.SummerMonthly < 10_000_000, "Tutar çok büyük.")
+                .Must("summerMonthly", cmd.SummerMonthly is null || period.Type == PeriodType.Academic, "Yaz fiyatı yalnızca akademik dönemde girilir; yaz döneminde aylık kira kullanılır.");
             if (!validator.IsValid) return validator.ToFailure<PriceDto>();
 
             var monthly = decimal.Round(cmd.Monthly, 2);
             var deposit = decimal.Round(cmd.Deposit, 2);
+            var summer = cmd.SummerMonthly is { } sm ? decimal.Round(sm, 2) : (decimal?)null;
 
             var price = await db.RoomTypePrices.FirstOrDefaultAsync(x => x.PeriodId == periodId && x.RoomTypeId == roomTypeId, ct);
-            var before = price is null ? null : new PriceDto(roomTypeId, price.Monthly, price.Deposit);
+            var before = price is null ? null : new PriceDto(roomTypeId, price.Monthly, price.Deposit, price.SummerMonthly);
             if (price is null)
             {
                 price = new RoomTypePrice { PeriodId = periodId, RoomTypeId = roomTypeId };
@@ -257,8 +275,9 @@ public static class SavePeriodPrice
             }
             price.Monthly = monthly;
             price.Deposit = deposit;
+            price.SummerMonthly = summer;
 
-            var after = new PriceDto(roomTypeId, monthly, deposit);
+            var after = new PriceDto(roomTypeId, monthly, deposit, summer);
             audit.Add("price.update", "price", $"{periodId}:{roomTypeId}", periodId, before: before, after: after);
             await db.SaveChangesAsync(ct);
             return after;

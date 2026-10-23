@@ -392,6 +392,10 @@ namespace MazlumApart.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal?>("PriceSummerMonthly")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("RejectReason")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -408,6 +412,13 @@ namespace MazlumApart.Migrations
                         .IsRequired()
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("StayPlan")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasDefaultValue("Academic");
 
                     b.Property<string>("Tc")
                         .IsRequired()
@@ -825,8 +836,19 @@ namespace MazlumApart.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
 
+                    b.Property<string>("StayPlan")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasDefaultValue("Academic");
+
                     b.Property<Guid>("StudentId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("SummerMonthlyPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Term")
                         .IsRequired()
@@ -1949,6 +1971,10 @@ namespace MazlumApart.Migrations
                     b.Property<Guid>("RoomTypeId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal?>("SummerMonthly")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -1965,6 +1991,8 @@ namespace MazlumApart.Migrations
                             t.HasCheckConstraint("CK_RoomTypePrices_Deposit", "[Deposit] >= 0");
 
                             t.HasCheckConstraint("CK_RoomTypePrices_Monthly", "[Monthly] > 0");
+
+                            t.HasCheckConstraint("CK_RoomTypePrices_SummerMonthly", "[SummerMonthly] IS NULL OR [SummerMonthly] > 0");
                         });
                 });
 

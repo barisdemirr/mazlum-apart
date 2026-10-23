@@ -10,25 +10,109 @@ import DatePicker from "./fields/DatePicker";
 import { FieldError, GroupLabel, Segmented, SelectionCard } from "./fields/Choice";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { localized } from "@/lib/i18n/localized";
-import { formatDate, formatPrice, rangeText } from "@/lib/format";
+import { formatDate, formatPrice, parseDateOnly, rangeText } from "@/lib/format";
 import { mediaAlt, mediaUrl } from "@/lib/media";
 import { EASE_OUT } from "@/lib/motion";
-import { GRADES, earliestEntry, formatPhone, newGuardian, onlyDigits, toISO } from "@/lib/application";
+import { GRADES, earliestEntry, formatPhone, newGuardian, onlyDigits, stayPlanAvailability, toISO } from "@/lib/application";
 import { getDistricts, getProvinces } from "@/lib/locations";
 
 const grid = "grid grid-cols-1 gap-5 sm:grid-cols-2";
 
 /* ───────────────────────── Adım 1: Oda ve konaklama ───────────────────────── */
 
-export function StepRoom({ form, set, err, tick, rooms, terms, period, bedRequest, cameFromDetail }) {
+/** Konaklama türü seçenekleri: kapalı olan seçilemez, nedeni kartta yazar */
+function stayOptions(config, s, locale) {
+    const available = stayPlanAvailability(config);
+    const monthYear = (iso) =>
+        iso ? new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "tr-TR", { month: "long", year: "numeric" }).format(parseDateOnly(iso)) : "";
+    const range = (from, to) => `${monthYear(from)} – ${monthYear(to)}`;
+    return [
+        {
+            id: "academic",
+            icon: "school",
+            title: s.academic,
+            hint: s.academicHint,
+            dates: config.period ? range(config.period.start, config.period.end) : null,
+            available: available.academic,
+            closed: s.closed,
+        },
+        {
+            id: "yearly",
+            icon: "event_available",
+            title: s.yearly,
+            hint: s.yearlyHint,
+            dates: config.period && config.yearly ? range(config.period.start, config.yearly.end) : null,
+            available: available.yearly,
+            closed: available.academic ? s.yearlyClosed : s.closed,
+        },
+        {
+            id: "summer",
+            icon: "sunny",
+            title: s.summer,
+            hint: s.summerHint,
+            dates: config.summer ? range(config.summer.period.start, config.summer.period.end) : null,
+            available: available.summer,
+            closed: s.summerClosed,
+        },
+    ];
+}
+
+export function StepRoom({ form, set, err, tick, config, rooms, terms, period, bedRequest, cameFromDetail }) {
     const { t, tpl, locale } = useLanguage();
     const a = t.apply;
-    const selectedRoom = rooms.find((room) => room.slug === form.roomSlug);
+    const s = a.room.stay;
+    const selectedRoom = rooms.find((room) => room.slug === form.roomSlug && !room.unavailable);
     const dateTexts = useDateTexts();
     const showBed = bedRequest && bedRequest.roomSlug === form.roomSlug;
+    const options = stayOptions(config, s, locale);
+    const stayInfo = form.stayPlan === "yearly" ? s.infoYearly : form.stayPlan === "summer" ? s.infoSummer : s.infoAcademic;
 
     return (
         <div className="flex flex-col gap-8">
+            {/* Konaklama türü: akademik dönem / 12 ay / sadece yaz */}
+            <div data-field="stayPlan" className="flex flex-col gap-3">
+                <GroupLabel required id="stay-label">{s.label}</GroupLabel>
+                <div role="radiogroup" aria-labelledby="stay-label" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    {options.map((option) => (
+                        <SelectionCard
+                            key={option.id}
+                            selected={form.stayPlan === option.id}
+                            disabled={!option.available}
+                            onClick={() => option.available && set("stayPlan", option.id)}
+                            label={option.title}
+                            className="px-5 py-5"
+                        >
+                            <span className="flex items-center gap-4 pr-9 sm:block">
+                                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orchid-powder text-orchid-pink">
+                                    <Icon name={option.icon} filled={form.stayPlan === option.id} className="text-[26px]" />
+                                </span>
+                                <span className="block min-w-0 sm:mt-3">
+                                    <span className="block font-display text-xl font-medium leading-tight text-orchid-dark">{option.title}</span>
+                                    <span className="mt-0.5 block text-sm text-orchid-muted">{option.hint}</span>
+                                    <span className={`mt-1 block text-xs font-semibold ${option.available ? "text-orchid-pink" : "text-orchid-muted"}`}>
+                                        {option.available ? option.dates : option.closed}
+                                    </span>
+                                </span>
+                            </span>
+                        </SelectionCard>
+                    ))}
+                </div>
+                <FieldError id="stay-error" message={err("stayPlan")} />
+                <AnimatePresence mode="wait" initial={false}>
+                    <motion.div
+                        key={form.stayPlan}
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.25, ease: EASE_OUT }}
+                        className="flex items-start gap-3 rounded-2xl bg-orchid-powder/70 px-4 py-3 text-sm text-orchid-dark"
+                    >
+                        <Icon name={form.stayPlan === "summer" ? "sunny" : form.stayPlan === "yearly" ? "event_available" : "school"} filled className="mt-0.5 text-[20px] text-orchid-pink" />
+                        <p>{stayInfo}</p>
+                    </motion.div>
+                </AnimatePresence>
+            </div>
+
             <AnimatePresence initial={false}>
                 {cameFromDetail && selectedRoom && (
                     <motion.div key="pre" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="-mb-3 overflow-hidden">
@@ -59,10 +143,17 @@ export function StepRoom({ form, set, err, tick, rooms, terms, period, bedReques
                 <GroupLabel required id="room-label">{a.room.title}</GroupLabel>
                 <div role="radiogroup" aria-labelledby="room-label" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     {rooms.map((room) => {
-                        const on = room.slug === form.roomSlug;
+                        const on = room.slug === form.roomSlug && !room.unavailable;
                         const name = localized(room.name, locale);
                         return (
-                            <SelectionCard key={room.slug} selected={on} onClick={() => set("roomSlug", room.slug)} label={name} className="p-3">
+                            <SelectionCard
+                                key={room.slug}
+                                selected={on}
+                                disabled={room.unavailable}
+                                onClick={() => !room.unavailable && set("roomSlug", room.slug)}
+                                label={name}
+                                className="p-3"
+                            >
                                 <span className="flex items-center gap-3 sm:block">
                                     <span className="block h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-orchid-powder sm:aspect-[4/3] sm:h-auto sm:w-full">
                                         <SafeImage
@@ -74,9 +165,22 @@ export function StepRoom({ form, set, err, tick, rooms, terms, period, bedReques
                                     <span className="block min-w-0 flex-1 px-1 sm:px-1.5 sm:pb-2 sm:pt-3">
                                         <span className="block font-display text-xl font-medium leading-tight text-orchid-dark">{name}</span>
                                         <span className="mt-0.5 block text-xs text-orchid-muted">{tpl(a.room.inFlat, { count: rangeText(room.peopleInFlat, room.peopleInFlatMax) })}</span>
-                                        <span className="mt-1.5 block font-display text-2xl font-semibold text-orchid-pink">
-                                            {formatPrice(room.monthlyPrice, room.currency, locale)} <span className="font-sans text-xs font-normal text-orchid-muted">{t.common.perMonth}</span>
-                                        </span>
+                                        {room.unavailable ? (
+                                            <span className="mt-1.5 block text-xs font-semibold text-orchid-muted">{s.noPrice}</span>
+                                        ) : (
+                                            <>
+                                                <span className="mt-1.5 block font-display text-2xl font-semibold text-orchid-pink">
+                                                    {formatPrice(room.monthlyPrice, room.currency, locale)}{" "}
+                                                    <span className="font-sans text-xs font-normal text-orchid-muted">{t.common.perMonth}</span>
+                                                </span>
+                                                {room.summerMonthlyPrice != null && (
+                                                    <span className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-orchid-violet">
+                                                        <Icon name="sunny" filled className="text-[14px]" />
+                                                        {tpl(s.summerPrice, { price: formatPrice(room.summerMonthlyPrice, room.currency, locale) })}
+                                                    </span>
+                                                )}
+                                            </>
+                                        )}
                                     </span>
                                 </span>
                             </SelectionCard>

@@ -12,7 +12,8 @@ public record RoomBedCounts(int Occupied, int Reserved);
 /// Yatak durumu HESAPLANIR, elle tutulmaz (MAZLUM_APART_DOLULUK_SISTEMI.md).
 /// Panel öğrenciyi YATAĞA değil ODAYA yerleştirir; sitedeki yatak kutuları odanın yatak sayısından türetilir:
 ///   önce "dolu" kadar yatak, sonra "ayrılmış" kadar yatak, kalanı "boş".
-///   dolu     = o gün (bugün; dönem henüz başlamadıysa dönemin ilk günü) odada yerleşimi olan kayıtlar
+///   dolu     = o gün (bugün; dönem henüz başlamadıysa dönemin ilk günü) odada yerleşimi olan kayıtlar — HANGİ DÖNEMDEN olursa olsun
+///              (yaz döneminde, akademik dönemden 12 ay kalan öğrenciler de odayı doldurur)
 ///   ayrılmış = bu odayı tercih eden bekleyen başvurular + bu odayı tercih edip onaylanmış ama henüz yerleşmemiş kayıtlar
 /// </summary>
 public class AvailabilityService(AppDbContext db)
@@ -29,7 +30,7 @@ public class AvailabilityService(AppDbContext db)
         var day = today < period.StartDate ? period.StartDate : today > period.EndDate ? period.EndDate : today;
 
         var occupied = await db.Placements.AsNoTracking()
-            .Where(x => x.PeriodId == periodId && roomIds.Contains(x.RoomId) && x.StartDate <= day && x.EndDate >= day)
+            .Where(x => roomIds.Contains(x.RoomId) && x.StartDate <= day && x.EndDate >= day)
             .GroupBy(x => x.RoomId)
             .Select(g => new { RoomId = g.Key, Count = g.Count() })
             .ToListAsync(ct);

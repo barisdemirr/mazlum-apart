@@ -19,9 +19,12 @@ public class Enrollment : BaseEntity
     public EnrollmentStatus Status { get; set; } = EnrollmentStatus.Approved;
     public PayWindow PayWindow { get; set; }
     public StayTerm Term { get; set; }
+    public StayPlan StayPlan { get; set; } = StayPlan.Academic;
     public DateOnly EntryDate { get; set; }
     public decimal MonthlyPrice { get; set; }
     public decimal DepositPrice { get; set; }
+    /// <summary>12 aylık kayıtta yaz ayları (Temmuz–Ağustos) aylık kirası</summary>
+    public decimal? SummerMonthlyPrice { get; set; }
 
     public DateOnly? EndedAt { get; set; }
     public string? EndReason { get; set; }

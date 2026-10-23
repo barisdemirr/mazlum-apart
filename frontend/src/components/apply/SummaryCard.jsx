@@ -45,6 +45,8 @@ export function SummaryBody({ room, bed, form, plan }) {
     const s = t.apply.summary;
     const empty = <span className="font-normal text-orchid-muted">{s.empty}</span>;
     const payDayText = form.payDay === "early" ? t.apply.room.payDayEarly : form.payDay === "mid" ? t.apply.room.payDayMid : null;
+    const stay = t.apply.room.stay;
+    const stayText = form.stayPlan === "yearly" ? stay.yearly : form.stayPlan === "summer" ? stay.summer : stay.academic;
 
     return (
         <div className="flex flex-col gap-4">
@@ -75,9 +77,17 @@ export function SummaryBody({ room, bed, form, plan }) {
             </div>
 
             <div className="flex flex-col divide-y divide-orchid-petal/20">
+                <Row label={s.stayPlan}>
+                    <Swap k={form.stayPlan}>{stayText}</Swap>
+                </Row>
                 <Row label={s.monthly}>
                     {room ? <AnimatedNumber value={room.monthlyPrice} format={(n) => formatPrice(n, room.currency, locale)} /> : empty}
                 </Row>
+                {form.stayPlan === "yearly" && room?.summerMonthlyPrice != null && (
+                    <Row label={s.summerMonthly}>
+                        <AnimatedNumber value={room.summerMonthlyPrice} format={(n) => formatPrice(n, room.currency, locale)} />
+                    </Row>
+                )}
                 {bed && (
                     <Row label={s.bed}>
                         <span className="inline-flex items-center gap-1.5">

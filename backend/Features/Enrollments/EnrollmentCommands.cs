@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using MazlumApart.Domain.Accounting;
 using MazlumApart.Domain.Entities;
 using MazlumApart.Domain.Enums;
 using MazlumApart.Infrastructure.Database;
@@ -23,7 +24,7 @@ public static class PlacementRules
 }
 
 /// <summary>
-/// Odaya yerleştirme: { roomId, start?, end? } (varsayılan: giriş tarihi → dönem sonu).
+/// Odaya yerleştirme: { roomId, start?, end? } (varsayılan: giriş tarihi → dönem sonu; 12 aylık kayıtta 31 Ağustos).
 /// Kurallar: kapalı dönemde yapılamaz; oda aktif ve kaydın oda tipinde olmalı; tarihler dönem içinde; öğrenci aynı anda iki odada olamaz;
 /// oda kapasitesi (yatak sayısı) aşılamaz. İlk yerleşimde kayıt "aktif konaklama" olur.
 /// </summary>
@@ -46,10 +47,12 @@ public static class PlaceStudent
             if (room.Status != RoomStatus.Active) return Error.Conflict("Bu oda şu an kullanıma kapalı (kapalı ya da bakımda).");
             if (room.RoomTypeId != enrollment.RoomTypeId) return Error.Conflict("Oda, öğrencinin kayıtlı oda tipine uygun değil.");
 
+            // 12 ay kalan öğrenci yaz aylarında da odasındadır: yerleşim dönem sonundan sonra 31 Ağustos'a kadar uzayabilir
+            var lastDay = enrollment.StayPlan == StayPlan.Yearly ? PaymentPlan.SummerEnd(period.EndDate) : period.EndDate;
             var start = cmd.Start ?? enrollment.EntryDate;
-            var end = cmd.End ?? period.EndDate;
+            var end = cmd.End ?? lastDay;
             if (start > end) return Error.Field("start", "Başlangıç tarihi bitişten sonra olamaz.");
-            if (start < period.StartDate || end > period.EndDate) return Error.Conflict("Yerleşim tarihleri dönemin dışına çıkamaz.");
+            if (start < period.StartDate || end > lastDay) return Error.Conflict("Yerleşim tarihleri dönemin dışına çıkamaz.");
 
             if (await db.Placements.AnyAsync(x => x.EnrollmentId == enrollmentId && x.StartDate <= end && x.EndDate >= start, ct))
                 return Error.Conflict("Bu öğrenci o tarihlerde başka bir odaya yerleşmiş. Oda değişikliği için “Odayı değiştir”i kullanın.");

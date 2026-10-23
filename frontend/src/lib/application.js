@@ -81,6 +81,51 @@ export function termOptions(config) {
 
 export const termRange = (config, termId) => termOptions(config).find((term) => term.id === termId) ?? termOptions(config)[0];
 
+/* ───────────────────────── Konaklama türü (akademik / 12 ay / sadece yaz) ─────────────────────────
+ * Backend GET /api/applications/config:
+ *   period/halfTerm/applicationsOpen → başvuruya açık AKADEMİK dönem
+ *   yearly: { end, summerPrices: { roomTypeId: aylık } } → 12 ay (Temmuz–Ağustos yaz fiyatından eklenir)
+ *   summer: { period, prices: [{ roomTypeId, monthly, deposit }] } → başvuruya açık YAZ dönemi ("sadece yaz")
+ * Fiyatı tanımlı olmayan oda tipi o türde seçilemez (kartı kilitli görünür). */
+export const STAY_PLANS = ["academic", "yearly", "summer"];
+
+export function stayPlanAvailability(config) {
+    const academic = Boolean(config?.period && config.applicationsOpen);
+    return {
+        academic,
+        yearly: academic && Object.keys(config.yearly?.summerPrices ?? {}).length > 0,
+        summer: (config?.summer?.prices?.length ?? 0) > 0,
+    };
+}
+
+export function defaultStayPlan(config) {
+    const available = stayPlanAvailability(config);
+    return available.academic || !available.summer ? "academic" : "summer";
+}
+
+/** Seçilen türün dönem bağlamı ({ period, halfTerm }): termOptions / termRange bununla çalışır. 12 ay ve yaz yalnızca tam dönemdir. */
+export function stayConfig(config, stayPlan) {
+    if (stayPlan === "summer" && config.summer) return { period: config.summer.period, halfTerm: null };
+    if (stayPlan === "yearly") return { period: config.period, halfTerm: null };
+    return { period: config.period ?? config.summer?.period, halfTerm: config.halfTerm };
+}
+
+/** Oda tipleri seçilen türün fiyatlarıyla: yaz → yaz döneminin kirası ve depozitosu; 12 ay → summerMonthlyPrice eklenir */
+export function roomsForStay(rooms, config, stayPlan) {
+    if (stayPlan === "summer") {
+        const prices = new Map((config.summer?.prices ?? []).map((p) => [p.roomTypeId, p]));
+        return rooms.map((room) => {
+            const price = prices.get(room.id);
+            return price ? { ...room, monthlyPrice: price.monthly, depositAmount: price.deposit } : { ...room, unavailable: true };
+        });
+    }
+    if (stayPlan === "yearly") {
+        const prices = config.yearly?.summerPrices ?? {};
+        return rooms.map((room) => (prices[room.id] != null ? { ...room, summerMonthlyPrice: prices[room.id] } : { ...room, unavailable: true }));
+    }
+    return rooms;
+}
+
 /** Seçilebilecek en erken giriş tarihi: kayıt süresinin başı; süre başlamışsa bugün (geçmişe giriş verilemez) */
 export const earliestEntry = (range) => {
     const today = todayISO();
@@ -95,9 +140,10 @@ export const clampEntry = (entryDate, range) => {
     return entryDate;
 };
 
-export function emptyForm({ roomSlug = "", period }) {
+export function emptyForm({ roomSlug = "", period, stayPlan = "academic" }) {
     return {
         roomSlug,
+        stayPlan,
         term: "full",
         entryDate: period ? earliestEntry(period) : "",
         payDay: "",
@@ -180,7 +226,7 @@ export function validateStep(step, form, { period, rooms, terms }) {
  * Backend doğrulama hatalarını (problem+json `errors`: { alan: [mesaj] }) form alanlarına ve adıma çevirir.
  * Dönüş: { errors: { alan: kod }, step } ya da eşleşen alan yoksa null.
  */
-const SERVER_FIELD_STEP = { roomSlug: 1, term: 1, entryDate: 1, payDay: 1, bedId: 1, firstName: 2, lastName: 2, tc: 2, birthDate: 2, phone: 2, address: 2, provinceId: 2, district: 2, school: 3, faculty: 3, department: 3, grade: 3 };
+const SERVER_FIELD_STEP = { stayPlan: 1, roomSlug: 1, term: 1, entryDate: 1, payDay: 1, bedId: 1, firstName: 2, lastName: 2, tc: 2, birthDate: 2, phone: 2, address: 2, provinceId: 2, district: 2, school: 3, faculty: 3, department: 3, grade: 3 };
 const SERVER_FIELD_CODE = { tc: "tc", phone: "phone", birthDate: "birthDate", entryDate: "dateInvalid" };
 
 export function mapServerErrors(serverErrors, guardians = []) {
@@ -212,8 +258,12 @@ export const PAY_DAYS = {
 
 export const depositFor = (room) => room?.depositAmount ?? room?.monthlyPrice ?? 0;
 
-export function buildPaymentPlan({ room, entryDate, payDay, period, locale = "tr" }) {
-    if (!room) return null;
+/**
+ * stayPlan "yearly": dönem sonundan yearlyEnd'e (31 Ağustos) kadar her ay yaz fiyatından ayrıca eklenir (summer: true).
+ * Depozito her durumda dönemin son ayının (Haziran) kirası yerine sayılır.
+ */
+export function buildPaymentPlan({ room, entryDate, payDay, period, locale = "tr", stayPlan = "academic", yearlyEnd = null }) {
+    if (!room || room.unavailable) return null;
 
     const start = parseDateOnly(entryDate || period.start);
     const end = parseDateOnly(period.end);
@@ -247,12 +297,31 @@ export function buildPaymentPlan({ room, entryDate, payDay, period, locale = "tr
     let coveredMonth = null;
     if (rents.length > 1) coveredMonth = rents.pop().month;
 
+    // 12 ay: Temmuz–Ağustos (dönem sonundan sonraki aylar) yaz fiyatından
+    if (stayPlan === "yearly" && yearlyEnd && room.summerMonthlyPrice != null) {
+        const last = parseDateOnly(yearlyEnd);
+        const summer = new Date(end.getFullYear(), end.getMonth() + 1, 1);
+        const dueDay = PAY_DAYS[payDay]?.to;
+        while (summer <= last) {
+            rents.push({
+                key: `${summer.getFullYear()}-${summer.getMonth()}`,
+                index: rents.length + 1,
+                month: monthName(summer),
+                amount: room.summerMonthlyPrice,
+                atRegistration: false,
+                summer: true,
+                dueDate: dueDay ? toISO(new Date(summer.getFullYear(), summer.getMonth(), dueDay)) : null,
+            });
+            summer.setMonth(summer.getMonth() + 1);
+        }
+    }
+
     return {
         deposit,
         rents,
         coveredMonth,
         months: rents.length,
-        dueAtRegistration: deposit + price,
-        periodTotal: deposit + price * rents.length,
+        dueAtRegistration: deposit + (rents[0]?.amount ?? price),
+        periodTotal: deposit + rents.reduce((sum, rent) => sum + rent.amount, 0),
     };
 }
