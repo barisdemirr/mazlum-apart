@@ -13,6 +13,22 @@ public static class GetRoomTypes
     }
 }
 
+/// <summary>Ana sayfadaki daire türleri; her türün altında fiyatlı oda seçenekleri</summary>
+public static class GetApartmentTypes
+{
+    public class Endpoint : IEndpoint
+    {
+        public void MapEndpoint(IEndpointRouteBuilder app)
+        {
+            app.MapGet("/api/apartment-types", async (CatalogQueryHandler catalog, CancellationToken ct) =>
+                Results.Ok(await catalog.ApartmentTypesAsync(ct))).AllowAnonymous();
+            app.MapGet("/api/apartment-types/{slug}", async (string slug, CatalogQueryHandler catalog, CancellationToken ct) =>
+                await catalog.ApartmentTypeAsync(slug, ct) is { } card ? Results.Ok(card) : Error.NotFound("Daire türü bulunamadı.").ToProblem())
+                .AllowAnonymous();
+        }
+    }
+}
+
 public static class GetRoomTypeBySlug
 {
     public class Endpoint : IEndpoint

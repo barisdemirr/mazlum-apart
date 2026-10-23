@@ -16,7 +16,7 @@ namespace MazlumApart.Features.Catalog;
 /// </summary>
 public class CatalogQueryHandler(AppDbContext db, AvailabilityService availability)
 {
-    private sealed record Structure(List<RoomType> Types, List<Apartment> Apartments, Period? Period, List<RoomTypePrice> Prices);
+    private sealed record Structure(List<RoomType> Types, List<Apartment> Apartments, Period? Period, List<RoomTypePrice> Prices, List<ApartmentType> ApartmentTypes);
 
     private sealed record FlatView(Apartment Apartment, List<Room> ActiveRooms, int Beds, int? PerKitchen, int? PerBathroom);
 
@@ -29,8 +29,14 @@ public class CatalogQueryHandler(AppDbContext db, AvailabilityService availabili
 
     private async Task<Structure> LoadAsync(CancellationToken ct)
     {
-        var types = await db.RoomTypes.AsNoTracking().Include(x => x.CoverMedia)
+        // Daire türleri: yalnızca sitede gösterilenler. Pasif türün oda seçenekleri de gizlenir.
+        var apartmentTypes = await db.ApartmentTypes.AsNoTracking().Include(x => x.CoverMedia)
             .Where(x => x.IsActive).OrderBy(x => x.OrderIndex).ThenBy(x => x.CreatedAt).ToListAsync(ct);
+        var activeTypeIds = apartmentTypes.Select(x => (Guid?)x.Id).ToList();
+
+        var types = await db.RoomTypes.AsNoTracking().Include(x => x.CoverMedia)
+            .Where(x => x.IsActive && (x.ApartmentTypeId == null || activeTypeIds.Contains(x.ApartmentTypeId)))
+            .OrderBy(x => x.OrderIndex).ThenBy(x => x.CreatedAt).ToListAsync(ct);
 
         var apartments = await db.Apartments.AsNoTracking()
             .Where(x => x.IsPublished)
@@ -45,7 +51,7 @@ public class CatalogQueryHandler(AppDbContext db, AvailabilityService availabili
             ? new List<RoomTypePrice>()
             : await db.RoomTypePrices.AsNoTracking().Where(x => x.PeriodId == period.Id).ToListAsync(ct);
 
-        return new Structure(types, apartments, period, prices);
+        return new Structure(types, apartments, period, prices, apartmentTypes);
     }
 
     private static FlatView View(Apartment apartment)
@@ -97,12 +103,13 @@ public class CatalogQueryHandler(AppDbContext db, AvailabilityService availabili
         var c = Card(s, type, counts);
         return new RoomTypeDetail(c.Id, c.Slug, c.Name, c.Image, c.HasVideo, c.PhotoCount, c.PeopleInFlat, c.PeopleSharingKitchen,
             c.PeopleSharingBathroom, c.MonthlyPrice, c.DepositAmount, c.Currency, c.FlatCount, c.BedsFree, Paragraphs(type.Description),
-            c.RoomCount, c.PeopleInFlatMax, c.PeopleSharingKitchenMax, c.PeopleSharingBathroomMax);
+            c.RoomCount, c.PeopleInFlatMax, c.PeopleSharingKitchenMax, c.PeopleSharingBathroomMax, c.ApartmentTypeSlug, c.ApartmentTypeName);
     }
 
     private static RoomTypeCard Card(Structure s, RoomType t, Dictionary<Guid, RoomBedCounts> counts)
     {
         var flats = FlatsOf(s, t.Id);
+        var owner = t.ApartmentTypeId is { } ownerId ? s.ApartmentTypes.FirstOrDefault(a => a.Id == ownerId) : null;
         var price = s.Prices.FirstOrDefault(p => p.RoomTypeId == t.Id);
         var image = t.CoverMedia is not null
             ? new MediaRef(t.CoverMedia.FilePath, t.CoverMedia.AltText)
@@ -121,7 +128,8 @@ public class CatalogQueryHandler(AppDbContext db, AvailabilityService availabili
             flats.Sum(f => f.ActiveRooms.Count(r => r.RoomTypeId == t.Id)),
             flats.Count > 0 ? flats.Max(f => f.Beds) : null,
             flats.Where(f => f.PerKitchen is not null).Select(f => f.PerKitchen).Max(),
-            flats.Where(f => f.PerBathroom is not null).Select(f => f.PerBathroom).Max());
+            flats.Where(f => f.PerBathroom is not null).Select(f => f.PerBathroom).Max(),
+            owner?.Slug, owner?.Name);
     }
 
     private static LocalizedList Paragraphs(LocalizedText? text)
@@ -131,6 +139,42 @@ public class CatalogQueryHandler(AppDbContext db, AvailabilityService availabili
             : value.Replace("\r\n", "\n").Split("\n\n", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
 
         return new LocalizedList(Split(text?.Tr), Split(text?.En));
+    }
+
+    // ───────── daire türleri (ana sayfa) ─────────
+
+    public async Task<List<ApartmentTypeCard>> ApartmentTypesAsync(CancellationToken ct)
+    {
+        var s = await LoadAsync(ct);
+        var counts = await CountsAsync(s, s.Types.SelectMany(t => FlatsOf(s, t.Id)).ToList(), ct);
+        return s.ApartmentTypes.Select(a => TypeCard(s, a, counts)).Where(c => c.Options.Count > 0).ToList();
+    }
+
+    public async Task<ApartmentTypeCard?> ApartmentTypeAsync(string slug, CancellationToken ct)
+    {
+        var s = await LoadAsync(ct);
+        var type = s.ApartmentTypes.FirstOrDefault(x => x.Slug == slug);
+        if (type is null) return null;
+        var counts = await CountsAsync(s, s.Types.Where(t => t.ApartmentTypeId == type.Id).SelectMany(t => FlatsOf(s, t.Id)).ToList(), ct);
+        return TypeCard(s, type, counts);
+    }
+
+    /// <summary>Fiyatı girilmemiş oda seçenekleri sitede listelenmez (öğrenci fiyatsız seçenek göremesin)</summary>
+    private static ApartmentTypeCard TypeCard(Structure s, ApartmentType a, Dictionary<Guid, RoomBedCounts> counts)
+    {
+        var options = s.Types.Where(t => t.ApartmentTypeId == a.Id).Select(t => Card(s, t, counts)).Where(c => c.MonthlyPrice is not null).ToList();
+        var flats = s.Apartments.Where(x => x.ApartmentTypeId == a.Id && x.Rooms.Count > 0).ToList();
+        var image = a.CoverMedia is not null
+            ? new MediaRef(a.CoverMedia.FilePath, a.CoverMedia.AltText)
+            : options.Select(o => o.Image).FirstOrDefault(x => x is not null);
+
+        return new ApartmentTypeCard(
+            a.Id, a.Slug, a.Name, Paragraphs(a.Description), image,
+            options.Any(o => o.HasVideo), options.Sum(o => o.PhotoCount),
+            flats.Count, options.Sum(o => o.RoomCount), options.Sum(o => o.BedsFree),
+            options.Count > 0 ? options.Min(o => o.MonthlyPrice) : null,
+            options.Count > 0 ? options.Max(o => o.MonthlyPrice) : null,
+            "TRY", options);
     }
 
     // ───────── odalar (oda tipi sayfası) ─────────

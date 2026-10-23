@@ -10,6 +10,12 @@ const CACHE = { revalidate: 60, tags: ["catalog"] };
 // Doluluk daha sık değişir: kısa önbellek
 const FRESH = { revalidate: 20, tags: ["catalog"] };
 
+/** GET /api/apartment-types: ana sayfadaki daire türleri, her birinin altında fiyatlı oda seçenekleri */
+export const getApartmentTypes = () => apiGet("/api/apartment-types", FRESH);
+
+/** GET /api/apartment-types/{slug} (404 -> null) */
+export const getApartmentTypeBySlug = (slug) => orNull(apiGet(`/api/apartment-types/${enc(slug)}`, FRESH));
+
 /** GET /api/room-types */
 export const getRoomTypes = () => apiGet("/api/room-types", CACHE);
 

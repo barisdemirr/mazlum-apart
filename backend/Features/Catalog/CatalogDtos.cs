@@ -31,7 +31,9 @@ public record RoomTypeCard(
     int RoomCount,
     int? PeopleInFlatMax,
     int? PeopleSharingKitchenMax,
-    int? PeopleSharingBathroomMax);
+    int? PeopleSharingBathroomMax,
+    string? ApartmentTypeSlug = null,
+    LocalizedText? ApartmentTypeName = null);
 
 public record RoomTypeDetail(
     Guid Id,
@@ -52,7 +54,29 @@ public record RoomTypeDetail(
     int RoomCount,
     int? PeopleInFlatMax,
     int? PeopleSharingKitchenMax,
-    int? PeopleSharingBathroomMax);
+    int? PeopleSharingBathroomMax,
+    string? ApartmentTypeSlug = null,
+    LocalizedText? ApartmentTypeName = null);
+
+/// <summary>
+/// Daire türü kartı (ana sayfa ve tür sayfası). Altında, fiyatı girilmiş oda seçenekleri (her biri kendi fiyatıyla) listelenir.
+/// Kontenjan hesaplanır: FlatCount = türdeki yayındaki daire sayısı, RoomCount/BedsFree = seçeneklerin odaları ve boş yatakları.
+/// </summary>
+public record ApartmentTypeCard(
+    Guid Id,
+    string Slug,
+    LocalizedText Name,
+    LocalizedList Description,
+    MediaRef? Image,
+    bool HasVideo,
+    int PhotoCount,
+    int FlatCount,
+    int RoomCount,
+    int BedsFree,
+    decimal? MonthlyPriceFrom,
+    decimal? MonthlyPriceTo,
+    string Currency,
+    List<RoomTypeCard> Options);
 
 /// <summary>
 /// Oda tipi sayfasındaki ODA kartı: tipin her odası ayrı listelenir, ait olduğu daireye bağlanır.

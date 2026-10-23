@@ -7,6 +7,12 @@ import { getDictionary } from "@/lib/i18n/getDictionary";
 // Oda/yatak doluluğu ve dönem durumu her ziyarette güncel okunur (searchParams ile zaten dinamiktir; burada açıkça belirtildi)
 export const dynamic = "force-dynamic";
 
+/** Oda seçenekleri, daire türüne göre bir arada (türlerin ve seçeneklerin sırası korunur) */
+function groupByType(list) {
+    const order = [...new Set(list.map((room) => room.apartmentTypeSlug ?? ""))];
+    return [...list].sort((a, b) => order.indexOf(a.apartmentTypeSlug ?? "") - order.indexOf(b.apartmentTypeSlug ?? ""));
+}
+
 export async function generateMetadata({ params }) {
     const { lang } = await params;
     const t = getDictionary(lang);
@@ -57,7 +63,7 @@ export default async function ApplyPage({ params, searchParams }) {
 
     return (
         <main className="min-h-screen">
-            <ApplyForm rooms={rooms.data} config={config.data} initialRoomSlug={roomSlug} bedRequest={bedRequest} />
+            <ApplyForm rooms={groupByType(rooms.data)} config={config.data} initialRoomSlug={roomSlug} bedRequest={bedRequest} />
         </main>
     );
 }

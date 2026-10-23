@@ -6,12 +6,16 @@ import LocalizedLink from "@/components/ui/LocalizedLink";
 import Icon from "@/components/ui/Icon";
 import Reveal from "@/components/ui/Reveal";
 import RoomCard from "./RoomCard";
+import ApartmentTypeCard from "./ApartmentTypeCard";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { EASE_OUT, VIEWPORT_ONCE } from "@/lib/motion";
 
 /** Oda tiplerini yatay kaydırmalı vitrinde gösterir; oklar ve ilerleme çubuğu kaydırmaya bağlıdır */
-export default function RoomsShowcase({ rooms }) {
+export default function RoomsShowcase({ rooms, types = [] }) {
     const { t } = useLanguage();
+    // Daire türü tanımlıysa ana sayfada türler listelenir (oda seçenekleri türün sayfasında); yoksa eski oda tipi vitrini
+    const showTypes = types.length > 0;
+    const items = showTypes ? types : rooms;
     const trackRef = useRef(null);
 
     // Kaydırma konumu -> ilerleme çubuğu
@@ -33,9 +37,9 @@ export default function RoomsShowcase({ rooms }) {
                     <Reveal className="flex flex-col gap-3">
                         <span className="text-xs font-bold uppercase tracking-[0.25em] text-orchid-pink">{t.rooms.eyebrow}</span>
                         <h2 className="font-display text-4xl font-normal tracking-tight text-orchid-dark sm:text-5xl lg:text-6xl">
-                            {t.rooms.title}
+                            {showTypes ? t.rooms.typesTitle : t.rooms.title}
                         </h2>
-                        <p className="max-w-lg text-base text-orchid-muted">{t.rooms.subtitle}</p>
+                        <p className="max-w-lg text-base text-orchid-muted">{showTypes ? t.rooms.typesSubtitle : t.rooms.subtitle}</p>
                     </Reveal>
 
                     <div className="flex flex-col items-start gap-3 md:items-end">
@@ -67,16 +71,16 @@ export default function RoomsShowcase({ rooms }) {
                 </div>
 
                 <div ref={trackRef} className="no-scrollbar flex snap-x snap-mandatory gap-5 overflow-x-auto pb-8 pt-2">
-                    {rooms.map((room, i) => (
+                    {items.map((item, i) => (
                         <motion.div
-                            key={room.id}
+                            key={item.id}
                             initial={{ opacity: 0, y: 50 }}
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={VIEWPORT_ONCE}
                             transition={{ duration: 0.8, delay: i * 0.1, ease: EASE_OUT }}
                             className="flex"
                         >
-                            <RoomCard room={room} />
+                            {showTypes ? <ApartmentTypeCard type={item} /> : <RoomCard room={item} />}
                         </motion.div>
                     ))}
 

@@ -72,6 +72,10 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
             : string.IsNullOrWhiteSpace(input.RoomSlug) ? null : await db.RoomTypes.FirstOrDefaultAsync(x => x.Slug == input.RoomSlug, ct);
         if (roomType is null || (source == ApplicationSource.Online && !roomType.IsActive))
             v.AddError("roomSlug", "Oda tipini seçin.");
+        // Pasife alınmış daire türünün oda seçenekleri için web başvurusu alınmaz
+        else if (source == ApplicationSource.Online && roomType.ApartmentTypeId is { } ownerTypeId &&
+                 !await db.ApartmentTypes.AnyAsync(x => x.Id == ownerTypeId && x.IsActive, ct))
+            v.AddError("roomSlug", "Oda tipini seçin.");
 
         var term = ApplicantRules.ParseTerm(input.Term);
         var window = ApplicantRules.ParsePayWindow(input.PayWindow ?? input.PayDay);

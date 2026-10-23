@@ -165,6 +165,7 @@ export function StepRoom({ form, set, err, tick, config, rooms, terms, period, b
                                         />
                                     </span>
                                     <span className="block min-w-0 flex-1 px-1 sm:px-1.5 sm:pb-2 sm:pt-3">
+                                        {room.apartmentTypeName && <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-wider text-orchid-pink">{localized(room.apartmentTypeName, locale)}</span>}
                                         <span className="block font-display text-xl font-medium leading-tight text-orchid-dark">{name}</span>
                                         <span className="mt-0.5 block text-xs text-orchid-muted">{tpl(a.room.inFlat, { count: rangeText(room.peopleInFlat, room.peopleInFlatMax) })}</span>
                                         {room.unavailable ? (
