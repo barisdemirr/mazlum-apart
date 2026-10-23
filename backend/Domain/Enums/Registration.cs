@@ -27,6 +27,9 @@ public enum StayTerm { Full, First, Second }
 /// </summary>
 public enum StayPlan { Academic, Yearly, Summer }
 
+/// <summary>İndirim türü: percent = aylık kiradan yüzde, fixed = aylık kiradan sabit TL</summary>
+public enum DiscountKind { Percent, Fixed }
+
 /// <summary>
 /// Ön başvuru durumu (frontend lib/admin/labels.js PRE_REGISTRATION_STATUS):
 ///   new = yeni · contacted = bilgilendirildi (arandı / SMS gitti) · registered = kayıt oldu · cancelled = vazgeçti

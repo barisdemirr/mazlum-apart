@@ -68,10 +68,13 @@ export default function ApplicationsView({ applications, roomTypes }) {
                 <span className="ad-num">
                     {money(a.priceMonthly)}
                     {a.priceSummerMonthly != null && <span className="block text-[11px] text-ad-muted">yaz {money(a.priceSummerMonthly)}</span>}
+                    {a.discountCode && <span className="block text-[11px] font-bold text-ad-brand" title={`Liste fiyatı ${money(a.listPriceMonthly)}`}>{a.discountCode}</span>}
                 </span>
             ),
             export: { type: "money", value: (a) => a.priceMonthly },
         },
+        { key: "discountCode", header: "İndirim kodu", hidden: true, export: { value: (a) => a.discountCode ?? "" } },
+        { key: "listPrice", header: "Liste kirası", hidden: true, export: { type: "money", value: (a) => a.listPriceMonthly ?? "" } },
         { key: "summerPrice", header: "Yaz kirası", hidden: true, export: { type: "money", value: (a) => a.priceSummerMonthly ?? "" } },
         { key: "source", header: "Kaynak", render: (a) => SOURCE[a.source], export: { value: (a) => SOURCE[a.source] } },
         { key: "created", header: "Tarih", sort: (a) => a.createdAt, render: (a) => <span className="ad-num">{date(turkeyDate(a.createdAt))}</span>, export: { type: "date", value: (a) => turkeyDate(a.createdAt) } },

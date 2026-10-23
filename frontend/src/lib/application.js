@@ -226,8 +226,8 @@ export function validateStep(step, form, { period, rooms, terms }) {
  * Backend doğrulama hatalarını (problem+json `errors`: { alan: [mesaj] }) form alanlarına ve adıma çevirir.
  * Dönüş: { errors: { alan: kod }, step } ya da eşleşen alan yoksa null.
  */
-const SERVER_FIELD_STEP = { stayPlan: 1, roomSlug: 1, term: 1, entryDate: 1, payDay: 1, bedId: 1, firstName: 2, lastName: 2, tc: 2, birthDate: 2, phone: 2, address: 2, provinceId: 2, district: 2, school: 3, faculty: 3, department: 3, grade: 3 };
-const SERVER_FIELD_CODE = { tc: "tc", phone: "phone", birthDate: "birthDate", entryDate: "dateInvalid" };
+const SERVER_FIELD_STEP = { discountCode: 1, stayPlan: 1, roomSlug: 1, term: 1, entryDate: 1, payDay: 1, bedId: 1, firstName: 2, lastName: 2, tc: 2, birthDate: 2, phone: 2, address: 2, provinceId: 2, district: 2, school: 3, faculty: 3, department: 3, grade: 3 };
+const SERVER_FIELD_CODE = { discountCode: "discountInvalid", tc: "tc", phone: "phone", birthDate: "birthDate", entryDate: "dateInvalid" };
 
 export function mapServerErrors(serverErrors, guardians = []) {
     const errors = {};

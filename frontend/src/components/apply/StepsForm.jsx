@@ -7,6 +7,7 @@ import SafeImage from "@/components/ui/SafeImage";
 import FloatingField from "./fields/FloatingField";
 import SearchSelect from "./fields/SearchSelect";
 import DatePicker from "./fields/DatePicker";
+import DiscountCodeField from "./DiscountCodeField";
 import { FieldError, GroupLabel, Segmented, SelectionCard } from "./fields/Choice";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { localized } from "@/lib/i18n/localized";
@@ -57,7 +58,7 @@ function stayOptions(config, s, locale) {
     ];
 }
 
-export function StepRoom({ form, set, err, tick, config, rooms, terms, period, bedRequest, cameFromDetail }) {
+export function StepRoom({ form, set, err, tick, config, rooms, terms, period, bedRequest, cameFromDetail, discount, onDiscount }) {
     const { t, tpl, locale } = useLanguage();
     const a = t.apply;
     const s = a.room.stay;
@@ -170,6 +171,9 @@ export function StepRoom({ form, set, err, tick, config, rooms, terms, period, b
                                         ) : (
                                             <>
                                                 <span className="mt-1.5 block font-display text-2xl font-semibold text-orchid-pink">
+                                                    {room.listMonthlyPrice != null && (
+                                                        <span className="mr-1.5 font-sans text-sm font-normal text-orchid-muted line-through">{formatPrice(room.listMonthlyPrice, room.currency, locale)}</span>
+                                                    )}
                                                     {formatPrice(room.monthlyPrice, room.currency, locale)}{" "}
                                                     <span className="font-sans text-xs font-normal text-orchid-muted">{t.common.perMonth}</span>
                                                 </span>
@@ -230,6 +234,9 @@ export function StepRoom({ form, set, err, tick, config, rooms, terms, period, b
                     <FieldError id="term-error" message={err("term")} />
                 </div>
             )}
+
+            {/* İndirim kodu (kayıt yenileyen eski öğrenciler) */}
+            <DiscountCodeField discount={discount} onChange={onDiscount} error={err("discountCode")} currency={selectedRoom?.currency ?? rooms[0]?.currency ?? "TRY"} />
 
             {/* Giriş tarihi */}
             <div className="flex flex-col gap-1.5">

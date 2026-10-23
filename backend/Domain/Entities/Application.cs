@@ -31,6 +31,12 @@ public class Application : BaseEntity
     public decimal PriceDeposit { get; set; }
     /// <summary>12 aylık kayıtta Temmuz–Ağustos aylık kirası (dönem fiyatındaki yaz fiyatının kopyası); diğerlerinde null</summary>
     public decimal? PriceSummerMonthly { get; set; }
+
+    /// <summary>İndirim kodu kullanıldıysa: kod, kodun id'si ve İNDİRİM ÖNCESİ liste fiyatları (PriceMonthly/PriceSummerMonthly indirimlidir)</summary>
+    public Guid? DiscountCodeId { get; set; }
+    public string? DiscountCodeText { get; set; }
+    public decimal? ListPriceMonthly { get; set; }
+    public decimal? ListPriceSummerMonthly { get; set; }
     public string? Note { get; set; }
 
     public DateTime? DecidedAt { get; set; }

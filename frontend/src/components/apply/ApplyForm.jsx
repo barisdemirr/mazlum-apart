@@ -10,6 +10,7 @@ import SuccessScreen from "./SuccessScreen";
 import StepReview from "./StepReview";
 import { StepGuardians, StepPersonal, StepRoom, StepSchool } from "./StepsForm";
 import { submitApplication } from "@/services/applications";
+import { discountRooms } from "@/lib/discount";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import {
     buildPaymentPlan,
@@ -82,7 +83,9 @@ export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }
     });
     // Konaklama türünün dönemi (akademik / yaz) ve o türün fiyatlarıyla oda tipleri
     const stay = useMemo(() => stayConfig(config, form.stayPlan), [config, form.stayPlan]);
-    const stayRooms = useMemo(() => roomsForStay(rooms, config, form.stayPlan), [rooms, config, form.stayPlan]);
+    // İndirim kodu (eski öğrenci): geçerliyse aylık kira indirimli gösterilir; backend başvuruda kodu yeniden doğrular
+    const [discount, setDiscount] = useState(null);
+    const stayRooms = useMemo(() => discountRooms(roomsForStay(rooms, config, form.stayPlan), discount), [rooms, config, form.stayPlan, discount]);
     const openRooms = useMemo(() => stayRooms.filter((item) => !item.unavailable), [stayRooms]);
     // Seçili kayıt süresinin aralığı (tam dönem ya da yarıyıl): tarih sınırları, plan ve doğrulama bunu kullanır
     const terms = useMemo(() => termOptions(stay), [stay]);
@@ -135,6 +138,10 @@ export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }
         }
         setFormState((f) => ({ ...f, [field]: value }));
         clearErrors([field]);
+    };
+    const changeDiscount = (next) => {
+        setDiscount(next);
+        clearErrors(["discountCode"]);
     };
     const setForm = (updater, clearKeys = []) => {
         setFormState(updater);
@@ -202,6 +209,7 @@ export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }
         try {
             const result = await submitApplication({
                 stayPlan: form.stayPlan,
+                discountCode: discount?.code ?? null,
                 roomSlug: form.roomSlug,
                 bedId: selectedBed?.id ?? null,
                 term: form.term,
@@ -228,6 +236,7 @@ export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }
             // Alan hatası: ilgili adıma dön, alanları işaretle. Çakışma (yatak/T.C.) ve limit: sunucunun mesajı gösterilir.
             const mapped = error?.status === 400 ? mapServerErrors(error.errors, form.guardians) : null;
             if (mapped) {
+                if (mapped.errors.discountCode) setDiscount(null); // kod reddedildi (süresi doldu / sana özel değil): fiyatlar liste fiyatına döner
                 setDirection(-1);
                 setStep(mapped.step);
                 showErrors(mapped.errors);
@@ -285,6 +294,8 @@ export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }
                                         period={period}
                                         bedRequest={form.stayPlan === "summer" ? null : bedRequest}
                                         cameFromDetail={Boolean(startRoom) && form.roomSlug === startRoom}
+                                        discount={discount}
+                                        onDiscount={changeDiscount}
                                     />
                                 )}
                                 {step === 2 && <StepPersonal {...stepProps} />}

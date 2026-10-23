@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using MazlumApart.Domain.Accounting;
 using MazlumApart.Domain.Entities;
 using MazlumApart.Domain.Enums;
+using MazlumApart.Features.DiscountCodes;
 using MazlumApart.Infrastructure.Database;
 using MazlumApart.Infrastructure.Messaging;
 using MazlumApart.Infrastructure.Services;
@@ -16,6 +18,7 @@ namespace MazlumApart.Features.Applications;
 ///  - Yarım dönem yalnızca dönem ayarından açıldıysa seçilebilir.
 ///  - Aynı dönemde aynı T.C. ile reddedilmemiş ikinci başvuru olamaz.
 ///  - Seçilen yatak (bedId) hâlâ boş olmalı; doluysa 409 ve form yeniden seçtirir.
+///  - İndirim kodu verildiyse geçerli (aktif, süresi dolmamış, hakkı kalmış, varsa T.C.'ye özel) olmalı; indirimli fiyat başvuruya yazılır.
 ///  - Konaklama türü: academic / yearly → açık AKADEMİK dönem; summer → açık YAZ dönemi (ikisi aynı anda açık olabilir).
 ///    12 ay yalnızca tam dönem ve oda tipinin yaz fiyatı tanımlıysa alınır; sadece yaz başvurusunda yatak tercihi alınmaz
 ///    (sitedeki yatak seçimi akademik dönemin doluluğunu gösterir).
@@ -109,6 +112,22 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
         if (await db.Applications.AnyAsync(x => x.PeriodId == period.Id && x.Tc == applicant!.Tc && x.Status != ApplicationStatus.Rejected, ct))
             return Error.Conflict("Bu T.C. kimlik no ile bu dönemde zaten bir başvuru ya da kayıt var.");
 
+        // ---- indirim kodu: aylık kiraya (12 ayda yaz kirasına da) uygulanır, depozitoya uygulanmaz ----
+        DiscountCode? discount = null;
+        var monthly = price.Monthly;
+        if (DiscountCodeRules.Normalize(input.DiscountCode) is { Length: > 0 } codeText)
+        {
+            discount = await db.DiscountCodes.FirstOrDefaultAsync(x => x.Code == codeText, ct);
+            if (discount is null || !DiscountCodeRules.IsUsable(discount, TurkeyClock.Today))
+                return Error.Field("discountCode", DiscountCodeRules.InvalidMessage);
+            if (discount.Tc is not null && discount.Tc != applicant!.Tc)
+                return Error.Field("discountCode", "Bu kod bu T.C. kimlik no için geçerli değil.");
+
+            monthly = DiscountMath.Apply(discount.Kind, discount.Value, price.Monthly);
+            if (summerMonthly is { } sm) summerMonthly = DiscountMath.Apply(discount.Kind, discount.Value, sm);
+            discount.UsedCount++;
+        }
+
         // ---- seçilen yatak (oda tercihi) ----
         Guid? preferredRoom = null;
         if (!string.IsNullOrWhiteSpace(input.BedId) && stayPlan != StayPlan.Summer)
@@ -141,15 +160,19 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
             StayPlan = stayPlan,
             EntryDate = input.EntryDate!.Value,
             PayWindow = window!.Value,
-            PriceMonthly = price.Monthly,
+            PriceMonthly = monthly,
             PriceDeposit = price.Deposit,
             PriceSummerMonthly = summerMonthly,
+            DiscountCodeId = discount?.Id,
+            DiscountCodeText = discount?.Code,
+            ListPriceMonthly = discount is null ? null : price.Monthly,
+            ListPriceSummerMonthly = discount is null ? null : price.SummerMonthly,
             Note = string.IsNullOrWhiteSpace(input.Note) ? null : input.Note.Trim()[..Math.Min(input.Note.Trim().Length, 1000)],
             Ip = ip
         };
 
         db.Applications.Add(application);
-        audit.Add("application.create", "application", application.Id, period.Id, after: new { application.No, source, stayPlan });
+        audit.Add("application.create", "application", application.Id, period.Id, after: new { application.No, source, stayPlan, discountCode = discount?.Code });
         await db.SaveChangesAsync(ct);
 
         // Web'den gelen başvuru: yöneticilerin cihazlarına anında bildirim (arka planda, isteği bekletmez)

@@ -64,6 +64,7 @@ export default function StepReview({ form, set, err, goTo, room, plan, period })
                         [r.labels.term, `${form.term === "first" ? a.room.firstTerm : form.term === "second" ? a.room.secondTerm : a.room.fullTerm} (${formatDate(period.start)} – ${formatDate(period.end)})`],
                         [a.summary.entry, formatDate(form.entryDate)],
                         [a.summary.payDay, payDay],
+                        ...(room?.discount ? [[a.summary.discount, room.discount.code]] : []),
                     ]}
                 />
                 <Section

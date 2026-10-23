@@ -24,10 +24,12 @@ public class ApplicationConfiguration : IEntityTypeConfiguration<Application>
         builder.Property(x => x.Note).HasMaxLength(1000);
         builder.Property(x => x.RejectReason).HasMaxLength(500);
         builder.Property(x => x.Ip).HasMaxLength(45);
+        builder.Property(x => x.DiscountCodeText).HasMaxLength(20);
 
         builder.HasOne<Period>().WithMany().HasForeignKey(x => x.PeriodId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<RoomType>().WithMany().HasForeignKey(x => x.RoomTypeId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Room>().WithMany().HasForeignKey(x => x.PreferredRoomId).OnDelete(DeleteBehavior.NoAction);
+        builder.HasOne<DiscountCode>().WithMany().HasForeignKey(x => x.DiscountCodeId).OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(x => x.No).IsUnique();
         // Aynı dönemde aynı T.C. ile reddedilmemiş ikinci başvuru olamaz

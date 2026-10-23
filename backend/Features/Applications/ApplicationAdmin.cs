@@ -16,7 +16,7 @@ public record ApplicationRow(
     Guid Id, string No, ApplicationSource Source, ApplicationStatus Status, DateTime CreatedAt,
     string FullName, string Tc, string Phone, Guid RoomTypeId, string RoomTypeName, string? PreferredRoom,
     DateOnly EntryDate, PayWindow PayWindow, StayTerm Term, decimal PriceMonthly, decimal PriceDeposit, Guid? EnrollmentId,
-    StayPlan StayPlan, decimal? PriceSummerMonthly);
+    StayPlan StayPlan, decimal? PriceSummerMonthly, string? DiscountCode = null, decimal? ListPriceMonthly = null);
 
 public record PlanLine(ChargeKind Kind, string Month, decimal Amount, DateOnly DueDate, string Note);
 
@@ -41,7 +41,7 @@ public static class ApplicationQueries
             a.Id, a.No, a.Source, a.Status, a.CreatedAt, a.FullName, a.Tc, a.Phone, a.RoomTypeId,
             types.TryGetValue(a.RoomTypeId, out var t) ? t.Name.Tr : "",
             a.PreferredRoomId is { } r && rooms.TryGetValue(r, out var room) ? $"{room.Apartment?.Name} · {room.Name}" : null,
-            a.EntryDate, a.PayWindow, a.Term, a.PriceMonthly, a.PriceDeposit, a.EnrollmentId, a.StayPlan, a.PriceSummerMonthly)).ToList();
+            a.EntryDate, a.PayWindow, a.Term, a.PriceMonthly, a.PriceDeposit, a.EnrollmentId, a.StayPlan, a.PriceSummerMonthly, a.DiscountCodeText, a.ListPriceMonthly)).ToList();
     }
 
     /// <summary>Başvurunun dönem sonu: 1. yarı kaydında yarının bitişi, diğerlerinde dönem sonu</summary>
@@ -149,6 +149,10 @@ public static class RejectApplication
             var reason = cmd.Reason?.Trim() ?? "";
             if (reason.Length == 0) return Error.Field("reason", "Ret nedenini yazın.");
             if (reason.Length > 500) return Error.Field("reason", "Ret nedeni en fazla 500 karakter olabilir.");
+
+            // Reddedilen başvuru kodun kullanım hakkını geri verir
+            if (app.DiscountCodeId is { } codeId && await db.DiscountCodes.FirstOrDefaultAsync(x => x.Id == codeId, ct) is { } code && code.UsedCount > 0)
+                code.UsedCount--;
 
             app.Status = ApplicationStatus.Rejected;
             app.RejectReason = reason;

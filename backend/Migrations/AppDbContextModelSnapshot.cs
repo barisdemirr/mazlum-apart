@@ -337,6 +337,13 @@ namespace MazlumApart.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<Guid?>("DiscountCodeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DiscountCodeText")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<Guid?>("EnrollmentId")
                         .HasColumnType("uniqueidentifier");
 
@@ -354,6 +361,14 @@ namespace MazlumApart.Migrations
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<decimal?>("ListPriceMonthly")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("ListPriceSummerMonthly")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("No")
                         .IsRequired()
@@ -435,6 +450,8 @@ namespace MazlumApart.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DiscountCodeId");
 
                     b.HasIndex("No")
                         .IsUnique();
@@ -775,6 +792,72 @@ namespace MazlumApart.Migrations
                     b.HasIndex("PeriodId", "CreatedAt");
 
                     b.ToTable("ContactLogs", (string)null);
+                });
+
+            modelBuilder.Entity("MazlumApart.Domain.Entities.DiscountCode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<int?>("MaxUses")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Tc")
+                        .HasMaxLength(11)
+                        .HasColumnType("nchar(11)")
+                        .IsFixedLength();
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UsedCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly?>("ValidUntil")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("Value")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasFilter("[DeletedAt] IS NULL");
+
+                    b.ToTable("DiscountCodes", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_DiscountCodes_Value", "[Value] > 0");
+                        });
                 });
 
             modelBuilder.Entity("MazlumApart.Domain.Entities.Enrollment", b =>
@@ -2500,6 +2583,11 @@ namespace MazlumApart.Migrations
 
             modelBuilder.Entity("MazlumApart.Domain.Entities.Application", b =>
                 {
+                    b.HasOne("MazlumApart.Domain.Entities.DiscountCode", null)
+                        .WithMany()
+                        .HasForeignKey("DiscountCodeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("MazlumApart.Domain.Entities.Period", null)
                         .WithMany()
                         .HasForeignKey("PeriodId")

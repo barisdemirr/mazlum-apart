@@ -81,8 +81,23 @@ export function SummaryBody({ room, bed, form, plan }) {
                     <Swap k={form.stayPlan}>{stayText}</Swap>
                 </Row>
                 <Row label={s.monthly}>
-                    {room ? <AnimatedNumber value={room.monthlyPrice} format={(n) => formatPrice(n, room.currency, locale)} /> : empty}
+                    {room ? (
+                        <span className="inline-flex items-baseline gap-1.5">
+                            {room.listMonthlyPrice != null && <span className="text-xs font-normal text-orchid-muted line-through">{formatPrice(room.listMonthlyPrice, room.currency, locale)}</span>}
+                            <AnimatedNumber value={room.monthlyPrice} format={(n) => formatPrice(n, room.currency, locale)} />
+                        </span>
+                    ) : (
+                        empty
+                    )}
                 </Row>
+                {room?.discount && (
+                    <Row label={s.discount}>
+                        <span className="inline-flex items-center gap-1.5 text-orchid-pink">
+                            <Icon name="sell" filled className="text-[15px]" />
+                            {room.discount.code}
+                        </span>
+                    </Row>
+                )}
                 {form.stayPlan === "yearly" && room?.summerMonthlyPrice != null && (
                     <Row label={s.summerMonthly}>
                         <AnimatedNumber value={room.summerMonthlyPrice} format={(n) => formatPrice(n, room.currency, locale)} />

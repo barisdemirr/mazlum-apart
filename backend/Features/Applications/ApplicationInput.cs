@@ -8,6 +8,7 @@ namespace MazlumApart.Features.Applications;
 /// Başvuru girişi. Web formu (frontend services/applications.js submitApplication) ve ofis kaydı aynı alanları kullanır.
 /// Web: roomSlug + bedId? + payDay. Ofis: roomTypeId + payWindow (+ periodId). İkisinden biri yeterli.
 /// stayPlan: academic | yearly | summer (boşsa: açık akademik dönem varsa academic, yoksa summer).
+/// discountCode: kayıt yenileyen eski öğrenciler için indirim kodu (isteğe bağlı; aylık kiraya uygulanır).
 /// </summary>
 public record ApplicationInput(
     Guid? PeriodId,
@@ -32,7 +33,8 @@ public record ApplicationInput(
     string? Grade,
     List<GuardianInput>? Guardians,
     string? Note,
-    string? StayPlan = null);
+    string? StayPlan = null,
+    string? DiscountCode = null);
 
 public record GuardianInput(string? Name, string? Phone);
 

@@ -16,6 +16,7 @@ export const NAV_GROUPS = [
             { href: "/admin/basvurular", label: "Başvurular", icon: "assignment_ind", badge: "newApplications" },
             { href: "/admin/on-basvurular", label: "Ön Başvurular", icon: "notifications_active", badge: "newPreRegistrations" },
             { href: "/admin/ogrenciler", label: "Öğrenciler", icon: "school" },
+            { href: "/admin/indirim-kodlari", label: "İndirim Kodları", icon: "sell" },
             { href: "/admin/yerlesim", label: "Yerleşim & Doluluk", icon: "domain_verification" },
         ],
     },
