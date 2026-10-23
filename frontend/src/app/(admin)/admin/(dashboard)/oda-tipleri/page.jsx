@@ -5,6 +5,6 @@ export const metadata = { title: "Oda Tipleri" };
 
 export default async function Page() {
     const { period } = await getAdminContext();
-    const roomTypes = await adminGet("/room-types", { periodId: period.id });
-    return <RoomTypesView roomTypes={roomTypes} />;
+    const [roomTypes, apartmentTypes] = await Promise.all([adminGet("/room-types", { periodId: period.id }), adminGet("/apartment-types")]);
+    return <RoomTypesView roomTypes={roomTypes} apartmentTypes={apartmentTypes} />;
 }

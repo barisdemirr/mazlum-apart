@@ -18,6 +18,8 @@ public class ApartmentConfiguration : IEntityTypeConfiguration<Apartment>
         builder.HasMany(x => x.Rooms).WithOne(x => x.Apartment).HasForeignKey(x => x.ApartmentId).OnDelete(DeleteBehavior.Restrict);
         builder.HasMany(x => x.Media).WithOne().HasForeignKey(x => x.ApartmentId).OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne<ApartmentType>().WithMany().HasForeignKey(x => x.ApartmentTypeId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(x => x.ApartmentTypeId);
         builder.HasIndex(x => x.Slug).IsUnique().HasFilter("[DeletedAt] IS NULL");
         builder.HasIndex(x => x.Name).IsUnique().HasFilter("[DeletedAt] IS NULL");
     }

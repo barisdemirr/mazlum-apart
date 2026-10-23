@@ -5,15 +5,24 @@ import { admin } from "@/lib/admin/api";
 const loc = (v) => (v ? { tr: v.tr ?? "", en: v.en ?? "" } : null);
 const items = (list) => (list ?? []).map((x) => ({ icon: x.icon || "check_circle", text: loc(x.text) }));
 
-export const saveRoomType = ({ id, name, slug, description, mediaId, active, order }) => {
-    const body = { name: loc(name), slug: slug || null, description: loc(description), coverMediaId: mediaId || null, active: Boolean(active), order: Number(order ?? 0) };
+export const saveRoomType = ({ id, name, slug, description, mediaId, active, order, apartmentTypeId }) => {
+    const body = { apartmentTypeId: apartmentTypeId || null, name: loc(name), slug: slug || null, description: loc(description), coverMediaId: mediaId || null, active: Boolean(active), order: Number(order ?? 0) };
     return id ? admin.put(`/room-types/${id}`, body) : admin.post("/room-types", body);
 };
 export const deleteRoomType = ({ id }) => admin.del(`/room-types/${id}`);
 
-export const saveApartment = ({ id, name, slug, floor, kitchens, bathrooms, note, published, order, sharedAreas }) => {
+/* Daire türleri: ana sayfada listelenen kategoriler (altında oda seçenekleri ve fiziksel daireler) */
+export const saveApartmentType = ({ id, name, slug, description, mediaId, active, order }) => {
+    const body = { name: loc(name), slug: slug || null, description: loc(description), coverMediaId: mediaId || null, active: Boolean(active), order: Number(order ?? 0) };
+    return id ? admin.put(`/apartment-types/${id}`, body) : admin.post("/apartment-types", body);
+};
+export const deleteApartmentType = ({ id }) => admin.del(`/apartment-types/${id}`);
+/** Daireyi (odalarıyla) kopyalar; aynı türden birden fazla daire için */
+export const duplicateApartment = ({ id, name, count }) => admin.post(`/apartments/${id}/duplicate`, { name, count: Number(count || 1) });
+
+export const saveApartment = ({ id, name, slug, floor, kitchens, bathrooms, note, published, order, sharedAreas, apartmentTypeId }) => {
     const body = {
-        name, slug: slug || null, floor: Number(floor || 0), kitchens: Number(kitchens || 0), bathrooms: Number(bathrooms || 0),
+        apartmentTypeId: apartmentTypeId || null, name, slug: slug || null, floor: Number(floor || 0), kitchens: Number(kitchens || 0), bathrooms: Number(bathrooms || 0),
         note: note || null, published: Boolean(published), order: Number(order ?? 0), sharedAreas: items(sharedAreas),
     };
     return id ? admin.put(`/apartments/${id}`, body) : admin.post("/apartments", body);

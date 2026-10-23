@@ -16,6 +16,8 @@ public class RoomTypeConfiguration : IEntityTypeConfiguration<RoomType>
 
         builder.HasOne(x => x.CoverMedia).WithMany().HasForeignKey(x => x.CoverMediaId).OnDelete(DeleteBehavior.SetNull);
 
+        builder.HasOne<ApartmentType>().WithMany().HasForeignKey(x => x.ApartmentTypeId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(x => x.ApartmentTypeId);
         builder.HasIndex(x => x.Slug).IsUnique().HasFilter("[DeletedAt] IS NULL");
     }
 }

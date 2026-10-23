@@ -27,6 +27,12 @@ public class RoomSaveHandler(AppDbContext db, AuditWriter audit)
         if (!await db.RoomTypes.AnyAsync(x => x.Id == input.RoomTypeId, ct)) validator.AddError("roomTypeId", "Oda tipi bulunamadı.");
         if (!validator.IsValid) return validator.ToFailure<Guid>();
 
+        // Türlü dairede yalnızca o türün oda seçenekleri (ya da türsüz eski oda tipleri) kullanılabilir
+        var apartmentTypeId = await db.Apartments.Where(x => x.Id == input.ApartmentId).Select(x => x.ApartmentTypeId).FirstAsync(ct);
+        var optionTypeId = await db.RoomTypes.Where(x => x.Id == input.RoomTypeId).Select(x => x.ApartmentTypeId).FirstAsync(ct);
+        if (apartmentTypeId is not null && optionTypeId is not null && apartmentTypeId != optionTypeId)
+            return Error.Field("roomTypeId", "Bu oda seçeneği, dairenin türüne ait değil.");
+
         var id = existing?.Id;
         if (await db.Rooms.AnyAsync(x => x.ApartmentId == input.ApartmentId && x.Name == name && x.Id != id, ct))
             return Error.Conflict("Bu dairede aynı adda bir oda var.");

@@ -28,10 +28,12 @@ public record ApartmentAdminDto(
     List<FeatureItem> SharedAreas,
     CapacityDto Capacity,
     List<RoomAdminDto> Rooms,
-    GallerySummaryDto Gallery);
+    GallerySummaryDto Gallery,
+    Guid? ApartmentTypeId = null,
+    string? ApartmentTypeName = null);
 
 public record ApartmentInput(
-    string? Name, string? Slug, int Floor, int Kitchens, int Bathrooms, string? Note, bool Published, int Order, List<FeatureItem>? SharedAreas);
+    string? Name, string? Slug, int Floor, int Kitchens, int Bathrooms, string? Note, bool Published, int Order, List<FeatureItem>? SharedAreas, Guid? ApartmentTypeId = null);
 
 public static class FeatureItems
 {
@@ -69,13 +71,14 @@ public static class GetApartmentsAdmin
                 .AsSplitQuery()
                 .ToListAsync(ct);
 
-            return apartments.Select(ToDto).ToList();
+            var typeNames = await db.ApartmentTypes.AsNoTracking().ToDictionaryAsync(x => x.Id, x => x.Name.Tr, ct);
+            return apartments.Select(a => ToDto(a, typeNames)).ToList();
         }
 
         public async Task<ApartmentAdminDto?> One(Guid id, CancellationToken ct) =>
             (await Handle(ct)).FirstOrDefault(x => x.Id == id);
 
-        private static ApartmentAdminDto ToDto(Apartment a)
+        private static ApartmentAdminDto ToDto(Apartment a, Dictionary<Guid, string> typeNames)
         {
             var activeBeds = a.Rooms.Where(r => r.Status == RoomStatus.Active).Sum(r => r.Beds);
             var roomIds = a.Rooms.Select(r => r.Id).ToHashSet();
@@ -92,7 +95,9 @@ public static class GetApartmentsAdmin
                 new GallerySummaryDto(
                     media.Count(m => !m.IsVideo),
                     media.Any(m => m.IsVideo),
-                    media.Count(m => !m.IsVideo && (m.TagKind == GalleryTagKind.None || (m.TagKind == GalleryTagKind.Room && !roomIds.Contains(m.RoomId ?? Guid.Empty))))));
+                    media.Count(m => !m.IsVideo && (m.TagKind == GalleryTagKind.None || (m.TagKind == GalleryTagKind.Room && !roomIds.Contains(m.RoomId ?? Guid.Empty))))),
+                a.ApartmentTypeId,
+                a.ApartmentTypeId is { } typeId ? typeNames.GetValueOrDefault(typeId) : null);
         }
     }
 
@@ -118,7 +123,14 @@ public class ApartmentSaveHandler(AppDbContext db, AuditWriter audit)
         var plan = SlugResolver.Plan(input.Slug, existing?.Slug, name, validator);
         if (!validator.IsValid) return validator.ToFailure<Guid>();
 
+        if (input.ApartmentTypeId is { } typeId && !await db.ApartmentTypes.AnyAsync(x => x.Id == typeId, ct))
+            return Error.Field("apartmentTypeId", "Daire türü bulunamadı.");
+
         var id = existing?.Id;
+        // Dairenin odaları başka bir türün oda seçeneklerini kullanıyorsa tür değiştirilemez (önce odaların seçeneğini değiştirin)
+        if (existing is not null && input.ApartmentTypeId != existing.ApartmentTypeId && input.ApartmentTypeId is not null &&
+            await db.Rooms.AnyAsync(r => r.ApartmentId == existing.Id && r.RoomType!.ApartmentTypeId != null && r.RoomType.ApartmentTypeId != input.ApartmentTypeId, ct))
+            return Error.Conflict("Bu dairedeki bazı odalar başka türün oda seçeneğini kullanıyor. Önce odaların oda seçeneğini değiştirin.");
         if (await db.Apartments.AnyAsync(x => x.Name == name && x.Id != id, ct))
             return Error.Conflict("Bu adda bir daire zaten var.");
 
@@ -129,6 +141,7 @@ public class ApartmentSaveHandler(AppDbContext db, AuditWriter audit)
         var before = existing is null ? null : new { existing.Name, existing.Floor, existing.Kitchens, existing.Bathrooms, existing.IsPublished };
         var apartment = existing ?? new Apartment();
         apartment.Name = name;
+        apartment.ApartmentTypeId = input.ApartmentTypeId;
         apartment.Slug = slug;
         apartment.Floor = input.Floor;
         apartment.Kitchens = input.Kitchens;

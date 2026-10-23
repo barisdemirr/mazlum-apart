@@ -74,13 +74,13 @@ export default function PeriodsView({ overview, roomTypes }) {
             >
                 <div className="ad-scroll mt-4 overflow-x-auto">
                     <table className="ad-table">
-                        <thead><tr><th>Oda tipi</th><th className="!text-end">Aylık kira</th><th className="!text-end">Depozito</th>{academic && <th className="!text-end">Yaz kirası (12 ay)</th>}<th /></tr></thead>
+                        <thead><tr><th>Oda seçeneği (oda tipi)</th><th className="!text-end">Aylık kira</th><th className="!text-end">Depozito</th>{academic && <th className="!text-end">Yaz kirası (12 ay)</th>}<th /></tr></thead>
                         <tbody>
                             {roomTypes.map((rt) => {
                                 const price = rt.monthly != null ? { monthly: rt.monthly, deposit: rt.deposit, summerMonthly: rt.summerMonthly ?? null } : null;
                                 return (
                                     <tr key={rt.id}>
-                                        <td className="font-bold">{rt.name.tr}</td>
+                                        <td className="font-bold">{rt.apartmentTypeName && <span className="block text-[11px] font-bold text-ad-brand">{rt.apartmentTypeName}</span>}{rt.name.tr}</td>
                                         <td className="ad-num text-end">{price ? money(price.monthly) : <Badge tone="warn">Fiyat girilmedi</Badge>}</td>
                                         <td className="ad-num text-end">{price ? money(price.deposit) : "—"}</td>
                                         {academic && (

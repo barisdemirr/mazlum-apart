@@ -191,6 +191,9 @@ namespace MazlumApart.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("ApartmentTypeId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<int>("Bathrooms")
                         .HasColumnType("int");
 
@@ -237,6 +240,8 @@ namespace MazlumApart.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ApartmentTypeId");
 
                     b.HasIndex("Name")
                         .IsUnique()
@@ -313,6 +318,53 @@ namespace MazlumApart.Migrations
                         .HasFilter("[DeletedAt] IS NULL");
 
                     b.ToTable("ApartmentMedia", (string)null);
+                });
+
+            modelBuilder.Entity("MazlumApart.Domain.Entities.ApartmentType", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("CoverMediaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CoverMediaId");
+
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasFilter("[DeletedAt] IS NULL");
+
+                    b.ToTable("ApartmentTypes", (string)null);
                 });
 
             modelBuilder.Entity("MazlumApart.Domain.Entities.Application", b =>
@@ -2000,6 +2052,9 @@ namespace MazlumApart.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("ApartmentTypeId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("CoverMediaId")
                         .HasColumnType("uniqueidentifier");
 
@@ -2031,6 +2086,8 @@ namespace MazlumApart.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ApartmentTypeId");
 
                     b.HasIndex("CoverMediaId");
 
@@ -2575,6 +2632,14 @@ namespace MazlumApart.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MazlumApart.Domain.Entities.Apartment", b =>
+                {
+                    b.HasOne("MazlumApart.Domain.Entities.ApartmentType", null)
+                        .WithMany()
+                        .HasForeignKey("ApartmentTypeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("MazlumApart.Domain.Entities.ApartmentMedia", b =>
                 {
                     b.HasOne("MazlumApart.Domain.Entities.Apartment", null)
@@ -2595,6 +2660,16 @@ namespace MazlumApart.Migrations
                         .OnDelete(DeleteBehavior.NoAction);
 
                     b.Navigation("MediaAsset");
+                });
+
+            modelBuilder.Entity("MazlumApart.Domain.Entities.ApartmentType", b =>
+                {
+                    b.HasOne("MazlumApart.Domain.Entities.MediaAsset", "CoverMedia")
+                        .WithMany()
+                        .HasForeignKey("CoverMediaId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CoverMedia");
                 });
 
             modelBuilder.Entity("MazlumApart.Domain.Entities.Application", b =>
@@ -2878,6 +2953,11 @@ namespace MazlumApart.Migrations
 
             modelBuilder.Entity("MazlumApart.Domain.Entities.RoomType", b =>
                 {
+                    b.HasOne("MazlumApart.Domain.Entities.ApartmentType", null)
+                        .WithMany()
+                        .HasForeignKey("ApartmentTypeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("MazlumApart.Domain.Entities.MediaAsset", "CoverMedia")
                         .WithMany()
                         .HasForeignKey("CoverMediaId")

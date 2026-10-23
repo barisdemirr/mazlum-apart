@@ -8,6 +8,7 @@ namespace MazlumApart.Domain.Entities;
 /// </summary>
 public class Apartment : BaseEntity
 {
+    public Guid? ApartmentTypeId { get; set; }      // daire türü (ana sayfada listelenen kategori); boşsa sitede türsüz kalır
     public string Name { get; set; } = "";          // "Daire 1"
     public string Slug { get; set; } = "";          // "daire-1" (herkese açık adres: /odalar/{tip}/{daire})
     public int Floor { get; set; }

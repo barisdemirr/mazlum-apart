@@ -38,6 +38,7 @@ export const NAV_GROUPS = [
         items: [
             { href: "/admin/ariza", label: "Arıza Kayıtları", icon: "build", badge: "openMaintenance" },
             { href: "/admin/iletisim", label: "İletişim Geçmişi", icon: "forum" },
+            { href: "/admin/daire-turleri", label: "Daire Türleri", icon: "apartment" },
             { href: "/admin/oda-tipleri", label: "Oda Tipleri", icon: "meeting_room" },
             { href: "/admin/daireler", label: "Daireler & Odalar", icon: "holiday_village" },
         ],

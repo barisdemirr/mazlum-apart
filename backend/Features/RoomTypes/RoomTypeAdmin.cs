@@ -23,10 +23,12 @@ public record RoomTypeAdminDto(
     int Apartments,
     decimal? Monthly,
     decimal? Deposit,
-    decimal? SummerMonthly = null);
+    decimal? SummerMonthly = null,
+    Guid? ApartmentTypeId = null,
+    string? ApartmentTypeName = null);
 
 /// <summary>Oda tipi girişi: ad (TR zorunlu), slug (boşsa addan), açıklama, kapak (medya id), sitede göster, sıra</summary>
-public record RoomTypeInput(LocalizedText? Name, string? Slug, LocalizedText? Description, Guid? CoverMediaId, bool Active, int Order);
+public record RoomTypeInput(LocalizedText? Name, string? Slug, LocalizedText? Description, Guid? CoverMediaId, bool Active, int Order, Guid? ApartmentTypeId = null);
 
 public static class GetRoomTypesAdmin
 {
@@ -36,6 +38,7 @@ public static class GetRoomTypesAdmin
         {
             var types = await db.RoomTypes.AsNoTracking().Include(x => x.CoverMedia)
                 .OrderBy(x => x.OrderIndex).ThenBy(x => x.CreatedAt).ToListAsync(ct);
+            var typeNames = await db.ApartmentTypes.AsNoTracking().ToDictionaryAsync(x => x.Id, x => x.Name.Tr, ct);
             var rooms = await db.Rooms.AsNoTracking().Select(x => new { x.RoomTypeId, x.ApartmentId, x.Beds, x.Status }).ToListAsync(ct);
             var prices = periodId is null
                 ? new List<RoomTypePrice>()
@@ -48,7 +51,8 @@ public static class GetRoomTypesAdmin
                 return new RoomTypeAdminDto(
                     t.Id, t.Slug, t.Name, t.Description ?? new LocalizedText(), t.CoverMediaId, t.CoverMedia?.FilePath, t.IsActive, t.OrderIndex,
                     own.Count, own.Where(r => r.Status == RoomStatus.Active).Sum(r => r.Beds), own.Select(r => r.ApartmentId).Distinct().Count(),
-                    price?.Monthly, price?.Deposit, price?.SummerMonthly);
+                    price?.Monthly, price?.Deposit, price?.SummerMonthly,
+                    t.ApartmentTypeId, t.ApartmentTypeId is { } typeId ? typeNames.GetValueOrDefault(typeId) : null);
             }).ToList();
         }
     }
@@ -76,15 +80,23 @@ public class RoomTypeSaveHandler(AppDbContext db, AuditWriter audit)
             !await db.MediaAssets.AnyAsync(x => x.Id == coverId && x.Kind == MediaKind.Image, ct))
             validator.AddError("coverMediaId", "Kapak görseli bulunamadı.");
 
+        if (input.ApartmentTypeId is { } apartmentTypeId && !await db.ApartmentTypes.AnyAsync(x => x.Id == apartmentTypeId, ct))
+            validator.AddError("apartmentTypeId", "Daire türü bulunamadı.");
+
         if (!validator.IsValid) return validator.ToFailure<Guid>();
 
         var id = existing?.Id;
+        // Bu seçeneği kullanan oda başka türdeki bir dairedeyse, seçeneğin türü o türden başka bir şeye çevrilemez
+        if (existing is not null && input.ApartmentTypeId != existing.ApartmentTypeId && input.ApartmentTypeId is not null &&
+            await db.Rooms.AnyAsync(r => r.RoomTypeId == existing.Id && r.Apartment!.ApartmentTypeId != null && r.Apartment.ApartmentTypeId != input.ApartmentTypeId, ct))
+            return Error.Conflict("Bu seçeneği başka türdeki dairelerde kullanan odalar var. Önce o odaların seçeneğini değiştirin.");
         var (slug, conflict) = await SlugResolver.EnsureUniqueAsync(plan, existing is null,
             s => db.RoomTypes.AnyAsync(x => x.Slug == s && x.Id != id, ct));
         if (conflict is not null) return conflict;
 
         var before = existing is null ? null : new { existing.Name, existing.Slug, existing.IsActive };
         var type = existing ?? new RoomType();
+        type.ApartmentTypeId = input.ApartmentTypeId;
         type.Name = input.Name!.Trimmed();
         type.Slug = slug;
         type.Description = input.Description.OrNull();

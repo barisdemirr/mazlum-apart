@@ -9,6 +9,9 @@ namespace MazlumApart.Domain.Entities;
 /// </summary>
 public class RoomType : BaseEntity
 {
+    /// <summary>Bu oda seçeneğinin ait olduğu daire türü. Boşsa eski usül (türsüz) oda tipi.</summary>
+    public Guid? ApartmentTypeId { get; set; }
+
     public string Slug { get; set; } = "";
     public LocalizedText Name { get; set; } = new();
     public LocalizedText? Description { get; set; }

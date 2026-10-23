@@ -17,6 +17,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
 
     // ---- Yapı, dönem & içerik (aşama 3) ----
+    public DbSet<ApartmentType> ApartmentTypes => Set<ApartmentType>();
     public DbSet<RoomType> RoomTypes => Set<RoomType>();
     public DbSet<Apartment> Apartments => Set<Apartment>();
     public DbSet<Room> Rooms => Set<Room>();

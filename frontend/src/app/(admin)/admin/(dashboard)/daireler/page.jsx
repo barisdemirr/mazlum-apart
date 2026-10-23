@@ -5,10 +5,11 @@ export const metadata = { title: "Daireler & Odalar" };
 
 export default async function Page() {
     const { period } = await getAdminContext();
-    const [apartments, roomTypes, occupancy] = await Promise.all([
+    const [apartments, roomTypes, occupancy, apartmentTypes] = await Promise.all([
         adminGet("/apartments"),
         adminGet("/room-types", { periodId: period.id }),
         adminGet("/occupancy", { periodId: period.id }),
+        adminGet("/apartment-types"),
     ]);
-    return <ApartmentsView apartments={apartments} roomTypes={roomTypes} occupancy={occupancy} />;
+    return <ApartmentsView apartments={apartments} roomTypes={roomTypes} occupancy={occupancy} apartmentTypes={apartmentTypes} />;
 }
