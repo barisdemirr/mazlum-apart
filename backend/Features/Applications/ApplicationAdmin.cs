@@ -50,7 +50,7 @@ public static class ApplicationQueries
 
     /// <summary>Başvurunun ödeme planı (önizleme ve onay aynı hesabı kullanır): konaklama türüne göre 12 ayda yaz ayları eklenir</summary>
     public static List<ChargeDraft> Plan(Application app, Period period) =>
-        PaymentPlan.ForStay(app.StayPlan, app.EntryDate, app.PayWindow, app.PriceMonthly, app.PriceDeposit, PlanEnd(period, app.Term), app.PriceSummerMonthly);
+        PaymentPlan.ForStay(app.StayPlan, app.EntryDate, app.PayWindow, app.PriceMonthly, app.PriceDeposit, PlanEnd(period, app.Term), app.PriceSummerMonthly, period.RentStart);
 }
 
 public static class GetApplications

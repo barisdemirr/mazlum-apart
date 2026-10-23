@@ -9,7 +9,8 @@ namespace MazlumApart.Features.Applications;
 
 /// <summary>
 /// Başvuru formunun ayarları (frontend getApplicationConfig):
-///  - period / halfTerm / applicationsOpen: başvuruya açık AKADEMİK dönem (yoksa period null, applicationsOpen false)
+///  - period / halfTerm / applicationsOpen: başvuruya açık AKADEMİK dönem (yoksa period null, applicationsOpen false);
+///    9 aylık dönemde period.start = Ekim başı ve nineMonth = true
 ///  - yearly: 12 aylık kayıt — bitiş (31 Ağustos) ve oda tipi başına Temmuz–Ağustos aylık fiyatı (fiyatı olmayan oda tipinde 12 ay seçilemez)
 ///  - summer: başvuruya açık YAZ dönemi ve fiyatları (yoksa null → formda "sadece yaz" seçilemez)
 /// </summary>
@@ -23,7 +24,8 @@ public static class GetApplicationConfig
 
     public record SummerConfig(PeriodRef Period, List<RoomPrice> Prices);
 
-    public record Response(PeriodRef? Period, HalfTermDto HalfTerm, bool ApplicationsOpen, YearlyConfig? Yearly, SummerConfig? Summer);
+    /// <summary>nineMonth: 9 aylık dönem açık (Eylül kirası yok); period.start bu durumda kiranın/girişin başladığı ilk gün (Ekim)</summary>
+    public record Response(PeriodRef? Period, HalfTermDto HalfTerm, bool ApplicationsOpen, YearlyConfig? Yearly, SummerConfig? Summer, bool NineMonth = false);
 
     public class Endpoint : IEndpoint
     {
@@ -47,9 +49,9 @@ public static class GetApplicationConfig
 
                 return Results.Ok(p is null
                     ? new Response(null, new HalfTermDto(false, null, null), false, null, summer)
-                    : new Response(new PeriodRef(p.Id, p.Name, p.StartDate, p.EndDate),
+                    : new Response(new PeriodRef(p.Id, p.Name, p.RentStart, p.EndDate),
                         p.HalfTermEnabled ? new HalfTermDto(true, p.HalfTermFirstEnd, p.HalfTermSecondStart) : new HalfTermDto(false, null, null),
-                        true, yearly, summer));
+                        true, yearly, summer, p.NineMonthTerm));
             }).AllowAnonymous();
     }
 }

@@ -21,4 +21,12 @@ public class Period : BaseEntity
     public bool HalfTermEnabled { get; set; }
     public DateOnly? HalfTermFirstEnd { get; set; }
     public DateOnly? HalfTermSecondStart { get; set; }
+
+    // 9 aylık dönem: kayıt döneminde (Eylül sonuna kadar) odalar dolmazsa yönetici açar; Eylül kirası alınmaz,
+    // kira ve giriş en erken başlangıç ayını izleyen ayın 1'inden başlar. Yalnızca akademik dönemde geçerlidir.
+    public bool NineMonthTerm { get; set; }
+
+    /// <summary>Kiranın (ve yeni kayıtlarda girişin) başlayabileceği ilk gün: 10 aylıkta dönem başı, 9 aylıkta ertesi ayın 1'i</summary>
+    public DateOnly RentStart =>
+        NineMonthTerm && Type == PeriodType.Academic ? new DateOnly(StartDate.Year, StartDate.Month, 1).AddMonths(1) : StartDate;
 }

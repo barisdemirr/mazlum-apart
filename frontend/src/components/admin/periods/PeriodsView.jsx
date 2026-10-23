@@ -50,7 +50,7 @@ export default function PeriodsView({ overview, roomTypes }) {
                                 <div className="min-w-0"><h2 className="ad-display truncate text-lg font-semibold">{p.name}</h2><p className="text-xs text-ad-muted">{TYPE[p.type]} · {date(p.start)} – {date(p.end)}</p></div>
                                 <Badge tone={p.status === "active" ? "ok" : "neutral"}>{p.status === "active" ? "Aktif" : "Kapalı"}</Badge>
                             </div>
-                            <p className="mt-3 text-xs text-ad-body">{c.enrollments} kayıt{c.apps ? ` · ${c.apps} bekleyen başvuru` : ""}{p.status === "active" ? (p.applicationsOpen ? " · başvuruya açık" : " · başvuruya kapalı") : ""}{p.halfTerm?.enabled ? " · yarım dönem açık" : ""}</p>
+                            <p className="mt-3 text-xs text-ad-body">{c.enrollments} kayıt{c.apps ? ` · ${c.apps} bekleyen başvuru` : ""}{p.status === "active" ? (p.applicationsOpen ? " · başvuruya açık" : " · başvuruya kapalı") : ""}{p.halfTerm?.enabled ? " · yarım dönem açık" : ""}{p.nineMonthTerm ? " · 9 aylık dönem" : ""}</p>
                             <div className="mt-4 flex flex-wrap gap-2">
                                 {!selected && <button type="button" onClick={() => selectPeriod(p.id)} className="ad-btn ad-btn-soft ad-btn-sm">Bu dönemi seç</button>}
                                 {selected && <Badge tone="brand">Seçili dönem</Badge>}
@@ -147,12 +147,13 @@ function NewPeriodDialog({ onClose }) {
 
 function EditPeriodDialog({ period, onClose }) {
     const { exec, busy } = useCommand();
-    const [f, setF] = useState({ name: period.name, start: period.start, end: period.end, applicationsOpen: period.applicationsOpen, half: { ...period.halfTerm } });
+    const [f, setF] = useState({ name: period.name, start: period.start, end: period.end, applicationsOpen: period.applicationsOpen, nine: Boolean(period.nineMonthTerm), half: { ...period.halfTerm } });
+    const academic = period.type !== "summer";
     const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
     const half = (k) => (e) => setF((x) => ({ ...x, half: { ...x.half, [k]: e.target.value } }));
     const submit = async (e) => {
         e.preventDefault();
-        const out = await exec(updatePeriod, { id: period.id, name: f.name, start: f.start, end: f.end, applicationsOpen: f.applicationsOpen, halfTerm: f.half }, "Dönem güncellendi.");
+        const out = await exec(updatePeriod, { id: period.id, name: f.name, start: f.start, end: f.end, applicationsOpen: f.applicationsOpen, halfTerm: f.half, nineMonthTerm: academic ? f.nine : null }, "Dönem güncellendi.");
         if (out.ok) onClose();
     };
     return (
@@ -161,6 +162,17 @@ function EditPeriodDialog({ period, onClose }) {
             <Field label="Başlangıç" required><DateInput value={f.start} onChange={set("start")} /></Field>
             <Field label="Bitiş" required><DateInput value={f.end} onChange={set("end")} /></Field>
             <div className="sm:col-span-2"><Switch checked={f.applicationsOpen} onChange={(v) => setF((x) => ({ ...x, applicationsOpen: v }))} label="Yeni başvuruya açık" hint="Kapalıysa sitedeki başvuru formu bu dönem için başvuru almaz." /></div>
+            {academic && (
+                <div className="sm:col-span-2">
+                    <Switch
+                        checked={f.nine}
+                        onChange={(v) => setF((x) => ({ ...x, nine: v }))}
+                        label="9 aylık dönem (Eylül kirası alınmasın)"
+                        hint="Eylül sonuna kadar odalar dolmadıysa açın. Yeni başvurular ve henüz onaylanmamış başvurular Ekim'den başlar; giriş tarihi en erken Ekim ayının başı olur. Depozito yine alınır ve son ay kirası yerine sayılır. Onaylanmış kayıtların planı değişmez."
+                    />
+                    {f.nine && <p className="mt-2 rounded-xl bg-ad-warn-soft px-3 py-2 text-xs text-ad-warn">Kaydet'ten sonra sitedeki başvuru formu “Kira Ekim'de başlar” notuyla Ekim'den itibaren giriş kabul eder. Önceden Eylül için onaylanmış kayıtlar bu ayardan etkilenmez.</p>}
+                </div>
+            )}
             <div className="sm:col-span-2"><Switch checked={!!f.half.enabled} onChange={(v) => setF((x) => ({ ...x, half: { ...x.half, enabled: v } }))} label="Yarım dönem kaydı" hint="Varsayılan kapalı. Tarihler müşteriden gelince açılır." /></div>
             {f.half.enabled && (<><Field label="1. yarı bitişi" required><DateInput value={f.half.firstEnd ?? ""} onChange={half("firstEnd")} /></Field><Field label="2. yarı başlangıcı" required><DateInput value={f.half.secondStart ?? ""} onChange={half("secondStart")} /></Field></>)}
         </FormDialog>

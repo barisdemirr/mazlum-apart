@@ -3,7 +3,8 @@ import { bffPost } from "@/lib/api/bff";
 
 /**
  * Başvuru formunun ayarları (GET /api/applications/config):
- *   { period: akademik dönem | null, halfTerm, applicationsOpen, yearly: { end, summerPrices } | null, summer: { period, prices } | null }
+ *   { period: akademik dönem | null, halfTerm, applicationsOpen, yearly: { end, summerPrices } | null, summer: { period, prices } | null, nineMonth }
+ * nineMonth true iken period.start kiranın başladığı ilk gündür (Ekim); Eylül kirası alınmaz.
  * Ne akademik ne yaz dönemi açıksa null döner ve sayfa "başvurular kapalı" mesajını gösterir.
  */
 export async function getApplicationConfig() {

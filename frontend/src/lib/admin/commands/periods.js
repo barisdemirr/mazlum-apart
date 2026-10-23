@@ -6,12 +6,13 @@ const dateOrNull = (v) => (v ? v : null);
 export const createPeriod = (i) =>
     admin.post("/periods", { name: i.name?.trim(), type: i.type, start: i.start, end: i.end, copyFromPeriodId: i.copyFromPeriodId || null });
 
-export const updatePeriod = ({ id, name, start, end, applicationsOpen, halfTerm }) =>
+export const updatePeriod = ({ id, name, start, end, applicationsOpen, halfTerm, nineMonthTerm }) =>
     admin.put(`/periods/${id}`, {
         name: name?.trim(),
         start,
         end,
         applicationsOpen: Boolean(applicationsOpen),
+        nineMonthTerm: nineMonthTerm == null ? null : Boolean(nineMonthTerm),
         halfTerm: { enabled: Boolean(halfTerm?.enabled), firstEnd: dateOrNull(halfTerm?.firstEnd), secondStart: dateOrNull(halfTerm?.secondStart) },
     });
 

@@ -62,7 +62,9 @@ export default function OfficeApplicationDialog({ open, roomTypes, onClose, onCr
     // Yarım dönem yalnızca dönem ayarından açıldıysa ve akademik kayıtta seçilebilir
     const half = period.halfTerm;
     const halfOpen = !summerPeriod && !yearly && Boolean(half?.enabled && half.firstEnd && half.secondStart);
-    const range = form.term === "first" ? { start: period.start, end: half?.firstEnd ?? period.end } : form.term === "second" ? { start: half?.secondStart ?? period.start, end: period.end } : { start: period.start, end: period.end };
+    // 9 aylık dönemde kira ve giriş Ekim'den başlar (rentStart); 10 aylıkta dönem başı
+    const first = period.rentStart ?? period.start;
+    const range = form.term === "first" ? { start: first, end: half?.firstEnd ?? period.end } : form.term === "second" ? { start: half?.secondStart ?? first, end: period.end } : { start: first, end: period.end };
 
     const setGuardian = (id, field, value) => setForm((f) => ({ ...f, guardians: f.guardians.map((g) => (g.id === id ? { ...g, [field]: value } : g)) }));
 

@@ -1564,6 +1564,9 @@ namespace MazlumApart.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("nvarchar(80)");
 
+                    b.Property<bool>("NineMonthTerm")
+                        .HasColumnType("bit");
+
                     b.Property<int>("OrderIndex")
                         .HasColumnType("int");
 

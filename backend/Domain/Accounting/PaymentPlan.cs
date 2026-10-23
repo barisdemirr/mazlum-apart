@@ -27,9 +27,9 @@ public static class PaymentPlan
     /// 12 ay = normal plan + dönem sonundan 31 Ağustos'a kadar her ay için "yaz" kalemi (yaz fiyatı, seçilen ödeme gününde).
     /// Depozito her durumda planEnd ayının (Haziran) kirası yerine sayılır.
     /// </summary>
-    public static List<ChargeDraft> ForStay(StayPlan plan, DateOnly entryDate, PayWindow window, decimal monthly, decimal deposit, DateOnly planEnd, decimal? summerMonthly)
+    public static List<ChargeDraft> ForStay(StayPlan plan, DateOnly entryDate, PayWindow window, decimal monthly, decimal deposit, DateOnly planEnd, decimal? summerMonthly, DateOnly? rentFrom = null)
     {
-        var drafts = Generate(entryDate, window, monthly, deposit, planEnd);
+        var drafts = Generate(entryDate, window, monthly, deposit, planEnd, rentFrom);
         if (plan != StayPlan.Yearly) return drafts;
 
         var dueDay = DueDay(window);
@@ -42,7 +42,11 @@ public static class PaymentPlan
         return drafts;
     }
 
-    public static List<ChargeDraft> Generate(DateOnly entryDate, PayWindow window, decimal monthly, decimal deposit, DateOnly periodEnd)
+    /// <summary>
+    /// rentFrom: kiranın başlayabileceği ilk gün (9 aylık dönemde Ekim). Giriş bundan önceyse ilk kira o aya kayar;
+    /// depozito ve ilk ay kirası yine kayıt tarihinde (peşin) vadelidir, aradaki ay için kira kalemi oluşmaz.
+    /// </summary>
+    public static List<ChargeDraft> Generate(DateOnly entryDate, PayWindow window, decimal monthly, decimal deposit, DateOnly periodEnd, DateOnly? rentFrom = null)
     {
         var drafts = new List<ChargeDraft>
         {
@@ -50,6 +54,7 @@ public static class PaymentPlan
         };
 
         var cursor = new DateOnly(entryDate.Year, entryDate.Month, 1);
+        if (rentFrom is { } rf && new DateOnly(rf.Year, rf.Month, 1) is var firstRent && firstRent > cursor) cursor = firstRent;
         var last = new DateOnly(periodEnd.Year, periodEnd.Month, 1);
         var lastRent = cursor < last ? last.AddMonths(-1) : last;
         var dueDay = DueDay(window);

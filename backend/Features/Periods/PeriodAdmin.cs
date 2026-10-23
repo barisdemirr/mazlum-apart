@@ -10,13 +10,17 @@ namespace MazlumApart.Features.Periods;
 
 public record HalfTermDto(bool Enabled, DateOnly? FirstEnd, DateOnly? SecondStart);
 
-/// <summary>Frontend MOCK_PERIODS şekli: { id, name, type, start, end, status, applicationsOpen, halfTerm }</summary>
+/// <summary>
+/// Frontend MOCK_PERIODS şekli: { id, name, type, start, end, status, applicationsOpen, halfTerm }.
+/// nineMonthTerm: Eylül kirası alınmayan 9 aylık dönem; rentStart: kiranın / yeni kayıt girişinin başladığı ilk gün.
+/// </summary>
 public record PeriodDto(
-    Guid Id, string Name, PeriodType Type, DateOnly Start, DateOnly End, PeriodStatus Status, bool ApplicationsOpen, HalfTermDto HalfTerm, DateTime? ClosedAt)
+    Guid Id, string Name, PeriodType Type, DateOnly Start, DateOnly End, PeriodStatus Status, bool ApplicationsOpen, HalfTermDto HalfTerm, DateTime? ClosedAt,
+    bool NineMonthTerm = false, DateOnly? RentStart = null)
 {
     public static PeriodDto From(Period p) => new(
         p.Id, p.Name, p.Type, p.StartDate, p.EndDate, p.Status, p.ApplicationsOpen,
-        new HalfTermDto(p.HalfTermEnabled, p.HalfTermFirstEnd, p.HalfTermSecondStart), p.ClosedAt);
+        new HalfTermDto(p.HalfTermEnabled, p.HalfTermFirstEnd, p.HalfTermSecondStart), p.ClosedAt, p.NineMonthTerm, p.RentStart);
 }
 
 public static class GetPeriods
@@ -118,12 +122,14 @@ public static class CreatePeriod
 }
 
 /// <summary>
-/// Dönem ayarları: ad, tarihler, başvuruya açık mı, yarım dönem (açıkken iki tarih zorunlu). Kapalı dönem düzenlenemez.
+/// Dönem ayarları: ad, tarihler, başvuruya açık mı, yarım dönem (açıkken iki tarih zorunlu), 9 aylık dönem (Eylül kirası alınmaz).
+/// Kapalı dönem düzenlenemez. 9 aylık dönem yalnızca YENİ başvuruları ve henüz onaylanmamış başvuruların planını etkiler;
+/// onaylanmış kayıtların ödeme planı değişmez (gerekirse öğrenci hesabından kalem kalem düzeltilir).
 /// Dönem dışında kalacak kayıt / yerleşim / bekleyen başvuru varsa tarih daraltma engellenir.
 /// </summary>
 public static class UpdatePeriod
 {
-    public record Command(string? Name, DateOnly Start, DateOnly End, bool ApplicationsOpen, HalfTermDto? HalfTerm);
+    public record Command(string? Name, DateOnly Start, DateOnly End, bool ApplicationsOpen, HalfTermDto? HalfTerm, bool? NineMonthTerm = null);
 
     public class Handler(AppDbContext db, AuditWriter audit)
     {
@@ -138,7 +144,8 @@ public static class UpdatePeriod
 
             var validator = new Validator()
                 .Required("name", name, "Dönem adını yazın.").MaxLength("name", name, 80)
-                .Must("end", cmd.Start < cmd.End, "Bitiş tarihi başlangıçtan sonra olmalı.");
+                .Must("end", cmd.Start < cmd.End, "Bitiş tarihi başlangıçtan sonra olmalı.")
+                .Must("nineMonthTerm", cmd.NineMonthTerm != true || period.Type == PeriodType.Academic, "9 aylık dönem yalnızca akademik dönemde açılır.");
             if (half.Enabled)
             {
                 validator
@@ -175,6 +182,7 @@ public static class UpdatePeriod
             period.HalfTermEnabled = half.Enabled;
             period.HalfTermFirstEnd = half.FirstEnd;
             period.HalfTermSecondStart = half.SecondStart;
+            if (cmd.NineMonthTerm is { } nine) period.NineMonthTerm = nine;
 
             audit.Add("period.update", "period", period.Id, period.Id, before: before, after: PeriodDto.From(period));
             await db.SaveChangesAsync(ct);

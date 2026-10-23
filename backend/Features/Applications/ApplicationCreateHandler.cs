@@ -12,6 +12,7 @@ namespace MazlumApart.Features.Applications;
 /// Başvuru oluşturma (web + ofis ortak). Kurallar (frontend registration.js createApplication ile aynı):
 ///  - Dönem açık ve başvuruya açık olmalı; oda tipinin bu dönemde fiyatı olmalı (fiyat başvuruya kopyalanır).
 ///  - Giriş tarihi dönemin (yarım dönemde ilgili yarının) içinde; web formunda geçmiş tarih seçilemez.
+///    9 aylık dönemde (Eylül kirası alınmayan) giriş en erken Ekim'den başlar.
 ///  - Yarım dönem yalnızca dönem ayarından açıldıysa seçilebilir.
 ///  - Aynı dönemde aynı T.C. ile reddedilmemiş ikinci başvuru olamaz.
 ///  - Seçilen yatak (bedId) hâlâ boş olmalı; doluysa 409 ve form yeniden seçtirir.
@@ -86,6 +87,8 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
                 StayTerm.Second => (period.HalfTermSecondStart!.Value, period.EndDate),
                 _ => (period.StartDate, period.EndDate)
             };
+            // 9 aylık dönemde giriş en erken kiranın başladığı ay (Ekim)
+            if (period.RentStart > rangeStart) rangeStart = period.RentStart;
             if (source == ApplicationSource.Online && TurkeyClock.Today > rangeStart) rangeStart = TurkeyClock.Today;
             v.Must("entryDate", entry >= rangeStart && entry <= rangeEnd, $"Giriş tarihi {rangeStart:dd.MM.yyyy} – {rangeEnd:dd.MM.yyyy} arasında olmalı.");
         }

@@ -248,6 +248,12 @@ export function StepRoom({ form, set, err, tick, config, rooms, terms, period, b
                     texts={dateTexts}
                 />
                 <p className="px-1 text-xs text-orchid-muted">{tpl(a.room.entryHint, { date: formatDate(earliestEntry(period)) })}</p>
+                {config.nineMonth && form.stayPlan !== "summer" && (
+                    <p className="flex items-start gap-2 rounded-xl bg-orchid-powder px-3 py-2 text-xs text-orchid-muted">
+                        <span aria-hidden="true">ℹ️</span>
+                        <span>{a.room.nineMonthNote}</span>
+                    </p>
+                )}
             </div>
 
             {/* Ödeme günü */}
