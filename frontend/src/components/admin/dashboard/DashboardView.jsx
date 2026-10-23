@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import { useAdmin } from "@/components/admin/data/AdminDataProvider";
 import DataTable from "@/components/admin/DataTable";
+import QuickPaymentDialog from "@/components/admin/accounting/QuickPaymentDialog";
 import WhatsAppButton from "@/components/admin/WhatsAppButton";
 import { Avatar, Badge, Card, EmptyState, PageHeader, ProgressBar, StatusBadge } from "@/components/admin/ui";
 import { turkeyDate } from "@/lib/format";
@@ -25,6 +27,7 @@ const itemLabel = (item) =>
 export default function DashboardView({ data, occupancy }) {
     const { period, today } = useAdmin();
     const router = useRouter();
+    const [quickPay, setQuickPay] = useState(false);
     const isActive = period.status === "active";
 
     const view = {
@@ -107,10 +110,10 @@ export default function DashboardView({ data, occupancy }) {
                 title="Finansal Durum ve Operasyonel Özet"
                 description="Seçili dönemin kasa, tahsilat, gider ve doluluk durumu. Tüm tutarlar defter kayıtlarından hesaplanır."
                 actions={
-                    <Link href="/admin/tahsilatlar" className="ad-btn ad-btn-primary">
+                    <button type="button" onClick={() => setQuickPay(true)} className="ad-btn ad-btn-primary">
                         <Icon name="add_circle" className="text-[20px]" />
                         Tahsilat Gir
-                    </Link>
+                    </button>
                 }
             />
 
@@ -298,6 +301,7 @@ export default function DashboardView({ data, occupancy }) {
                     </div>
                 </Card>
             </div>
+            {quickPay && <QuickPaymentDialog onClose={() => setQuickPay(false)} />}
         </div>
     );
 }

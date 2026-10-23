@@ -9,6 +9,11 @@ export const getAccount = ({ enrollmentId }) => admin.get(`/enrollments/${enroll
 
 export const recordPayment = ({ enrollmentId, amount, date, method, accountId, note }) =>
     admin.post(`/enrollments/${enrollmentId}/payments`, { amount: n(amount), date: dateOrNull(date), method, accountId, note: note || null }, idem);
+/** Makbuz verisi (yalnızca tahsilat). Yazdırılabilir görünüm: components/admin/accounting/Receipt.jsx */
+export const getReceipt = ({ paymentId }) => admin.get(`/payments/${paymentId}/receipt`);
+/** Hızlı tahsilat penceresi için: dönemin kayıtları ve kasa/banka hesapları */
+export const listEnrollments = ({ periodId }) => admin.get("/enrollments", { periodId });
+export const listAccounts = () => admin.get("/accounts");
 export const cancelPayment = ({ id, reason }) => admin.post(`/payments/${id}/cancel`, { reason });
 export const refundAdvance = ({ enrollmentId, amount, date, accountId, note }) =>
     admin.post(`/enrollments/${enrollmentId}/refunds`, { amount: n(amount), date: dateOrNull(date), accountId, note: note || null }, idem);

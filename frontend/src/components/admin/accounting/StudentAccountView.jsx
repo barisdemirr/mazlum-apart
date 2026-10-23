@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
 import ActionDialog from "@/components/admin/ActionDialog";
+import ReceiptDialog from "@/components/admin/accounting/Receipt";
 import WhatsAppButton from "@/components/admin/WhatsAppButton";
 import useCommand from "@/components/admin/useCommand";
 import { Badge, Card, PageHeader, StatusBadge } from "@/components/admin/ui";
@@ -22,6 +23,7 @@ export default function StudentAccountView({ account, accounts }) {
     const { exec } = useCommand();
     const [dialog, setDialog] = useState(null);
     const [password, setPassword] = useState(null);
+    const [receiptId, setReceiptId] = useState(null);
 
     const row = useMemo(() => adaptRow(account.enrollment), [account.enrollment]);
     const { student, summary } = row;
@@ -40,7 +42,7 @@ export default function StudentAccountView({ account, accounts }) {
 
     const openItems = account.items.filter((i) => !i.reversed && i.remaining > 0);
     const dialogs = {
-        pay: <ActionDialog title="Tahsilat gir" description={name} command={recordPayment} extra={{ enrollmentId: e.id }} initial={{ amount: summary.remaining || "", date: today, method: "cash" }} success="Tahsilat kaydedildi." onClose={close} note="Tutar, en eski vadeli borçtan başlayarak kalemlere otomatik dağıtılır. Fazlası avans olur."
+        pay: <ActionDialog title="Tahsilat gir" description={name} command={recordPayment} extra={{ enrollmentId: e.id }} initial={{ amount: summary.remaining || "", date: today, method: "cash" }} success="Tahsilat kaydedildi." onClose={close} onDone={(r) => setReceiptId(r?.paymentId)} note="Tutar, en eski vadeli borçtan başlayarak kalemlere otomatik dağıtılır. Fazlası avans olur."
             fields={[{ name: "amount", label: "Tutar", type: "number", required: true, span: 1 }, { name: "date", label: "Tarih", type: "date", span: 1 }, { name: "method", label: "Yöntem", type: "select", options: Object.entries(METHOD), span: 1 }, { ...accountField, span: 1 }, { name: "note", label: "Not", type: "text" }]} />,
         refund: <ActionDialog title="Avans iadesi" description={`${name} · avans ${money(summary.advance)}`} command={refundAdvance} extra={{ enrollmentId: e.id }} initial={{ amount: summary.advance, date: today }} success="İade kaydedildi." saveLabel="İade et" onClose={close}
             fields={[{ name: "amount", label: "Tutar", type: "number", required: true, span: 1 }, { name: "date", label: "Tarih", type: "date", span: 1 }, accountField, { name: "note", label: "Not", type: "text" }]} />,
@@ -120,7 +122,10 @@ export default function StudentAccountView({ account, accounts }) {
                         <ul className="mt-4 divide-y divide-ad-line">{account.payments.map((p) => (
                             <li key={p.id} className={`flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm ${p.cancelledAt ? "opacity-50" : ""}`}>
                                 <span><b className="ad-num">{p.kind === "refund" ? "−" : ""}{money(p.amount)}</b> <span className="text-xs text-ad-muted">· {date(p.date)} · {METHOD[p.method]} · {p.accountName}</span>{p.cancelledAt && <Badge tone="neutral" className="ms-2">İptal</Badge>}</span>
+                                <span className="flex items-center gap-3">
+                                {p.kind !== "refund" && <button type="button" onClick={() => setReceiptId(p.id)} className="text-xs font-bold text-ad-brand hover:underline">Makbuz</button>}
                                 {!closed && !p.cancelledAt && <button type="button" onClick={() => setDialog({ type: "cancel", item: p })} className="text-xs font-bold text-ad-danger hover:underline">İptal et</button>}
+                                </span>
                             </li>
                         ))}</ul>
                     )}
@@ -132,6 +137,7 @@ export default function StudentAccountView({ account, accounts }) {
                 </Card>
             </div>
             {dialog && dialogs[dialog.type]}
+            {receiptId && <ReceiptDialog paymentId={receiptId} onClose={() => setReceiptId(null)} />}
         </div>
     );
 }
