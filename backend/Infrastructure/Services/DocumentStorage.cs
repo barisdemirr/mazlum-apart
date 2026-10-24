@@ -15,12 +15,14 @@ public record StoredDocument(string Path, string FileName, long Size, string Sha
 ///  - Uzantı .pdf olmalı; içerik İMZAYLA doğrulanır (%PDF- başlığı + %%EOF sonu). İstemcinin bildirdiği Content-Type'a güvenilmez.
 ///  - HTML/script ile başlayan "çok dilli" (polyglot) dosyalar ve betik/gömülü dosya içeren PDF'ler reddedilir
 ///    (/JavaScript, /JS, /Launch, /EmbeddedFile, /RichMedia; #xx kaçışlı yazımlar da çözülerek bakılır).
-///  - Dosya wwwroot DIŞINDA (App_Data/private/documents/yyyy/MM) rastgele GUID adıyla yazılır: adresi tahmin edilemez,
-///    statik olarak sunulmaz; yalnızca yönetici ucu okur. Kullanıcının verdiği ad yola hiç karışmaz.
+///  - Dosya wwwroot/uploads/documents/yyyy/MM altına rastgele GUID adıyla yazılır (hosting App_Data izni vermediği için):
+///    adres tahmin edilemez, kullanıcının verdiği ad yola hiç karışmaz; panel belgeyi yönetici ucundan sunar.
+///    Eski kayıtlar (private/documents/...) App_Data'dan okunmaya devam eder.
 /// </summary>
 public partial class DocumentStorage(IWebHostEnvironment env, IOptions<UploadOptions> options, ILogger<DocumentStorage> logger)
 {
-    private const string Prefix = "private/documents";
+    private const string Prefix = "private/documents";            // eski konum (App_Data)
+    private const string PublicPrefix = "/uploads/documents";      // güncel konum (wwwroot)
 
     [GeneratedRegex(@"#([0-9A-Fa-f]{2})")]
     private static partial Regex NameEscape();
@@ -37,9 +39,10 @@ public partial class DocumentStorage(IWebHostEnvironment env, IOptions<UploadOpt
             return Error.Field("document", "Belge PDF biçiminde olmalı.");
 
         byte[] bytes;
-        await using (var input = file.OpenReadStream())
-        using (var buffer = new MemoryStream())
+        try
         {
+            await using var input = file.OpenReadStream();
+            using var buffer = new MemoryStream();
             var chunk = new byte[81920];
             int read;
             while ((read = await input.ReadAsync(chunk, ct)) > 0)
@@ -49,15 +52,30 @@ public partial class DocumentStorage(IWebHostEnvironment env, IOptions<UploadOpt
             }
             bytes = buffer.ToArray();
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Yüklenen dosya geçici klasöre tamponlanır; uygulama havuzunun geçici klasöre erişimi yoksa buraya düşer
+            logger.LogError(ex, "Yüklenen belge okunamadı (geçici klasör: {Temp})", System.IO.Path.GetTempPath());
+            return Error.Field("document", "Belge okunamadı. Lütfen birkaç dakika sonra tekrar dene.");
+        }
 
         if (Inspect(bytes) is { } problem) return Error.Field("document", problem);
 
         var now = DateTime.UtcNow;
-        var stored = $"{Prefix}/{now:yyyy}/{now:MM}/{Guid.NewGuid():N}.pdf";
+        var stored = $"{PublicPrefix}/{now:yyyy}/{now:MM}/{Guid.NewGuid():N}.pdf";
         var full = ToPhysicalPath(stored);
-        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(full)!);
-        await using (var output = new FileStream(full, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        try
+        {
+            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(full)!);
+            await using var output = new FileStream(full, FileMode.CreateNew, FileAccess.Write, FileShare.None);
             await output.WriteAsync(bytes, ct);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Çoğunlukla klasörde uygulama havuzu kullanıcısına yazma izni yoktur
+            logger.LogError(ex, "Belge diske yazılamadı: {Path}", full);
+            return Error.Field("document", "Belge kaydedilemedi. Lütfen birkaç dakika sonra tekrar dene.");
+        }
 
         return new StoredDocument(stored, CleanName(file.FileName), bytes.LongLength, Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant());
     }
@@ -96,6 +114,16 @@ public partial class DocumentStorage(IWebHostEnvironment env, IOptions<UploadOpt
     /// <summary>Saklanan yolu disk yoluna çevirir; yalnızca belge klasörünün içine izin verir</summary>
     public string ToPhysicalPath(string stored)
     {
+        if (stored.StartsWith(PublicPrefix + "/", StringComparison.Ordinal))
+        {
+            var web = env.WebRootPath ?? System.IO.Path.Combine(env.ContentRootPath, "wwwroot");
+            var publicRoot = System.IO.Path.GetFullPath(System.IO.Path.Combine(web, "uploads", "documents"));
+            var publicFull = System.IO.Path.GetFullPath(System.IO.Path.Combine(web, stored.TrimStart('/').Replace('/', System.IO.Path.DirectorySeparatorChar)));
+            if (!publicFull.StartsWith(publicRoot + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Geçersiz belge yolu.");
+            return publicFull;
+        }
+
         if (!stored.StartsWith(Prefix + "/", StringComparison.Ordinal)) throw new InvalidOperationException("Geçersiz belge yolu.");
         var root = System.IO.Path.GetFullPath(System.IO.Path.Combine(env.ContentRootPath, "App_Data", "private", "documents"));
         var full = System.IO.Path.GetFullPath(System.IO.Path.Combine(env.ContentRootPath, "App_Data", stored.Replace('/', System.IO.Path.DirectorySeparatorChar)));

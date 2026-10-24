@@ -75,3 +75,49 @@ public static class ApplicationDocument
         }
     }
 }
+
+/// <summary>
+/// Medya sayfasındaki "Öğrenci belgeleri" sekmesi (YALNIZCA yönetici):
+///  GET    /api/admin/application-documents → belgesi olan başvurular (öğrenci adı + başvuru no ile)
+///  DELETE /api/admin/applications/{id}/document → belgeyi siler (dosya + başvurudaki kayıt); başvuru kalır
+/// </summary>
+public static class ApplicationDocumentLibrary
+{
+    public record Item(Guid ApplicationId, string ApplicationNo, string StudentName, string Status, string Source,
+        string? FileName, long? Size, DateTime CreatedAt);
+
+    public class Endpoint : IEndpoint
+    {
+        public void MapEndpoint(IEndpointRouteBuilder app)
+        {
+            app.MapGet("/api/admin/application-documents", async (AppDbContext db, CancellationToken ct) =>
+            {
+                var rows = await db.Applications.AsNoTracking()
+                    .Where(x => x.DocumentPath != null)
+                    .OrderByDescending(x => x.CreatedAt)
+                    .Take(500)
+                    .Select(x => new { x.Id, x.No, x.FullName, x.Status, x.Source, x.DocumentName, x.DocumentSize, x.CreatedAt })
+                    .ToListAsync(ct);
+                return Results.Ok(rows.Select(x => new Item(x.Id, x.No, x.FullName, x.Status.ToString(), x.Source.ToString(), x.DocumentName, x.DocumentSize, x.CreatedAt)).ToList());
+            });
+
+            app.MapDelete("/api/admin/applications/{id:guid}/document", async (Guid id, AppDbContext db, DocumentStorage documents, AuditWriter audit, CancellationToken ct) =>
+            {
+                var application = await db.Applications.FirstOrDefaultAsync(x => x.Id == id, ct);
+                if (application?.DocumentPath is null) return Error.NotFound("Belge bulunamadı.").ToProblem();
+
+                var path = application.DocumentPath;
+                audit.Add("application.document-delete", "application", application.Id, application.PeriodId,
+                    before: new { application.DocumentName, application.DocumentSize });
+                application.DocumentPath = null;
+                application.DocumentName = null;
+                application.DocumentSize = null;
+                application.DocumentSha256 = null;
+                await db.SaveChangesAsync(ct);
+
+                documents.Delete(path); // kayıt güncellendikten sonra dosya silinir (dosya silinemezse kayıt yine temizdir)
+                return Results.NoContent();
+            });
+        }
+    }
+}

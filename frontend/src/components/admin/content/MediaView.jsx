@@ -9,6 +9,7 @@ import useCommand, { errorText } from "@/components/admin/useCommand";
 import { useToast } from "@/components/admin/Toast";
 import LocalizedField, { TranslateAllButton, toLocalized } from "@/components/admin/LocalizedField";
 import { Card, Chips, EmptyState } from "@/components/admin/ui";
+import StudentDocumentsPanel from "@/components/admin/content/StudentDocumentsPanel";
 import { deleteMedia, updateMedia } from "@/lib/admin/commands/content";
 import { mediaUrl } from "@/lib/media";
 import { uploadImage, uploadVideo } from "@/lib/admin/upload";
@@ -29,6 +30,7 @@ export default function MediaView({ media, kind }) {
     const [editing, setEditing] = useState(null);
     const [removing, setRemoving] = useState(null);
     const [job, setJob] = useState(null); // { name, stage, value }
+    const [docs, setDocs] = useState(false); // "Öğrenci belgeleri" sekmesi (medya dosyası değil, başvuru belgeleri)
 
     const goto = (next) => {
         const q = new URLSearchParams();
@@ -92,7 +94,7 @@ export default function MediaView({ media, kind }) {
             </div>
 
             <div className="mb-4">
-                <Chips value={kind} onChange={(k) => goto({ kind: k, page: 1 })} items={[{ value: "all", label: "Tümü" }, { value: "image", label: "Görseller" }, { value: "video", label: "Videolar" }]} />
+                <Chips value={docs ? "documents" : kind} onChange={(k) => { if (k === "documents") setDocs(true); else { setDocs(false); goto({ kind: k, page: 1 }); } }} items={[{ value: "all", label: "Tümü" }, { value: "image", label: "Görseller" }, { value: "video", label: "Videolar" }, { value: "documents", label: "Öğrenci belgeleri" }]} />
             </div>
 
             {job && (
@@ -103,7 +105,7 @@ export default function MediaView({ media, kind }) {
                 </div>
             )}
 
-            {media.items.length === 0 ? <EmptyState icon="photo_library" title="Medya kitaplığı boş" description="İlk dosyayı yükleyin." /> : (
+            {docs ? <StudentDocumentsPanel /> : media.items.length === 0 ? <EmptyState icon="photo_library" title="Medya kitaplığı boş" description="İlk dosyayı yükleyin." /> : (
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                     {media.items.map((m) => {
                         const src = mediaUrl(m.kind === "video" ? m.posterUrl : m.url, "md");
@@ -126,7 +128,7 @@ export default function MediaView({ media, kind }) {
                 </div>
             )}
 
-            {pages > 1 && (
+            {!docs && pages > 1 && (
                 <div className="mt-5 flex items-center justify-center gap-3 text-sm">
                     <button type="button" className="ad-btn ad-btn-outline ad-btn-sm" disabled={media.page <= 1} onClick={() => goto({ kind, page: media.page - 1 })}>Önceki</button>
                     <span className="ad-num text-ad-muted">{media.page} / {pages}</span>

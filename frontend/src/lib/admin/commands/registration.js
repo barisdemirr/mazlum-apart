@@ -56,3 +56,7 @@ export const getRoomOptions = ({ enrollmentId, from, to, excludeRoomId }) =>
 
 /** Başvuru detayı (form bilgileri + onayda oluşacak ödeme planı önizlemesi) */
 export const getApplication = ({ id }) => admin.get(`/applications/${id}`);
+
+/** Medya sayfası "Öğrenci belgeleri": belgesi olan başvurular + belge silme */
+export const listApplicationDocuments = () => admin.get("/application-documents");
+export const deleteApplicationDocument = ({ id }) => admin.del(`/applications/${id}/document`);
