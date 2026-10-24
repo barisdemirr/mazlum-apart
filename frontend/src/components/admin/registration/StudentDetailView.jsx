@@ -57,8 +57,8 @@ export default function StudentDetailView({ detail, contacts, maintenance }) {
     const others = detail.others;
     const currentRoomId = placements.find((p) => p.current)?.roomId ?? null;
 
-    const submitEnd = async (e) => {
-        e.preventDefault();
+    const submitEnd = async (event) => {
+        event.preventDefault(); // (e = kayıt; olay nesnesi onu gölgelemesin)
         const out = await exec(endEnrollment, { enrollmentId: e.id, status: endForm.status, effectiveDate: endForm.date, reason: endForm.reason }, "Kayıt kapatıldı.");
         if (out.ok) setDialog(null);
     };
