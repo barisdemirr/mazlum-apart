@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import Icon from "@/components/ui/Icon";
 import FloatingField from "./FloatingField";
@@ -16,6 +17,7 @@ export default function SearchSelect({ id, name, label, options, value, onChange
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState("");
     const [active, setActive] = useState(0);
+    const [pos, setPos] = useState(null); // liste konumu (ekrana göre): liste body'e taşınır, hiçbir kartın/çubuğun altında kalmaz
 
     const selected = options.find((option) => String(option.value) === String(value));
     const filtered = useMemo(() => {
@@ -27,7 +29,7 @@ export default function SearchSelect({ id, name, label, options, value, onChange
     useEffect(() => {
         if (!open) return;
         const onDown = (event) => {
-            if (!wrapRef.current?.contains(event.target)) {
+            if (!wrapRef.current?.contains(event.target) && !listRef.current?.contains(event.target)) {
                 setOpen(false);
                 setQuery("");
             }
@@ -35,6 +37,25 @@ export default function SearchSelect({ id, name, label, options, value, onChange
         document.addEventListener("pointerdown", onDown);
         return () => document.removeEventListener("pointerdown", onDown);
     }, [open]);
+
+    // Listeyi alanın hemen altına (yer yoksa üstüne) sabitle; kaydırma/boyut değişince yeniden hesapla
+    useLayoutEffect(() => {
+        if (!open) return;
+        const place = () => {
+            if (!wrapRef.current) return;
+            const field = wrapRef.current.getBoundingClientRect();
+            const below = window.innerHeight - field.bottom;
+            const up = below < 260 && field.top > below;
+            setPos({ left: field.left, width: field.width, top: up ? undefined : field.bottom + 6, bottom: up ? window.innerHeight - field.top + 6 : undefined, max: Math.max(160, Math.min(240, (up ? field.top : below) - 16)) });
+        };
+        place();
+        window.addEventListener("scroll", place, true);
+        window.addEventListener("resize", place);
+        return () => {
+            window.removeEventListener("scroll", place, true);
+            window.removeEventListener("resize", place);
+        };
+    }, [open, filtered.length]);
 
     // aktif satırı görünür tut
     useEffect(() => {
@@ -112,8 +133,9 @@ export default function SearchSelect({ id, name, label, options, value, onChange
             />
             {disabled && placeholder && <p className="px-1 pt-1.5 text-xs text-orchid-muted">{placeholder}</p>}
 
+            {typeof document !== "undefined" && createPortal(
             <AnimatePresence>
-                {open && (
+                {open && pos && (
                     <motion.ul
                         ref={listRef}
                         id={`${id}-list`}
@@ -122,7 +144,8 @@ export default function SearchSelect({ id, name, label, options, value, onChange
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -6, scale: 0.98 }}
                         transition={{ duration: 0.18 }}
-                        className="glass-card absolute inset-x-0 top-[calc(3.5rem+6px)] z-40 max-h-60 overflow-y-auto overscroll-contain rounded-3xl p-1.5 shadow-[0_24px_50px_-12px_rgba(123,70,199,0.3)]"
+                        style={{ position: "fixed", left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom, maxHeight: pos.max }}
+                        className="glass-card z-[1000] overflow-y-auto overscroll-contain rounded-3xl p-1.5 shadow-[0_24px_50px_-12px_rgba(123,70,199,0.3)]"
                     >
                         {filtered.length === 0 && <li className="px-4 py-3 text-sm text-orchid-muted">{noResult}</li>}
                         {filtered.map((option, index) => {
@@ -147,7 +170,9 @@ export default function SearchSelect({ id, name, label, options, value, onChange
                         })}
                     </motion.ul>
                 )}
-            </AnimatePresence>
+            </AnimatePresence>,
+            document.body
+            )}
         </div>
     );
 }

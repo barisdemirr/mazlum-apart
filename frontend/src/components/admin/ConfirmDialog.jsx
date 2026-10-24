@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Icon from "@/components/ui/Icon";
+import ModalPortal from "@/components/admin/ModalPortal";
 
 /**
  * open, title, message, confirmLabel, onConfirm (async olabilir), onCancel
@@ -42,6 +43,7 @@ export default function ConfirmDialog({
     };
 
     return (
+        <ModalPortal>
         <div className="fixed inset-0 z-[65] flex items-end justify-center bg-ad-ink/55 p-4 backdrop-blur-sm sm:items-center">
             <div
                 role="dialog"
@@ -85,5 +87,6 @@ export default function ConfirmDialog({
                 </div>
             </div>
         </div>
+        </ModalPortal>
     );
 }

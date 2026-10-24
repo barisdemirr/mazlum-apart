@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Icon from "@/components/ui/Icon";
+import ModalPortal from "@/components/admin/ModalPortal";
 
 const SIZES = { sm: "max-w-md", md: "max-w-lg", lg: "max-w-2xl", xl: "max-w-4xl" };
 
@@ -41,6 +42,7 @@ export default function FormDialog({
     const Shell = onSubmit ? "form" : "div";
 
     return (
+        <ModalPortal>
         <div className="fixed inset-0 z-[64] flex items-end justify-center bg-ad-ink/50 backdrop-blur-sm sm:items-center sm:p-6">
             <Shell
                 {...(onSubmit ? { onSubmit, noValidate: true } : { role: "dialog", "aria-modal": "true" })}
@@ -82,5 +84,6 @@ export default function FormDialog({
                 )}
             </Shell>
         </div>
+        </ModalPortal>
     );
 }
