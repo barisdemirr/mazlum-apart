@@ -246,7 +246,7 @@ export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }
             } else if (error?.status === 409 || error?.status === 400) {
                 setSubmitError(error.getAllMessages?.()[0] || a.errors.submit);
             } else {
-                setSubmitError(a.errors.submit);
+                setSubmitError(error?.status ? `${a.errors.submit} (${error.status}${error.detail ? ` · ${error.detail}` : ""})` : a.errors.submit);
             }
         }
     };

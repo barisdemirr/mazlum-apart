@@ -31,6 +31,22 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
     /// <param name="document">Öğrenci belgesi (PDF). Web başvurusunda ZORUNLU; ofis kaydında isteğe bağlı (sonradan panelden eklenebilir).</param>
     public async Task<Result<Created>> Create(ApplicationInput input, ApplicationSource source, string? ip, CancellationToken ct, IFormFile? document = null)
     {
+        try
+        {
+            return await CreateCore(input, source, ip, ct, document);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            ex.Data["stage"] = stage; // uç nokta hata yanıtına yalnızca aşama + hata türü yazar (ayrıntı sızdırmaz)
+            throw;
+        }
+    }
+
+    private string stage = "start";
+
+    private async Task<Result<Created>> CreateCore(ApplicationInput input, ApplicationSource source, string? ip, CancellationToken ct, IFormFile? document)
+    {
+        stage = "period";
         var (planValid, requestedPlan) = ApplicantRules.ParseStayPlan(input.StayPlan);
         if (!planValid) return Error.Field("stayPlan", "Konaklama türü geçersiz.");
 
@@ -61,6 +77,7 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
                 ? "Yaz döneminde yalnızca “sadece yaz” kaydı alınır."
                 : "“Sadece yaz” kaydı yaz dönemine yapılır.");
 
+        stage = "validate";
         var v = new Validator();
         var applicant = ApplicantRules.Normalize(input, v);
         if (source == ApplicationSource.Online && (document is null || document.Length == 0))
@@ -106,6 +123,7 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
 
         if (!v.IsValid) return v.ToFailure<Created>();
 
+        stage = "price";
         var price = await db.RoomTypePrices.FirstOrDefaultAsync(x => x.PeriodId == period.Id && x.RoomTypeId == roomType!.Id, ct);
         if (price is null) return Error.Conflict("Bu oda tipi için bu dönemde fiyat tanımlı değil.");
 
@@ -117,10 +135,12 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
             summerMonthly = price.SummerMonthly;
         }
 
+        stage = "duplicate-check";
         if (await db.Applications.AnyAsync(x => x.PeriodId == period.Id && x.Tc == applicant!.Tc && x.Status != ApplicationStatus.Rejected, ct))
             return Error.Conflict("Bu T.C. kimlik no ile bu dönemde zaten bir başvuru ya da kayıt var.");
 
         // ---- indirim kodu: aylık kiraya (12 ayda yaz kirasına da) uygulanır, depozitoya uygulanmaz ----
+        stage = "discount";
         DiscountCode? discount = null;
         var monthly = price.Monthly;
         if (DiscountCodeRules.Normalize(input.DiscountCode) is { Length: > 0 } codeText)
@@ -137,6 +157,7 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
         }
 
         // ---- seçilen yatak (oda tercihi) ----
+        stage = "bed";
         Guid? preferredRoom = null;
         if (!string.IsNullOrWhiteSpace(input.BedId) && stayPlan != StayPlan.Summer)
         {
@@ -152,6 +173,7 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
         }
 
         // ---- öğrenci belgesi: tüm kontroller geçtikten sonra diske yazılır (reddedilen başvuru dosya bırakmaz) ----
+        stage = "document";
         StoredDocument? stored = null;
         if (document is not null)
         {
@@ -160,6 +182,7 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
             stored = saved.Value;
         }
 
+        stage = "number";
         var year = TurkeyClock.Today.Year;
         var number = await numbers.NextAsync(NumberGenerator.ApplicationKey(year), ct);
         var application = new Application
@@ -192,6 +215,7 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
             Ip = ip
         };
 
+        stage = "save";
         db.Applications.Add(application);
         audit.Add("application.create", "application", application.Id, period.Id, after: new { application.No, source, stayPlan, discountCode = discount?.Code, document = stored is not null });
         try
@@ -204,6 +228,7 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
             throw;
         }
 
+        stage = "notify";
         // Web'den gelen başvuru: yöneticilerin cihazlarına anında bildirim (arka planda, isteği bekletmez)
         if (source == ApplicationSource.Online)
         {

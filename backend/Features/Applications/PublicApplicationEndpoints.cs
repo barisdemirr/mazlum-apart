@@ -88,9 +88,24 @@ public static class SubmitApplication
                     }
                     if (input is null) return Error.Field("form", "Başvuru bilgileri okunamadı. Sayfayı yenileyip tekrar deneyin.").ToProblem();
 
-                    return (await handler.Create(input with { PeriodId = null, RoomTypeId = null }, ApplicationSource.Online, ClientIp.Get(http), ct,
-                            form.Files.GetFile("document")))
-                        .ToHttp(created => Results.Ok(new Response(created.ApplicationNo)));
+                    try
+                    {
+                        return (await handler.Create(input with { PeriodId = null, RoomTypeId = null }, ApplicationSource.Online, ClientIp.Get(http), ct,
+                                form.Files.GetFile("document")))
+                            .ToHttp(created => Results.Ok(new Response(created.ApplicationNo)));
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException and not DbUpdateConcurrencyException
+                                                  && ex is not DbUpdateException { InnerException: Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 } })
+                    {
+                        // (Eşzamanlılık ve tekil indeks ihlali ConflictExceptionHandler'a kalır → 409)
+                        // Beklenmeyen hata: tam ayrıntı yalnızca sunucu loguna yazılır; yanıta aşama ve hata türü eklenir (teşhis için)
+                        var stage = ex.Data["stage"] as string ?? "?";
+                        var sql = ex.GetBaseException() as Microsoft.Data.SqlClient.SqlException;
+                        http.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Applications")
+                            .LogError(ex, "Başvuru kaydedilemedi (aşama: {Stage})", stage);
+                        var detail = $"{stage} · {ex.GetBaseException().GetType().Name}{(sql is null ? "" : $" #{sql.Number}")}";
+                        return Results.Problem(detail: detail, statusCode: StatusCodes.Status500InternalServerError, title: "Başvuru kaydedilemedi");
+                    }
                 })
                 .AllowAnonymous()
                 .RequireRateLimiting(RatePolicies.PublicForm)
