@@ -112,6 +112,16 @@ export function stayConfig(config, stayPlan) {
 
 /** Oda tipleri seçilen türün fiyatlarıyla: yaz → yaz döneminin kirası ve depozitosu; 12 ay → summerMonthlyPrice eklenir */
 export function roomsForStay(rooms, config, stayPlan) {
+    return markFull(priceRooms(rooms, config, stayPlan), stayPlan);
+}
+
+/** Tüm yatakları dolu oda tipi: "Dolu" gösterilir ve seçilemez (unavailable gibi davranır). Yaz kaydında doluluk akademik dönemi gösterdiği için bakılmaz. */
+function markFull(rooms, stayPlan) {
+    if (stayPlan === "summer") return rooms;
+    return rooms.map((room) => (!room.unavailable && room.roomCount > 0 && room.bedsFree === 0 ? { ...room, unavailable: true, full: true } : room));
+}
+
+function priceRooms(rooms, config, stayPlan) {
     if (stayPlan === "summer") {
         const prices = new Map((config.summer?.prices ?? []).map((p) => [p.roomTypeId, p]));
         return rooms.map((room) => {

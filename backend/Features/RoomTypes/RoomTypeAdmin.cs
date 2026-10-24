@@ -144,28 +144,12 @@ public static class UpdateRoomType
     }
 }
 
-/// <summary>Silme: odası ya da fiyatı olan oda tipi silinemez (önce pasife alın)</summary>
+/// <summary>Silme (soft delete): odaları ve dönem fiyatlarıyla birlikte. Kurallar: Features/Structure/StructureDeletion.cs</summary>
 public static class DeleteRoomType
 {
-    public class Handler(AppDbContext db, AuditWriter audit)
+    public class Handler(MazlumApart.Features.Structure.StructureDeletionHandler deletion)
     {
-        public async Task<Result> Handle(Guid id, CancellationToken ct)
-        {
-            var type = await db.RoomTypes.FirstOrDefaultAsync(x => x.Id == id, ct);
-            if (type is null) return Error.NotFound("Oda tipi bulunamadı.");
-
-            if (await db.Rooms.AnyAsync(x => x.RoomTypeId == id, ct))
-                return Error.Conflict("Bu oda tipinde odalar var. Silmek yerine “Sitede göster”i kapatın.");
-            if (await db.Applications.AnyAsync(x => x.RoomTypeId == id, ct) || await db.Enrollments.AnyAsync(x => x.RoomTypeId == id, ct))
-                return Error.Conflict("Bu oda tipiyle yapılmış başvuru/kayıt var. Silmek yerine “Sitede göster”i kapatın.");
-            if (await db.RoomTypePrices.AnyAsync(x => x.RoomTypeId == id, ct))
-                return Error.Conflict("Bu oda tipinin dönem fiyatları var. Silmek yerine “Sitede göster”i kapatın.");
-
-            db.RoomTypes.Remove(type);
-            audit.Add("roomtype.delete", "roomtype", id, before: new { type.Name, type.Slug });
-            await db.SaveChangesAsync(ct);
-            return Result.Success();
-        }
+        public Task<Result> Handle(Guid id, CancellationToken ct) => deletion.DeleteRoomTypeAsync(id, ct);
     }
 
     public class Endpoint : IEndpoint

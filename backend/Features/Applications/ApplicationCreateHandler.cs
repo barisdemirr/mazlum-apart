@@ -135,6 +135,19 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
             summerMonthly = price.SummerMonthly;
         }
 
+        // Web başvurusunda tüm yatakları dolu oda tipi seçilemez (form da "Dolu" gösterir; bu, doğrudan istek ve yarışa karşı korumadır).
+        // Sadece yaz kaydında doluluk akademik dönemi gösterdiği için bakılmaz.
+        if (source == ApplicationSource.Online && stayPlan != StayPlan.Summer)
+        {
+            var typeRooms = await db.Rooms.Where(x => x.RoomTypeId == roomType!.Id && x.Status == RoomStatus.Active && x.Apartment!.IsPublished).ToListAsync(ct);
+            if (typeRooms.Count > 0)
+            {
+                var counts = await availability.GetRoomCountsAsync(period.Id, typeRooms.Select(x => x.Id).ToList(), ct);
+                var free = typeRooms.Sum(x => Math.Max(0, x.Beds - counts[x.Id].Occupied - counts[x.Id].Reserved));
+                if (free == 0) return Error.Conflict("Seçtiğiniz oda tipi şu an dolu. Lütfen bizimle iletişime geçin.");
+            }
+        }
+
         stage = "duplicate-check";
         if (await db.Applications.AnyAsync(x => x.PeriodId == period.Id && x.Tc == applicant!.Tc && x.Status != ApplicationStatus.Rejected, ct))
             return Error.Conflict("Bu T.C. kimlik no ile bu dönemde zaten bir başvuru ya da kayıt var.");

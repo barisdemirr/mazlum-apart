@@ -244,6 +244,8 @@ export const dictionaries = {
             room: {
                 title: "Oda Tipi",
                 preselected: "{room} seçili geldi, istersen değiştirebilirsin.",
+                full: "Dolu",
+                contactFull: "Seçmek istediğiniz oda dolu ise iletişime geçebilirsiniz",
                 bed: "Seçtiğin yatak",
                 bedGone: "Seçtiğin yatak artık boş görünmüyor. Başvurunu yine de gönderebilirsin; yerleşim onaydan sonra yapılır.",
                 infoTitle: "Bu oda tipinde",
@@ -1098,6 +1100,8 @@ export const dictionaries = {
             room: {
                 title: "Room Type",
                 preselected: "{room} came pre-selected, you can change it if you like.",
+                full: "Full",
+                contactFull: "If the room you want is full, you can get in touch with us",
                 bed: "Your selected bed",
                 bedGone: "The bed you picked no longer appears to be free. You can still submit your application; placement is made after approval.",
                 infoTitle: "In this room type",

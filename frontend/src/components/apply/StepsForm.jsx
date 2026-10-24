@@ -11,6 +11,8 @@ import DiscountCodeField from "./DiscountCodeField";
 import DocumentField from "./DocumentField";
 import { FieldError, GroupLabel, Segmented, SelectionCard } from "./fields/Choice";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
+import { useSite } from "@/lib/site/SiteProvider";
+import LocalizedLink from "@/components/ui/LocalizedLink";
 import { localized } from "@/lib/i18n/localized";
 import { formatDate, formatPrice, parseDateOnly, rangeText } from "@/lib/format";
 import { mediaAlt, mediaUrl } from "@/lib/media";
@@ -65,6 +67,8 @@ export function StepRoom({ form, set, err, tick, config, rooms, terms, period, b
     const s = a.room.stay;
     const selectedRoom = rooms.find((room) => room.slug === form.roomSlug && !room.unavailable);
     const dateTexts = useDateTexts();
+    const site = useSite();
+    const whatsappHref = site.waHref(); // otomatik mesaj yok: doğrudan sohbet açılır
     const showBed = bedRequest && bedRequest.roomSlug === form.roomSlug;
     const options = stayOptions(config, s, locale);
     const stayInfo = form.stayPlan === "yearly" ? s.infoYearly : form.stayPlan === "summer" ? s.infoSummer : s.infoAcademic;
@@ -169,7 +173,7 @@ export function StepRoom({ form, set, err, tick, config, rooms, terms, period, b
                                         <span className="block font-display text-xl font-medium leading-tight text-orchid-dark">{name}</span>
                                         <span className="mt-0.5 block text-xs text-orchid-muted">{tpl(a.room.inFlat, { count: rangeText(room.peopleInFlat, room.peopleInFlatMax) })}</span>
                                         {room.unavailable ? (
-                                            <span className="mt-1.5 block text-xs font-semibold text-orchid-muted">{s.noPrice}</span>
+                                            <span className={`mt-1.5 block text-xs font-semibold ${room.full ? "w-fit rounded-full bg-orchid-dark px-3 py-1 text-white" : "text-orchid-muted"}`}>{room.full ? a.room.full : s.noPrice}</span>
                                         ) : (
                                             <>
                                                 <span className="mt-1.5 block font-display text-2xl font-semibold text-orchid-pink">
@@ -194,6 +198,19 @@ export function StepRoom({ form, set, err, tick, config, rooms, terms, period, b
                     })}
                 </div>
                 <FieldError id="room-error" message={err("roomSlug")} />
+
+                {/* Dolu odalar için: doğrudan WhatsApp (ya da iletişim sayfası) */}
+                {whatsappHref ? (
+                    <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className="inline-flex w-fit items-center gap-2 rounded-full bg-orchid-powder/80 px-4 py-2 text-xs font-bold text-orchid-pink transition-colors hover:bg-orchid-lilac/70">
+                        <Icon name="chat" className="text-[16px]" />
+                        {a.room.contactFull}
+                    </a>
+                ) : (
+                    <LocalizedLink href="/iletisim" className="inline-flex w-fit items-center gap-2 rounded-full bg-orchid-powder/80 px-4 py-2 text-xs font-bold text-orchid-pink transition-colors hover:bg-orchid-lilac/70">
+                        <Icon name="chat" className="text-[16px]" />
+                        {a.room.contactFull}
+                    </LocalizedLink>
+                )}
 
                 <AnimatePresence mode="wait" initial={false}>
                     {selectedRoom && (

@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import Icon from "@/components/ui/Icon";
-import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import DeleteImpactDialog from "@/components/admin/DeleteImpactDialog";
 import FormDialog from "@/components/admin/FormDialog";
 import useCommand from "@/components/admin/useCommand";
 import { Badge, Card, EmptyState, PageHeader, StatusBadge } from "@/components/admin/ui";
 import { Field, NumberInput, SelectInput, Switch, TextInput } from "@/components/admin/fields";
-import { deleteApartment, deleteRoom, duplicateApartment, saveApartment, saveRoom } from "@/lib/admin/commands/structure";
+import { apartmentDeleteImpact, deleteApartment, deleteRoom, duplicateApartment, roomDeleteImpact, saveApartment, saveRoom } from "@/lib/admin/commands/structure";
 import LocalizedField, { TranslateAllButton, toLocalized } from "@/components/admin/LocalizedField";
 import ListEditor from "./ListEditor";
 import { ROOM_STATUS } from "@/lib/admin/labels";
@@ -92,7 +92,7 @@ export default function ApartmentsView({ apartments, roomTypes, occupancy, apart
             {dialog?.type === "copy" && <DuplicateDialog apartment={dialog.item} onClose={() => setDialog(null)} />}
             {dialog?.type === "gallery" && <GalleryDialog apartment={apartments.find((a) => a.id === dialog.apartmentId)} onClose={() => setDialog(null)} />}
             {dialog?.type === "room" && <RoomDialog room={dialog.item} apartmentId={dialog.apartmentId} apartments={apartments} roomTypes={roomTypes} onClose={() => setDialog(null)} />}
-            <ConfirmDialog open={!!removing} title={removing?.type === "apt" ? "Daire silinsin mi?" : "Oda silinsin mi?"} message={removing ? `${removing.item.name} kalıcı olarak silinecek.${removing.type === "room" ? " Geçmişte yerleşim kaydı varsa silinemez; bu durumda odayı “Kapalı” yapın." : ""}` : ""} confirmLabel="Sil" onConfirm={confirmRemove} onCancel={() => setRemoving(null)} />
+            <DeleteImpactDialog open={!!removing} kind={removing?.type === "apt" ? "apartment" : "room"} item={removing?.item} loadImpact={removing?.type === "apt" ? apartmentDeleteImpact : roomDeleteImpact} onConfirm={confirmRemove} onCancel={() => setRemoving(null)} />
         </div>
     );
 }

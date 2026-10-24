@@ -8,13 +8,21 @@ import LocalizedField, { TranslateAllButton, toLocalized } from "@/components/ad
 import MediaPicker from "@/components/admin/content/MediaPicker";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/admin/ui";
 import { Field, SelectInput, Switch } from "@/components/admin/fields";
-import { saveRoomType } from "@/lib/admin/commands/structure";
+import DeleteImpactDialog from "@/components/admin/DeleteImpactDialog";
+import { deleteRoomType, roomTypeDeleteImpact, saveRoomType } from "@/lib/admin/commands/structure";
 import { mediaUrl } from "@/lib/media";
 import { money } from "@/lib/admin/labels";
 
 /** Oda tipleri: sitede görünen tanıtım içeriği. Fiyatlar dönemden döneme değiştiği için Dönemler & Fiyatlar sayfasındadır. */
 export default function RoomTypesView({ roomTypes, apartmentTypes = [] }) {
+    const { exec } = useCommand();
     const [editing, setEditing] = useState(null); // null | "new" | roomType
+    const [removing, setRemoving] = useState(null);
+
+    const confirmRemove = async () => {
+        const out = await exec(deleteRoomType, { id: removing.id }, "Oda tipi silindi.");
+        if (out.ok) setRemoving(null);
+    };
 
     return (
         <div>
@@ -43,13 +51,14 @@ export default function RoomTypesView({ roomTypes, apartmentTypes = [] }) {
                                         <div className="rounded-xl bg-ad-sunken py-2"><dd className="ad-num text-base font-extrabold">{rt.monthly != null ? money(rt.monthly) : "—"}</dd><dt className="text-[10px] font-bold uppercase text-ad-muted">Aylık</dt></div>
                                     </dl>
                                     <p className="mt-3 text-xs text-ad-muted">{rt.description?.tr ? "Açıklama girildi" : "Açıklama yok"} · {rt.coverUrl ? "kapak görseli var" : "kapak görseli yok"}</p>
-                                    <button type="button" onClick={() => setEditing(rt)} className="ad-btn ad-btn-outline mt-4 w-full"><Icon name="edit" className="text-[18px]" />Düzenle</button>
+                                    <div className="mt-4 flex gap-2"><button type="button" onClick={() => setEditing(rt)} className="ad-btn ad-btn-outline flex-1"><Icon name="edit" className="text-[18px]" />Düzenle</button><button type="button" onClick={() => setRemoving({ id: rt.id, name: rt.name.tr })} aria-label="Sil" className="ad-btn ad-btn-danger-soft"><Icon name="delete" className="text-[18px]" />Sil</button></div>
                                 </div>
                             </Card>
                         );
                     })}
                 </div>
             )}
+            <DeleteImpactDialog open={!!removing} kind="roomtype" item={removing} loadImpact={roomTypeDeleteImpact} onConfirm={confirmRemove} onCancel={() => setRemoving(null)} />
             {editing && <RoomTypeDialog roomType={editing === "new" ? null : editing} apartmentTypes={apartmentTypes} onClose={() => setEditing(null)} />}
         </div>
     );

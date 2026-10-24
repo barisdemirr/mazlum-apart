@@ -125,24 +125,12 @@ public static class UpdateRoom
     }
 }
 
-/// <summary>Oda silme. Geçmişte yerleşim kaydı olan oda silinemez (Kapalı yapılır). Fotoğraf etiketleri kaldırılır.</summary>
+/// <summary>Oda silme (soft delete): yerleşik öğrencisi olan oda silinemez. Kurallar: Features/Structure/StructureDeletion.cs</summary>
 public static class DeleteRoom
 {
-    public class Handler(AppDbContext db, AuditWriter audit)
+    public class Handler(MazlumApart.Features.Structure.StructureDeletionHandler deletion)
     {
-        public async Task<Result> Handle(Guid id, CancellationToken ct)
-        {
-            var room = await db.Rooms.FirstOrDefaultAsync(x => x.Id == id, ct);
-            if (room is null) return Error.NotFound("Oda bulunamadı.");
-            if (await db.Placements.AnyAsync(x => x.RoomId == id, ct))
-                return Error.Conflict("Bu odada geçmişte yerleşim kaydı var; silinemez. Odayı “Kapalı” yapın.");
-
-            await RoomSaveHandler.UntagAsync(db, room.ApartmentId, room.Id, ct);
-            db.Rooms.Remove(room);
-            audit.Add("room.delete", "room", id, before: new { room.Name, room.ApartmentId, room.Beds });
-            await db.SaveChangesAsync(ct);
-            return Result.Success();
-        }
+        public Task<Result> Handle(Guid id, CancellationToken ct) => deletion.DeleteRoomAsync(id, ct);
     }
 
     public class Endpoint : IEndpoint

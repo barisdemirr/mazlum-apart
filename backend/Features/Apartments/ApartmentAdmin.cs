@@ -193,23 +193,12 @@ public static class UpdateApartment
     }
 }
 
-/// <summary>Silme: odası olan daire silinemez. Galeri bağlantıları da kaldırılır (dosyalar medya kitaplığında kalır).</summary>
+/// <summary>Silme (soft delete): odaları ve galeri bağlantılarıyla birlikte. Kurallar: Features/Structure/StructureDeletion.cs</summary>
 public static class DeleteApartment
 {
-    public class Handler(AppDbContext db, AuditWriter audit)
+    public class Handler(MazlumApart.Features.Structure.StructureDeletionHandler deletion)
     {
-        public async Task<Result> Handle(Guid id, CancellationToken ct)
-        {
-            var apartment = await db.Apartments.Include(x => x.Media).FirstOrDefaultAsync(x => x.Id == id, ct);
-            if (apartment is null) return Error.NotFound("Daire bulunamadı.");
-            if (await db.Rooms.AnyAsync(x => x.ApartmentId == id, ct)) return Error.Conflict("Bu dairede oda var. Önce odaları kaldırın.");
-
-            db.ApartmentMedia.RemoveRange(apartment.Media);
-            db.Apartments.Remove(apartment);
-            audit.Add("apartment.delete", "apartment", id, before: new { apartment.Name });
-            await db.SaveChangesAsync(ct);
-            return Result.Success();
-        }
+        public Task<Result> Handle(Guid id, CancellationToken ct) => deletion.DeleteApartmentAsync(id, ct);
     }
 
     public class Endpoint : IEndpoint

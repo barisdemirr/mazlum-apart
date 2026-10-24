@@ -10,6 +10,10 @@ export const saveRoomType = ({ id, name, slug, description, mediaId, active, ord
     return id ? admin.put(`/room-types/${id}`, body) : admin.post("/room-types", body);
 };
 export const deleteRoomType = ({ id }) => admin.del(`/room-types/${id}`);
+/** Silme öncesi etki özeti: kaç oda/yatak/fiyat etkilenir, silmeyi engelleyen durum var mı */
+export const roomTypeDeleteImpact = ({ id }) => admin.get(`/room-types/${id}/delete-impact`);
+export const apartmentDeleteImpact = ({ id }) => admin.get(`/apartments/${id}/delete-impact`);
+export const roomDeleteImpact = ({ id }) => admin.get(`/rooms/${id}/delete-impact`);
 
 /* Daire türleri: ana sayfada listelenen kategoriler (altında oda seçenekleri ve fiziksel daireler) */
 export const saveApartmentType = ({ id, name, slug, description, mediaId, active, order }) => {
