@@ -27,8 +27,8 @@ export const addExpense = ({ periodId, categoryId, amount, date, accountId, desc
     admin.post("/expenses", { periodId, categoryId, amount: n(amount), date: dateOrNull(date), accountId, description: description || null }, idem);
 export const cancelExpense = ({ id, reason }) => admin.post(`/expenses/${id}/cancel`, { reason });
 
-export const addBill = ({ periodId, kind, month, amount, dueDate, note }) =>
-    admin.post("/bills", { periodId, kind, month, amount: n(amount), dueDate: dateOrNull(dueDate), note: note || null }, idem);
+export const addBill = ({ periodId, kind, month, amount, dueDate, note, subscriptionId }) =>
+    admin.post("/bills", { periodId, kind, month, amount: n(amount), dueDate: dateOrNull(dueDate), note: note || null, subscriptionId: subscriptionId || null }, idem);
 export const payBill = ({ id, accountId, date }) => admin.post(`/bills/${id}/pay`, { accountId, date: dateOrNull(date) }, idem);
 export const deleteBill = ({ id }) => admin.del(`/bills/${id}`);
 /** Gelen faturaya göre tutar ve son ödeme tarihini günceller (abonelikten üretilen "fatura bekleniyor" kaydı gerçek faturaya döner) */

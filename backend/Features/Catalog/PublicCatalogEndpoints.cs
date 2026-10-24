@@ -62,6 +62,17 @@ public static class GetRoomTypeRooms
     }
 }
 
+/// <summary>/odalar sayfası: yayındaki daireler (sıralı), her biri kısa açıklamasıyla</summary>
+public static class GetApartmentListings
+{
+    public class Endpoint : IEndpoint
+    {
+        public void MapEndpoint(IEndpointRouteBuilder app) =>
+            app.MapGet("/api/apartments", async (CatalogQueryHandler catalog, CancellationToken ct) => Results.Ok(await catalog.ApartmentListingsAsync(ct)))
+                .AllowAnonymous();
+    }
+}
+
 public static class GetAllRooms
 {
     public class Endpoint : IEndpoint

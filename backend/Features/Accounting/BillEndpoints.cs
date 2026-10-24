@@ -86,7 +86,7 @@ public static class GetBills
 /// <summary>Fatura kaydı. Bakiyeyi DEĞİŞTİRMEZ; ödemesi işlenince gider + hesap hareketi oluşur.</summary>
 public static class CreateBill
 {
-    public record Command(Guid PeriodId, BillKind? Kind, string? Month, decimal Amount, DateOnly? DueDate, string? Note);
+    public record Command(Guid PeriodId, BillKind? Kind, string? Month, decimal Amount, DateOnly? DueDate, string? Note, Guid? SubscriptionId = null);
 
     public class Handler(AppDbContext db, IdempotencyGuard idempotency, AuditWriter audit)
     {
@@ -106,12 +106,41 @@ public static class CreateBill
             if (period is null) return Error.NotFound("Dönem bulunamadı.");
             if (PeriodRules.RequireOpen(period, "Fatura girişi") is { } closed) return closed;
 
+            // Abonelik seçildiyse fatura abone numarasına bağlanır; o ayın "fatura bekleniyor" kaydı varsa yenisi açılmaz, o kayıt gerçek faturaya çevrilir
+            BillSubscription? sub = null;
+            if (cmd.SubscriptionId is { } subId)
+            {
+                sub = await db.BillSubscriptions.FirstOrDefaultAsync(x => x.Id == subId, ct);
+                if (sub is null) return Error.NotFound("Abonelik bulunamadı.");
+                if (cmd.Kind is not null && cmd.Kind != sub.Kind) return Error.Field("kind", "Seçilen abonelik bu fatura türüne ait değil.");
+
+                var existing = await db.Bills.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.SubscriptionId == sub.Id && x.Month == month, ct);
+                if (existing is not null)
+                {
+                    if (existing.DeletedAt is not null || !existing.AwaitingInvoice || existing.Status != BillStatus.Unpaid)
+                        return Error.Conflict("Bu abonelik için seçilen aya ait fatura zaten var.");
+                    if (await idempotency.BeginAsync(key, "bill.create", adminId, ct) is { } again) return again;
+
+                    var before = new { existing.Amount, existing.DueDate, existing.Note };
+                    existing.Amount = cmd.Amount;
+                    existing.DueDate = cmd.DueDate!.Value;
+                    if (note.Length > 0) existing.Note = note;
+                    existing.AwaitingInvoice = false;
+                    audit.Add("bill.update", "bill", existing.Id, existing.PeriodId, before: before, after: new { existing.Amount, existing.DueDate, existing.Note });
+                    await db.SaveChangesAsync(ct);
+                    var periodName = await db.Periods.AsNoTracking().Where(x => x.Id == existing.PeriodId).Select(x => x.Name).FirstAsync(ct);
+                    return BillRules.ToRow(existing, periodName, TurkeyClock.Today);
+                }
+            }
+
             if (await idempotency.BeginAsync(key, "bill.create", adminId, ct) is { } dup) return dup;
 
             var bill = new Bill
             {
                 PeriodId = period.Id,
-                Kind = cmd.Kind!.Value,
+                SubscriptionId = sub?.Id,
+                SubscriberNo = sub?.SubscriberNo,
+                Kind = sub?.Kind ?? cmd.Kind!.Value,
                 Month = month!,
                 Amount = cmd.Amount,
                 DueDate = cmd.DueDate!.Value,

@@ -14,6 +14,7 @@ public class Apartment : BaseEntity
     public int Floor { get; set; }
     public int Kitchens { get; set; } = 1;
     public int Bathrooms { get; set; } = 1;
+    public LocalizedText? Description { get; set; } // /odalar sayfasındaki daire kartında görünen kısa tanıtım
     public string? Note { get; set; }               // yalnızca panelde görünür
     public bool IsPublished { get; set; } = true;   // sitede gösterilsin mi (yatak durumu/yerleşim etkilenmez)
     public List<FeatureItem> SharedAreas { get; set; } = [];

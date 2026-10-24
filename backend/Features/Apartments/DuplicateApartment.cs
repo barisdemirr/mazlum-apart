@@ -52,6 +52,7 @@ public static class DuplicateApartment
                     Kitchens = source.Kitchens,
                     Bathrooms = source.Bathrooms,
                     Note = source.Note,
+                    Description = source.Description,
                     IsPublished = false,
                     OrderIndex = source.OrderIndex,
                     SharedAreas = source.SharedAreas.ToList(),

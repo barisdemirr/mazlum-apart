@@ -14,6 +14,7 @@ public class ApartmentConfiguration : IEntityTypeConfiguration<Apartment>
         builder.Property(x => x.Slug).HasMaxLength(80).IsRequired();
         builder.Property(x => x.Note).HasMaxLength(500);
         builder.Property(x => x.SharedAreas).HasJsonConversion();
+        builder.Property(x => x.Description).HasJsonConversion();
 
         builder.HasMany(x => x.Rooms).WithOne(x => x.Apartment).HasForeignKey(x => x.ApartmentId).OnDelete(DeleteBehavior.Restrict);
         builder.HasMany(x => x.Media).WithOne().HasForeignKey(x => x.ApartmentId).OnDelete(DeleteBehavior.Restrict);

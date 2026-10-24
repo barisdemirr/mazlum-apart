@@ -101,6 +101,31 @@ public record RoomListing(
     decimal? MonthlyPrice,
     string Currency);
 
+/// <summary>
+/// /odalar sayfasındaki DAİRE kartı: daireyi özetleyen kısa açıklama, kişi sayısı, kalan yatak ve (varsa) en düşük fiyat.
+/// RoomTypeSlug = kartın bağlandığı adres (/odalar/{RoomTypeSlug}/{Slug}); dairedeki ilk görünür oda tipi.
+/// </summary>
+public record ApartmentListing(
+    Guid Id,
+    string Slug,
+    LocalizedText Name,
+    LocalizedText? Description,
+    int Floor,
+    int PeopleInFlat,
+    int? PeopleSharingKitchen,
+    int? PeopleSharingBathroom,
+    int RoomCount,
+    int BedsFree,
+    MediaRef? Cover,
+    bool HasVideo,
+    int PhotoCount,
+    string RoomTypeSlug,
+    List<LocalizedText> RoomTypeNames,
+    string? ApartmentTypeSlug,
+    LocalizedText? ApartmentTypeName,
+    decimal? MonthlyPriceFrom,
+    string Currency);
+
 /// <summary>Daire kartı (daire sayfasında "aynı tipteki diğer daireler")</summary>
 public record ApartmentSummary(
     Guid Id,

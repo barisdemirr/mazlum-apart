@@ -6,7 +6,7 @@ import LocalizedLink from "@/components/ui/LocalizedLink";
 import Icon from "@/components/ui/Icon";
 import Magnetic from "@/components/ui/Magnetic";
 import Reveal from "@/components/ui/Reveal";
-import { RoomCard } from "@/components/room-detail/RoomCards";
+import ApartmentListCard from "@/components/rooms/ApartmentListCard";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { useSite } from "@/lib/site/SiteProvider";
 import { localized } from "@/lib/i18n/localized";
@@ -16,8 +16,8 @@ const SORTS = ["recommended", "priceAsc", "priceDesc"];
 
 const sorters = {
     recommended: null, // backend'in verdiği sıra (panelden belirlenen görüntüleme sırası)
-    priceAsc: (a, b) => (a.monthlyPrice ?? Infinity) - (b.monthlyPrice ?? Infinity),
-    priceDesc: (a, b) => (b.monthlyPrice ?? -Infinity) - (a.monthlyPrice ?? -Infinity),
+    priceAsc: (a, b) => (a.monthlyPriceFrom ?? Infinity) - (b.monthlyPriceFrom ?? Infinity),
+    priceDesc: (a, b) => (b.monthlyPriceFrom ?? -Infinity) - (a.monthlyPriceFrom ?? -Infinity),
 };
 
 /** Sayfa başlığı kelime kelime yükselerek gelir */
@@ -36,24 +36,29 @@ function Word({ children, delay, className = "" }) {
     );
 }
 
-/** rooms: tek tek ODALAR (her biri kendi tipi, dairesi ve fiyatıyla); types: filtre sekmeleri için oda tipleri */
-export default function RoomsList({ rooms, types = [], children }) {
+/** apartments: yayındaki DAİRELER (kısa açıklama, kişi/oda/yatak sayısı, başlangıç fiyatı); sekmeler daire türüne göre süzer */
+export default function RoomsList({ apartments = [], children }) {
     const { t, tpl, locale } = useLanguage();
     const [sort, setSort] = useState("recommended");
     const [type, setType] = useState("all");
 
-    // Tipi olmayan (odası bulunmayan) tip için sekme gösterilmez
+    // Yalnızca dairesi bulunan daire türleri için sekme gösterilir (türsüz daireler "Tümü" altında kalır)
     const filters = useMemo(() => {
-        const counts = new Map();
-        for (const room of rooms) counts.set(room.roomTypeSlug, (counts.get(room.roomTypeSlug) ?? 0) + 1);
-        return types.filter((item) => counts.has(item.slug)).map((item) => ({ key: item.slug, label: localized(item.name, locale), count: counts.get(item.slug) }));
-    }, [rooms, types, locale]);
+        const map = new Map();
+        for (const item of apartments) {
+            if (!item.apartmentTypeSlug) continue;
+            const entry = map.get(item.apartmentTypeSlug) ?? { key: item.apartmentTypeSlug, label: localized(item.apartmentTypeName, locale), count: 0 };
+            entry.count += 1;
+            map.set(item.apartmentTypeSlug, entry);
+        }
+        return [...map.values()];
+    }, [apartments, locale]);
 
     const visible = useMemo(() => {
-        const filtered = type === "all" ? rooms : rooms.filter((room) => room.roomTypeSlug === type);
+        const filtered = type === "all" ? apartments : apartments.filter((item) => item.apartmentTypeSlug === type);
         const compare = sorters[sort];
         return compare ? [...filtered].sort(compare) : filtered;
-    }, [rooms, type, sort]);
+    }, [apartments, type, sort]);
 
     const site = useSite();
     const whatsapp = site.waHref(t.whatsapp.defaultMessage);
@@ -105,7 +110,7 @@ export default function RoomsList({ rooms, types = [], children }) {
             </section>
 
             {/* ───────── Filtre ve sıralama çubuğu ───────── */}
-            {rooms.length > 0 && (
+            {apartments.length > 0 && (
                 <section className="mx-auto w-full max-w-7xl px-4 pb-8 sm:px-8 lg:px-12">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -115,7 +120,7 @@ export default function RoomsList({ rooms, types = [], children }) {
                     >
                         {/* Oda tipi filtresi */}
                         <div role="group" aria-label={t.roomsPage.filterLabel} className="no-scrollbar -mx-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-1 lg:pb-0">
-                            {[{ key: "all", label: t.roomsPage.all, count: rooms.length }, ...filters].map((item) => {
+                            {[{ key: "all", label: t.roomsPage.all, count: apartments.length }, ...filters].map((item) => {
                                 const active = type === item.key;
                                 return (
                                     <button
@@ -167,11 +172,11 @@ export default function RoomsList({ rooms, types = [], children }) {
 
             {/* ───────── Oda listesi ───────── */}
             <section className="mx-auto w-full max-w-7xl px-4 pb-16 sm:px-8 lg:px-12">
-                {rooms.length > 0 ? (
+                {apartments.length > 0 ? (
                     <div className="grid grid-cols-1 items-start gap-8 md:grid-cols-2 lg:grid-cols-3">
-                        {visible.map((room, i) => (
+                        {visible.map((apartment, i) => (
                             <motion.div
-                                key={room.id}
+                                key={apartment.id}
                                 layout
                                 transition={{ layout: SPRING_SOFT }}
                                 className="h-full lg:[&:nth-child(3n+2)]:mt-8"
@@ -183,7 +188,7 @@ export default function RoomsList({ rooms, types = [], children }) {
                                     transition={{ duration: 0.8, delay: (i % 3) * 0.1, ease: EASE_OUT }}
                                     className="h-full"
                                 >
-                                    <RoomCard room={room} showType showPrice />
+                                    <ApartmentListCard apartment={apartment} />
                                 </motion.div>
                             </motion.div>
                         ))}

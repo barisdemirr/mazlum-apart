@@ -30,10 +30,11 @@ public record ApartmentAdminDto(
     List<RoomAdminDto> Rooms,
     GallerySummaryDto Gallery,
     Guid? ApartmentTypeId = null,
-    string? ApartmentTypeName = null);
+    string? ApartmentTypeName = null,
+    LocalizedText? Description = null);
 
 public record ApartmentInput(
-    string? Name, string? Slug, int Floor, int Kitchens, int Bathrooms, string? Note, bool Published, int Order, List<FeatureItem>? SharedAreas, Guid? ApartmentTypeId = null);
+    string? Name, string? Slug, int Floor, int Kitchens, int Bathrooms, string? Note, bool Published, int Order, List<FeatureItem>? SharedAreas, Guid? ApartmentTypeId = null, LocalizedText? Description = null);
 
 public static class FeatureItems
 {
@@ -97,7 +98,8 @@ public static class GetApartmentsAdmin
                     media.Any(m => m.IsVideo),
                     media.Count(m => !m.IsVideo && (m.TagKind == GalleryTagKind.None || (m.TagKind == GalleryTagKind.Room && !roomIds.Contains(m.RoomId ?? Guid.Empty))))),
                 a.ApartmentTypeId,
-                a.ApartmentTypeId is { } typeId ? typeNames.GetValueOrDefault(typeId) : null);
+                a.ApartmentTypeId is { } typeId ? typeNames.GetValueOrDefault(typeId) : null,
+                a.Description);
         }
     }
 
@@ -118,7 +120,8 @@ public class ApartmentSaveHandler(AppDbContext db, AuditWriter audit)
             .Must("floor", input.Floor is >= -5 and <= 100, "Kat geçersiz.")
             .Must("kitchens", input.Kitchens is >= 0 and <= 10, "Mutfak sayısı geçersiz.")
             .Must("bathrooms", input.Bathrooms is >= 0 and <= 10, "Banyo sayısı geçersiz.")
-            .MaxLength("note", input.Note, 500);
+            .MaxLength("note", input.Note, 500)
+            .LocalizedOptional("description", input.Description, 400);
         var shared = FeatureItems.Clean(input.SharedAreas, "sharedAreas", validator);
         var plan = SlugResolver.Plan(input.Slug, existing?.Slug, name, validator);
         if (!validator.IsValid) return validator.ToFailure<Guid>();
@@ -150,6 +153,7 @@ public class ApartmentSaveHandler(AppDbContext db, AuditWriter audit)
         apartment.IsPublished = input.Published;
         apartment.OrderIndex = input.Order;
         apartment.SharedAreas = shared;
+        apartment.Description = input.Description.OrNull();
 
         if (existing is null) db.Apartments.Add(apartment);
         audit.Add(existing is null ? "apartment.create" : "apartment.update", "apartment", apartment.Id, before: before,

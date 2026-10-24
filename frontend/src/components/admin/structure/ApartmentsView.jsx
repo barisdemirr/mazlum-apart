@@ -8,7 +8,7 @@ import useCommand from "@/components/admin/useCommand";
 import { Badge, Card, EmptyState, PageHeader, StatusBadge } from "@/components/admin/ui";
 import { Field, NumberInput, SelectInput, Switch, TextInput } from "@/components/admin/fields";
 import { deleteApartment, deleteRoom, duplicateApartment, saveApartment, saveRoom } from "@/lib/admin/commands/structure";
-import { TranslateAllButton } from "@/components/admin/LocalizedField";
+import LocalizedField, { TranslateAllButton, toLocalized } from "@/components/admin/LocalizedField";
 import ListEditor from "./ListEditor";
 import { ROOM_STATUS } from "@/lib/admin/labels";
 import ExportButton from "@/components/admin/ExportButton";
@@ -99,9 +99,9 @@ export default function ApartmentsView({ apartments, roomTypes, occupancy, apart
 
 function ApartmentDialog({ apartment, apartmentTypes = [], onClose }) {
     const { exec, busy } = useCommand();
-    const [f, setF] = useState({ apartmentTypeId: apartment?.apartmentTypeId ?? "", slug: apartment?.slug, order: apartment?.order, name: apartment?.name ?? "", floor: apartment?.floor ?? "", kitchens: apartment?.kitchens ?? 1, bathrooms: apartment?.bathrooms ?? 1, note: apartment?.note ?? "", published: apartment?.published ?? true, sharedAreas: apartment?.sharedAreas ?? [] });
+    const [f, setF] = useState({ apartmentTypeId: apartment?.apartmentTypeId ?? "", slug: apartment?.slug, order: apartment?.order, name: apartment?.name ?? "", floor: apartment?.floor ?? "", kitchens: apartment?.kitchens ?? 1, bathrooms: apartment?.bathrooms ?? 1, note: apartment?.note ?? "", description: toLocalized(apartment?.description), published: apartment?.published ?? true, sharedAreas: apartment?.sharedAreas ?? [] });
     const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
-    const translatable = f.sharedAreas.map((it, i) => ({ name: `shared-${i}`, label: "Ortak alan", value: it.text, set: (v) => setF((x) => ({ ...x, sharedAreas: x.sharedAreas.map((s, idx) => (idx === i ? { ...s, text: v } : s)) })) }));
+    const translatable = [{ name: "description", label: "Kısa açıklama", value: f.description, set: (v) => setF((x) => ({ ...x, description: v })) }, ...f.sharedAreas].map((it, i) => it.name === "description" ? it : ({ name: `shared-${i - 1}`, label: "Ortak alan", value: it.text, set: (v) => setF((x) => ({ ...x, sharedAreas: x.sharedAreas.map((s, idx) => (idx === i - 1 ? { ...s, text: v } : s)) })) }));
     const submit = async (e) => {
         e.preventDefault();
         const out = await exec(saveApartment, { id: apartment?.id, ...f }, "Daire kaydedildi.");
@@ -116,6 +116,7 @@ function ApartmentDialog({ apartment, apartmentTypes = [], onClose }) {
                 </SelectInput>
             </Field>
             <Field label="Daire adı / no" required className="sm:col-span-2"><TextInput value={f.name} onChange={set("name")} placeholder="Örn. Daire 5" autoFocus /></Field>
+            <div className="sm:col-span-2"><LocalizedField label="Kısa açıklama" name="description" multiline rows={3} value={f.description} onChange={(v) => setF((x) => ({ ...x, description: v }))} hint="Odalar sayfasındaki daire kartında görünür: daireyi 1-2 cümleyle anlatın (kaç kişilik, konum, öne çıkan özellik…)." /></div>
             <Field label="Kat"><NumberInput min="0" value={f.floor} onChange={set("floor")} /></Field>
             <Field label="Mutfak sayısı"><NumberInput min="0" value={f.kitchens} onChange={set("kitchens")} /></Field>
             <Field label="Banyo sayısı"><NumberInput min="0" value={f.bathrooms} onChange={set("bathrooms")} /></Field>

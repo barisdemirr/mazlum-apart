@@ -16,6 +16,9 @@ export const getApartmentTypes = () => apiGet("/api/apartment-types", FRESH);
 /** GET /api/apartment-types/{slug} (404 -> null) */
 export const getApartmentTypeBySlug = (slug) => orNull(apiGet(`/api/apartment-types/${enc(slug)}`, FRESH));
 
+/** GET /api/apartments: /odalar sayfasındaki daire kartları (sıralı, kısa açıklamalı) */
+export const getApartmentListings = () => apiGet("/api/apartments", FRESH);
+
 /** GET /api/room-types */
 export const getRoomTypes = () => apiGet("/api/room-types", CACHE);
 
