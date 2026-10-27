@@ -15,6 +15,7 @@ import { CONTACT_PURPOSE, ENROLLMENT_STATUS, MAINT_STATUS, PAY_STATUS, PAY_WINDO
 import { turkeyDate } from "@/lib/format";
 import { getProvinceName } from "@/lib/locations";
 import { GRADE_LABELS } from "./OfficeApplicationDialog";
+import DepartureDialog from "./DepartureDialog";
 import PlacementDialog from "./PlacementDialog";
 import RoomChangeDialog from "./RoomChangeDialog";
 import StudentFilesPanel from "./StudentFilesPanel";
@@ -232,6 +233,13 @@ export default function StudentDetailView({ detail, contacts, maintenance }) {
                         )}
                     </Card>
 
+                    <Card title="Çıkış ve ayrılış" description="Kesin çıkış ve geçici ayrılışlar. Kayıt, yerleşim ve ödeme planına dokunmaz.">
+                        <button type="button" onClick={() => setDialog("departure")} className="ad-btn ad-btn-soft ad-btn-sm mt-3">
+                            <Icon name="event" className="text-[18px]" />
+                            Çıkış & ayrılış
+                        </button>
+                    </Card>
+
                     <Card title="Giriş ve işlem takibi" description={`${period?.name ?? ""} dönemine özel; her dönem yeniden işaretlenir.`}>
                         <div className="mt-4 space-y-2.5">
                             <Switch checked={track.movedIn} onChange={(v) => setTrack({ ...track, movedIn: v, movedInDate: v ? track.movedInDate || today : "" })} label={track.movedIn ? "Giriş yaptı" : "Henüz giriş yapmadı"} />
@@ -292,6 +300,7 @@ export default function StudentDetailView({ detail, contacts, maintenance }) {
                 <PlacementDialog enrollment={{ ...e, studentName: fullName }} period={period} mode={dialog} currentRoomId={currentRoomId} onClose={() => setDialog(null)} />
             )}
 
+            {dialog === "departure" && <DepartureDialog enrollmentId={e.id} studentName={fullName} readOnly={!canAct} onClose={() => setDialog(null)} />}
             {dialog === "roomchange" && (
                 <RoomChangeDialog enrollment={{ ...e, studentName: fullName }} period={period} currentRoomId={currentRoomId} onClose={() => setDialog(null)} />
             )}
