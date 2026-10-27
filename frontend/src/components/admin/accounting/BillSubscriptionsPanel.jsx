@@ -20,7 +20,7 @@ const subscriptionFields = [
     { name: "dueDay", label: "Son ödeme günü", type: "select", options: DAY_OPTIONS, hint: "Her ay kaydın vadesi bu gün olur; gelen faturada gerçek tarihi girersiniz.", span: 1 },
     { name: "estimatedAmount", label: "Tahmini aylık tutar", type: "number", required: true, hint: "İlk kayıt bu tutarla açılır. Sonraki aylar son girdiğiniz faturanın tutarıyla açılır.", span: 1 },
     { name: "startMonth", label: "İlk kayıt ayı (YYYY-AA)", type: "text", hint: "Boş bırakırsanız bu ay.", span: 1 },
-    { name: "note", label: "Not", type: "text" },
+    { name: "note", label: "Not / bina (isteğe bağlı)", type: "text", hint: "Farklı binaların abonelikleri karışmasın diye bina ya da daire adını yazın; fatura eklerken abone numarasının yanında görünür." },
 ];
 
 /** Fatura abonelikleri: abone numarasını bir kez tanımlayın, her ay için "fatura bekleniyor" kaydı kendiliğinden açılsın. */

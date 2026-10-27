@@ -72,7 +72,10 @@ public static class ContentSeeder
         ("Malzeme", null),
         ("Vergi & Harç", null),
         ("Faturalar", ExpenseCategoryKeys.Bills),
-        ("Diğer", null)
+        ("Diğer", null),
+        ("Maaş", null),
+        ("Reklam", null),
+        ("Tadilat", null)
     ];
 
     public static async Task SeedAsync(IServiceProvider services)

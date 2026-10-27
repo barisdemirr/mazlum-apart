@@ -7,10 +7,10 @@ import useCommand from "@/components/admin/useCommand";
 import { addBill } from "@/lib/admin/commands/finance";
 import { BILL_KIND } from "@/lib/admin/labels";
 
-const WITH_SUBSCRIPTION = ["electricity", "gas"];
+const WITHOUT_SUBSCRIPTION = ["other"];
 
 /**
- * Fatura ekle. Elektrik / doğalgaz seçilince kayıtlı aboneliklerden biri seçilebilir; fatura o abone numarasına kaydedilir.
+ * Fatura ekle. Tür seçilince o türün kayıtlı abonelikleri (abone no · kurum · bina/not) listelenir; fatura seçilen abone numarasına kaydedilir.
  * O ayın "fatura bekleniyor" kaydı varsa yeni kayıt açılmaz, o kayıt gerçek faturaya çevrilir.
  */
 export default function BillAddDialog({ periodId, today, subscriptions = [], onClose }) {
@@ -18,7 +18,7 @@ export default function BillAddDialog({ periodId, today, subscriptions = [], onC
     const [v, setV] = useState({ kind: "electricity", subscriptionId: "", month: today.slice(0, 7), amount: "", dueDate: today, note: "" });
     const set = (name) => (e) => setV((x) => ({ ...x, [name]: e?.target ? e.target.value : e }));
 
-    const usesSubscription = WITH_SUBSCRIPTION.includes(v.kind);
+    const usesSubscription = !WITHOUT_SUBSCRIPTION.includes(v.kind);
     const options = subscriptions.filter((s) => s.kind === v.kind && s.active);
 
     const submit = async (e) => {
@@ -35,10 +35,10 @@ export default function BillAddDialog({ periodId, today, subscriptions = [], onC
                 </SelectInput>
             </Field>
             {usesSubscription && (
-                <Field label="Abonelik (abone no)" hint={options.length === 0 ? "Bu türde kayıtlı abonelik yok. Abonelikler sekmesinden ekleyebilirsiniz." : "İsteğe bağlı: seçerseniz fatura bu abone numarasına kaydedilir."}>
+                <Field label="Abone numarası" hint={options.length === 0 ? "Bu türde kayıtlı abonelik yok. Abonelikler sekmesinden ekleyebilirsiniz." : "İsteğe bağlı: seçerseniz fatura bu abone numarasına kaydedilir."}>
                     <SelectInput value={v.subscriptionId} onChange={set("subscriptionId")}>
                         <option value="">Abonelik seçmeden ekle</option>
-                        {options.map((s) => <option key={s.id} value={s.id}>{s.subscriberNo}{s.provider ? ` · ${s.provider}` : ""}</option>)}
+                        {options.map((s) => <option key={s.id} value={s.id}>{s.subscriberNo}{s.provider ? ` · ${s.provider}` : ""}{s.note ? ` · ${s.note}` : ""}</option>)}
                     </SelectInput>
                 </Field>
             )}
