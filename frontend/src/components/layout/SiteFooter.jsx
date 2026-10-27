@@ -35,7 +35,7 @@ export default function SiteFooter() {
                     {/* Marka */}
                     <div className="flex flex-col gap-5 lg:col-span-2">
                         <div className="flex items-center gap-3">
-                            <Logo className="h-10 w-10" />
+                            <Logo variant="light" className="h-10 w-10" />
                             <span className="font-display text-2xl font-bold tracking-tight">
                                 Mazlum<span className="ml-1 italic text-orchid-petal">Apart</span>
                             </span>

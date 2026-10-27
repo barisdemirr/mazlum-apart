@@ -13,7 +13,7 @@ export default function AdminLoader({ label = "Veriler hazırlanıyor" }) {
                     <div className="absolute inset-[7px] rounded-full bg-ad-surface shadow-[inset_0_2px_10px_rgba(11,28,48,0.08)]" />
                     <div className="admin-loader-spin-rev absolute inset-[18px] rounded-full border-2 border-dashed border-ad-brand/25" />
                     <div className="absolute inset-0 flex items-center justify-center">
-                        <Icon name="apartment" className="admin-loader-breathe text-[40px] text-ad-brand" />
+                        <Logo className="admin-loader-breathe h-12 w-12" />
                     </div>
                 </div>
 

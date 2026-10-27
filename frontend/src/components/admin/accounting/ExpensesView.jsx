@@ -8,6 +8,7 @@ import { Badge, Card, PageHeader } from "@/components/admin/ui";
 import { useAdmin } from "@/components/admin/data/AdminDataProvider";
 import { addExpense, cancelExpense } from "@/lib/admin/commands/finance";
 import { date, money } from "@/lib/admin/labels";
+import { defaultAccountId } from "@/lib/admin/accounts";
 
 /** Giderler. Kayıt silinmez; yanlış girilen gider iptal edilir (kasa/banka hareketi ters kayıtla düzelir). */
 export default function ExpensesView({ data, categories, accounts }) {
@@ -30,7 +31,7 @@ export default function ExpensesView({ data, categories, accounts }) {
                 <Card className="sm:col-span-2"><p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Kategoriler</p><ul className="mt-2 flex flex-wrap gap-2">{data.byCategory.map((c) => <li key={c.categoryId} className="rounded-full bg-ad-sunken px-3 py-1 text-xs font-semibold">{c.name} · <span className="ad-num">{money(c.amount)}</span></li>)}{data.byCategory.length === 0 && <li className="text-sm text-ad-muted">Henüz gider yok.</li>}</ul></Card>
             </div>
             <DataTable columns={columns} rows={data.items} rowKey={(x) => x.id} searchText={(x) => `${x.categoryName} ${x.description}`} searchPlaceholder="Gider ara" exportName="giderler" empty={{ icon: "receipt_long", title: "Henüz gider yok" }} />
-            {dialog?.type === "add" && <ActionDialog title="Gider ekle" command={addExpense} extra={{ periodId: period.id }} initial={{ date: today }} success="Gider kaydedildi." onClose={() => setDialog(null)}
+            {dialog?.type === "add" && <ActionDialog title="Gider ekle" command={addExpense} extra={{ periodId: period.id }} initial={{ date: today, accountId: defaultAccountId(accounts) }} success="Gider kaydedildi." onClose={() => setDialog(null)}
                 fields={[{ name: "categoryId", label: "Kategori", type: "select", options: categories.filter((c) => c.active).map((c) => [c.id, c.name]), required: true, span: 1 }, { name: "amount", label: "Tutar", type: "number", required: true, span: 1 }, { name: "date", label: "Tarih", type: "date", span: 1 }, { name: "accountId", label: "Ödenen hesap", type: "select", options: accounts.map((a) => [a.id, a.name]), span: 1 }, { name: "description", label: "Açıklama", type: "text" }]} />}
             {dialog?.type === "cancel" && <ActionDialog title="Gideri iptal et" description={`${dialog.item.categoryName} · ${money(dialog.item.amount)}`} command={cancelExpense} extra={{ id: dialog.item.id }} success="Gider iptal edildi." saveLabel="İptal et" danger onClose={() => setDialog(null)} fields={[{ name: "reason", label: "Neden", type: "textarea", required: true }]} />}
         </div>

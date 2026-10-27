@@ -11,6 +11,7 @@ import { Badge, Card, PageHeader, StatusBadge } from "@/components/admin/ui";
 import { adaptRow, describeCovered } from "@/lib/admin/adapters";
 import { addCharge, amendCharge, applyMonthlyDiscount, cancelPayment, changeDueDate, recordPayment, refundAdvance, resetStudentPassword, reverseCharge } from "@/lib/admin/commands/finance";
 import { monthLabel } from "@/lib/admin/month";
+import { defaultAccountId } from "@/lib/admin/accounts";
 import { turkeyDate } from "@/lib/format";
 import { CHARGE_KIND, ENROLLMENT_STATUS, METHOD, PAY_STATUS, date, money } from "@/lib/admin/labels";
 import { useAdmin } from "@/components/admin/data/AdminDataProvider";
@@ -42,9 +43,9 @@ export default function StudentAccountView({ account, accounts }) {
 
     const openItems = account.items.filter((i) => !i.reversed && i.remaining > 0);
     const dialogs = {
-        pay: <ActionDialog title="Tahsilat gir" description={name} command={recordPayment} extra={{ enrollmentId: e.id }} initial={{ amount: summary.remaining || "", date: today, method: "cash" }} success="Tahsilat kaydedildi." onClose={close} onDone={(r) => setReceiptId(r?.paymentId)} note="Tutar, en eski vadeli borçtan başlayarak kalemlere otomatik dağıtılır. Fazlası avans olur."
+        pay: <ActionDialog title="Tahsilat gir" description={name} command={recordPayment} extra={{ enrollmentId: e.id }} initial={{ amount: summary.next?.remaining || summary.remaining || "", date: today, method: "cash", accountId: defaultAccountId(accounts, "cash") }} success="Tahsilat kaydedildi." onClose={close} onDone={(r) => setReceiptId(r?.paymentId)} note={summary.next && summary.remaining > summary.next.remaining ? `Tutar sıradaki ödenmemiş taksit (${money(summary.next.remaining)}) olarak geldi; toplam kalan borç ${money(summary.remaining)}. İsterseniz değiştirin. Tutar, en eski vadeli borçtan başlayarak kalemlere otomatik dağıtılır; fazlası avans olur.` : "Tutar, en eski vadeli borçtan başlayarak kalemlere otomatik dağıtılır. Fazlası avans olur."}
             fields={[{ name: "amount", label: "Tutar", type: "number", required: true, span: 1 }, { name: "date", label: "Tarih", type: "date", span: 1 }, { name: "method", label: "Yöntem", type: "select", options: Object.entries(METHOD), span: 1 }, { ...accountField, span: 1 }, { name: "note", label: "Not", type: "text" }]} />,
-        refund: <ActionDialog title="Avans iadesi" description={`${name} · avans ${money(summary.advance)}`} command={refundAdvance} extra={{ enrollmentId: e.id }} initial={{ amount: summary.advance, date: today }} success="İade kaydedildi." saveLabel="İade et" onClose={close}
+        refund: <ActionDialog title="Avans iadesi" description={`${name} · avans ${money(summary.advance)}`} command={refundAdvance} extra={{ enrollmentId: e.id }} initial={{ amount: summary.advance, date: today, accountId: defaultAccountId(accounts) }} success="İade kaydedildi." saveLabel="İade et" onClose={close}
             fields={[{ name: "amount", label: "Tutar", type: "number", required: true, span: 1 }, { name: "date", label: "Tarih", type: "date", span: 1 }, accountField, { name: "note", label: "Not", type: "text" }]} />,
         charge: <ActionDialog title="Borç / indirim ekle" description={name} command={addCharge} extra={{ enrollmentId: e.id }} initial={{ kind: "other", dueDate: today, month: today.slice(0, 7) }} success="Kalem eklendi." onClose={close} note="İndirim için türü “İndirim” seçin; tutar pozitif yazılır."
             fields={[{ name: "kind", label: "Tür", type: "select", options: Object.entries(CHARGE_KIND), span: 1 }, { name: "amount", label: "Tutar", type: "number", required: true, span: 1 }, { name: "month", label: "Ay (YYYY-AA)", type: "text", span: 1 }, { name: "dueDate", label: "Vade", type: "date", span: 1 }, { name: "note", label: "Not", type: "text" }]} />,

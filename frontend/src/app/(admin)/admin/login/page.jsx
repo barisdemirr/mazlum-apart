@@ -28,9 +28,7 @@ export default function LoginPage() {
                 />
 
                 <div className="relative flex items-center gap-3">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25">
-                        <Icon name="apartment" className="text-[24px]" />
-                    </span>
+                    <Logo variant="light" className="h-12 w-12" />
                     <span className="flex flex-col leading-tight">
                         <span className="text-base font-bold tracking-tight">Mazlum Apart</span>
                         <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">

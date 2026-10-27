@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "@/components/ui/Icon";
+import Logo from "@/components/ui/Logo";
 import ToastProvider from "@/components/admin/Toast";
 import AdminProgressBar from "@/components/admin/AdminProgressBar";
 import PeriodSwitcher from "@/components/admin/PeriodSwitcher";
@@ -213,9 +214,7 @@ function SidebarContent({ pathname, badges }) {
     return (
         <>
             <div className="flex h-16 shrink-0 items-center gap-3 px-6 sm:h-20">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-ad-brand text-white shadow-ad-brand">
-                    <Icon name="apartment" className="text-[22px]" />
-                </span>
+                <Logo className="h-10 w-10" />
                 <span className="flex flex-col leading-tight">
                     <span className="text-base font-bold tracking-tight text-ad-ink">Mazlum Apart</span>
                     <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-ad-muted">

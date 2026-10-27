@@ -11,6 +11,7 @@ import useCommand from "@/components/admin/useCommand";
 import { adaptRow } from "@/lib/admin/adapters";
 import { listAccounts, listEnrollments, recordPayment } from "@/lib/admin/commands/finance";
 import { METHOD, money } from "@/lib/admin/labels";
+import { defaultAccountId } from "@/lib/admin/accounts";
 
 const norm = (s) => String(s ?? "").toLocaleLowerCase("tr").replace(/\s+/g, " ").trim();
 const live = (r) => !["cancelled", "left"].includes(r.enrollment.status);
@@ -49,11 +50,11 @@ export default function QuickPaymentDialog({ onClose }) {
     const options = accounts.filter((a) => a.type === accountType);
     // yöntem ya da hesap listesi değişince geçerli bir hesap seçili kalsın
     useEffect(() => {
-        if (!options.some((a) => a.id === v.accountId)) setV((x) => ({ ...x, accountId: options[0]?.id ?? "" }));
+        if (!options.some((a) => a.id === v.accountId)) setV((x) => ({ ...x, accountId: defaultAccountId(accounts, accountType) }));
     }, [v.method, accounts]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const set = (name) => (e) => setV((x) => ({ ...x, [name]: e?.target ? e.target.value : e }));
-    const pick = (r) => { setPicked(r); setV((x) => ({ ...x, amount: r.summary.remaining > 0 ? r.summary.remaining : "" })); };
+    const pick = (r) => { setPicked(r); setV((x) => ({ ...x, amount: (r.summary.next?.remaining || r.summary.remaining) > 0 ? (r.summary.next?.remaining || r.summary.remaining) : "" })); };
 
     const submit = async (e) => {
         e.preventDefault();
@@ -97,7 +98,7 @@ export default function QuickPaymentDialog({ onClose }) {
                         <Field label="Hesap (kasa / banka)" required><SelectInput value={v.accountId} onChange={set("accountId")}>{options.length === 0 && <option value="">Uygun hesap yok</option>}{options.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</SelectInput></Field>
                         <Field label="Not" className="sm:col-span-2"><TextInput value={v.note} onChange={set("note")} /></Field>
                     </div>
-                    <p className="text-xs text-ad-muted">Tutar, en eski vadeli borçtan başlayarak kalemlere otomatik dağıtılır; fazlası avans olur. Makbuzda hangi aya ait olduğu yazar.</p>
+                    <p className="text-xs text-ad-muted">Tutar sıradaki ödenmemiş taksit olarak gelir, değiştirebilirsiniz. Tutar, en eski vadeli borçtan başlayarak kalemlere otomatik dağıtılır; fazlası avans olur. Makbuzda hangi aya ait olduğu yazar.</p>
                 </>
             )}
         </FormDialog>

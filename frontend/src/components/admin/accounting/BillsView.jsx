@@ -12,6 +12,7 @@ import BillSubscriptionsPanel from "@/components/admin/accounting/BillSubscripti
 import { addBill, deleteBill, payBill, updateBill } from "@/lib/admin/commands/finance";
 import { monthLabel } from "@/lib/admin/month";
 import { BILL_KIND, BILL_STATE, date, money } from "@/lib/admin/labels";
+import { defaultAccountId } from "@/lib/admin/accounts";
 
 /**
  * Faturalar (elektrik, su, doğalgaz, internet). Ödenince seçilen hesaptan gider kaydı otomatik oluşur. Önceki dönemden açık kalanlar ayrı gösterilir.
@@ -55,7 +56,7 @@ export default function BillsView({ data, accounts, subscriptions = [] }) {
             {dialog?.type === "enter" && <ActionDialog title={dialog.item.awaitingInvoice ? "Gelen faturayı gir" : "Faturayı güncelle"} description={`${BILL_KIND[dialog.item.kind]} · ${monthLabel(dialog.item.month, { short: true })}${dialog.item.subscriberNo ? ` · Abone no ${dialog.item.subscriberNo}` : ""}`} command={updateBill} extra={{ id: dialog.item.id }} initial={{ amount: dialog.item.amount, dueDate: dialog.item.dueDate, note: dialog.item.note ?? "" }} success="Fatura güncellendi." onClose={() => setDialog(null)}
                 note={dialog.item.awaitingInvoice ? "Görünen tutar tahminidir. Gelen faturadaki tutarı ve son ödeme tarihini girin; kayıt ödenebilir hâle gelir." : undefined}
                 fields={[{ name: "amount", label: "Tutar", type: "number", required: true, span: 1 }, { name: "dueDate", label: "Son ödeme tarihi", type: "date", span: 1 }, { name: "note", label: "Not", type: "text" }]} />}
-            {dialog?.type === "pay" && <ActionDialog title="Faturayı öde" description={`${BILL_KIND[dialog.item.kind]} · ${money(dialog.item.amount)}`} command={payBill} extra={{ id: dialog.item.id }} initial={{ date: today }} success="Fatura ödendi, gider kaydı oluştu." saveLabel="Öde" onClose={() => setDialog(null)}
+            {dialog?.type === "pay" && <ActionDialog title="Faturayı öde" description={`${BILL_KIND[dialog.item.kind]} · ${money(dialog.item.amount)}`} command={payBill} extra={{ id: dialog.item.id }} initial={{ date: today, accountId: defaultAccountId(accounts) }} success="Fatura ödendi, gider kaydı oluştu." saveLabel="Öde" onClose={() => setDialog(null)}
                 fields={[{ name: "accountId", label: "Ödeme yapılan hesap", type: "select", options: accounts.map((a) => [a.id, a.name]), required: true }, { name: "date", label: "Tarih", type: "date" }]} />}
             <ConfirmDialog open={dialog?.type === "del"} title="Fatura silinsin mi?" message="Yalnızca ödenmemiş fatura silinebilir." confirmLabel="Sil" onCancel={() => setDialog(null)} onConfirm={async () => { const out = await exec(deleteBill, { id: dialog.item.id }, "Fatura silindi."); if (out.ok) setDialog(null); }} />
             </>}
