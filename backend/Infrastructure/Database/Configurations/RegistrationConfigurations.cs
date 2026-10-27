@@ -12,6 +12,7 @@ public class ApplicationConfiguration : IEntityTypeConfiguration<Application>
         builder.ToTable("Applications");
 
         builder.Property(x => x.No).HasMaxLength(20).IsRequired();
+        builder.Property(x => x.IsRenewal).HasDefaultValue(false);
         builder.Property(x => x.Source).HasConversion<string>().HasMaxLength(10);
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(10);
         builder.Property(x => x.Term).HasConversion<string>().HasMaxLength(10);

@@ -29,11 +29,11 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
     public record Created(Guid Id, string ApplicationNo);
 
     /// <param name="document">Öğrenci belgesi (PDF). Web başvurusunda ZORUNLU; ofis kaydında isteğe bağlı (sonradan panelden eklenebilir).</param>
-    public async Task<Result<Created>> Create(ApplicationInput input, ApplicationSource source, string? ip, CancellationToken ct, IFormFile? document = null)
+    public async Task<Result<Created>> Create(ApplicationInput input, ApplicationSource source, string? ip, CancellationToken ct, IFormFile? document = null, Guid? renewalOf = null)
     {
         try
         {
-            return await CreateCore(input, source, ip, ct, document);
+            return await CreateCore(input, source, ip, ct, document, renewalOf);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -44,8 +44,9 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
 
     private string stage = "start";
 
-    private async Task<Result<Created>> CreateCore(ApplicationInput input, ApplicationSource source, string? ip, CancellationToken ct, IFormFile? document)
+    private async Task<Result<Created>> CreateCore(ApplicationInput input, ApplicationSource source, string? ip, CancellationToken ct, IFormFile? document, Guid? renewalOf)
     {
+        var renewal = renewalOf is not null; // portaldan kayıt yenileme: öğrenci belgesi isteğe bağlı (eski belgeler profilde durur)
         stage = "period";
         var (planValid, requestedPlan) = ApplicantRules.ParseStayPlan(input.StayPlan);
         if (!planValid) return Error.Field("stayPlan", "Konaklama türü geçersiz.");
@@ -80,7 +81,7 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
         stage = "validate";
         var v = new Validator();
         var applicant = ApplicantRules.Normalize(input, v);
-        if (source == ApplicationSource.Online && (document is null || document.Length == 0))
+        if (source == ApplicationSource.Online && !renewal && (document is null || document.Length == 0))
             v.AddError("document", "Öğrenci belgeni (PDF) yükle.");
 
         // ---- oda tipi ----
@@ -227,12 +228,14 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
             DocumentSize = stored?.Size,
             DocumentSha256 = stored?.Sha256,
             Note = string.IsNullOrWhiteSpace(input.Note) ? null : input.Note.Trim()[..Math.Min(input.Note.Trim().Length, 1000)],
-            Ip = ip
+            Ip = ip,
+            IsRenewal = renewal,
+            RenewalOfEnrollmentId = renewalOf
         };
 
         stage = "save";
         db.Applications.Add(application);
-        audit.Add("application.create", "application", application.Id, period.Id, after: new { application.No, source, stayPlan, discountCode = discount?.Code, document = stored is not null });
+        audit.Add("application.create", "application", application.Id, period.Id, after: new { application.No, source, stayPlan, discountCode = discount?.Code, document = stored is not null, renewal });
         try
         {
             await db.SaveChangesAsync(ct);
@@ -248,7 +251,7 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
         if (source == ApplicationSource.Online)
         {
             var planText = stayPlan switch { StayPlan.Yearly => " · 12 ay", StayPlan.Summer => " · Sadece yaz", _ => "" };
-            alerts.Enqueue(new PushPayload("Yeni başvuru", $"{application.FullName} · {roomType!.Name.Tr}{planText} · {application.No}", "/admin/basvurular", $"application-{application.Id:N}"));
+            alerts.Enqueue(new PushPayload(renewal ? "Kayıt yenileme başvurusu" : "Yeni başvuru", $"{application.FullName} · {roomType!.Name.Tr}{planText} · {application.No}", "/admin/basvurular", $"application-{application.Id:N}"));
         }
 
         return new Created(application.Id, application.No);

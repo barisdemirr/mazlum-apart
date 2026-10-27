@@ -39,6 +39,14 @@ export default function SummaryView({ student, ledger, period }) {
         <>
             <PageHeader eyebrow={tpl(t.studentPortal.shell.period, { period: period.name })} title={tpl(t.studentPortal.shell.greeting, { name: student.firstName })} text={copy.text} />
 
+            <LocalizedLink
+                href="/ogrenci/kayit-yenile"
+                className="mb-5 flex items-center justify-between gap-3 rounded-[28px] bg-white/80 px-5 py-4 text-sm font-bold text-orchid-pink shadow-[0_12px_30px_-18px_rgba(180,57,143,0.5)] transition-transform hover:-translate-y-0.5"
+            >
+                <span className="flex items-center gap-2"><Icon name="autorenew" className="text-[22px]" />{t.studentPortal.nav.renewal}</span>
+                <Icon name="arrow_forward" className="text-[20px]" />
+            </LocalizedLink>
+
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
                 {/* Bakiye */}
                 <motion.section {...rise(0)} className="relative isolate overflow-hidden rounded-[32px] bg-gradient-to-br from-orchid-dark via-[#4b1d66] to-orchid-pink p-6 text-white shadow-[0_30px_70px_-32px_rgba(75,29,102,0.8)] sm:p-8 lg:col-span-2">

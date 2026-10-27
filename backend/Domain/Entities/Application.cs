@@ -45,6 +45,14 @@ public class Application : BaseEntity
     public long? DocumentSize { get; set; }
     public string? DocumentSha256 { get; set; }
 
+    /// <summary>
+    /// Kayıt yenileme: mevcut öğrencinin portaldan yaptığı dönemlik başvuru ("Kayıt Yenileme Başvurusu").
+    /// Onayda yeni öğrenci AÇILMAZ; aynı T.C.'li öğrenciye seçilen dönem için YENİ bir kayıt eklenir (eski dönem kayıtlarına dokunulmaz).
+    /// RenewalOfEnrollmentId: yenilenen (önceki) kayıt.
+    /// </summary>
+    public bool IsRenewal { get; set; }
+    public Guid? RenewalOfEnrollmentId { get; set; }
+
     public DateTime? DecidedAt { get; set; }
     public Guid? DecidedById { get; set; }
     public string? RejectReason { get; set; }

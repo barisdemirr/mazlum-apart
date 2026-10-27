@@ -20,14 +20,15 @@ export default function ApplicationsView({ applications, roomTypes }) {
     const [tab, setTab] = useState("pending");
     const [roomType, setRoomType] = useState("");
     const [stayPlan, setStayPlan] = useState("");
+    const [kind, setKind] = useState("");
     const [openId, setOpenId] = useState(null);
     const [officeOpen, setOfficeOpen] = useState(false);
 
     const all = applications.items;
     const count = (s) => all.filter((a) => a.status === s).length;
     const rows = useMemo(
-        () => all.filter((a) => (tab === "all" || a.status === tab) && (!roomType || a.roomTypeId === roomType) && (!stayPlan || a.stayPlan === stayPlan)),
-        [all, tab, roomType, stayPlan]
+        () => all.filter((a) => (tab === "all" || a.status === tab) && (!roomType || a.roomTypeId === roomType) && (!stayPlan || a.stayPlan === stayPlan) && (!kind || (kind === "renewal") === Boolean(a.isRenewal))),
+        [all, tab, roomType, stayPlan, kind]
     );
     const current = all.find((a) => a.id === openId) ?? null;
     const canCreate = period.status === "active" && period.applicationsOpen;
@@ -39,7 +40,7 @@ export default function ApplicationsView({ applications, roomTypes }) {
                 <div className="flex items-center gap-2.5">
                     <Avatar name={a.fullName} />
                     <div className="min-w-0">
-                        <div className="truncate font-bold">{a.fullName}</div>
+                        <div className="flex items-center gap-1.5"><span className="truncate font-bold">{a.fullName}</span>{a.isRenewal && <Badge tone="brand">Kayıt Yenileme Başvurusu</Badge>}</div>
                         <div className="text-[11px] text-ad-muted">{a.no}{a.preferredRoom ? ` · tercih: ${a.preferredRoom}` : ""}</div>
                     </div>
                 </div>
@@ -78,6 +79,7 @@ export default function ApplicationsView({ applications, roomTypes }) {
         { key: "listPrice", header: "Liste kirası", hidden: true, export: { type: "money", value: (a) => a.listPriceMonthly ?? "" } },
         { key: "summerPrice", header: "Yaz kirası", hidden: true, export: { type: "money", value: (a) => a.priceSummerMonthly ?? "" } },
         { key: "source", header: "Kaynak", render: (a) => SOURCE[a.source], export: { value: (a) => SOURCE[a.source] } },
+        { key: "renewal", header: "Başvuru türü", hidden: true, export: { value: (a) => (a.isRenewal ? "Kayıt yenileme" : "Yeni başvuru") } },
         { key: "created", header: "Tarih", sort: (a) => a.createdAt, render: (a) => <span className="ad-num">{date(turkeyDate(a.createdAt))}</span>, export: { type: "date", value: (a) => turkeyDate(a.createdAt) } },
         { key: "status", header: "Durum", render: (a) => <StatusBadge map={APPLICATION_STATUS} value={a.status} />, export: { value: (a) => APPLICATION_STATUS[a.status].label } },
     ];
@@ -129,6 +131,13 @@ export default function ApplicationsView({ applications, roomTypes }) {
                             <SelectInput value={stayPlan} onChange={(e) => setStayPlan(e.target.value)}>
                                 <option value="">Tüm konaklama türleri</option>
                                 {Object.entries(STAY_PLAN).map(([k, v]) => <option key={k} value={k}>{v.long}</option>)}
+                            </SelectInput>
+                        </div>
+                        <div className="w-full sm:w-52">
+                            <SelectInput value={kind} onChange={(e) => setKind(e.target.value)}>
+                                <option value="">Tüm başvurular</option>
+                                <option value="renewal">Kayıt Yenileme Başvurusu</option>
+                                <option value="new">Yeni başvuru</option>
                             </SelectInput>
                         </div>
                     </>

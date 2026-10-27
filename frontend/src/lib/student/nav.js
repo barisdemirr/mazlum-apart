@@ -5,6 +5,7 @@ export const PORTAL_NAV = [
     { key: "summary", href: "/ogrenci", icon: "grid_view" },
     { key: "payments", href: "/ogrenci/odemeler", icon: "payments" },
     { key: "maintenance", href: "/ogrenci/ariza", icon: "build" },
+    { key: "renewal", href: "/ogrenci/kayit-yenile", icon: "autorenew" },
     { key: "profile", href: "/ogrenci/bilgilerim", icon: "person" },
 ];
 

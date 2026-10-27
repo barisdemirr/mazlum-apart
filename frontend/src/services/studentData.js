@@ -12,6 +12,9 @@ const asStudent = { role: "student" };
 /** GET /api/student/me */
 export const getStudentProfile = cache(async () => adaptStudent(await serverFetch("/student/me", asStudent)));
 
+/** GET /api/student/renewal -> kayıt yenileme verisi (önceki kayıt, açık dönemler + güncel fiyatlar, başvurular) */
+export const getStudentRenewal = async () => serverFetch("/student/renewal", asStudent);
+
 /** GET /api/student/payments -> { period, bank, ledger } */
 export const getStudentLedger = cache(async () => adaptPayments(await serverFetch("/student/payments", asStudent)));
 
