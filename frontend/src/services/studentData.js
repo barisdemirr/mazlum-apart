@@ -23,3 +23,6 @@ export async function getMaintenanceRequests() {
     const list = await serverFetch("/student/maintenance-requests", asStudent);
     return (list ?? []).map(adaptRequest);
 }
+
+/** GET /api/student/departures -> güncel kaydın çıkış + geçici ayrılış durumu */
+export const getStudentDepartures = async () => serverFetch("/student/departures", asStudent);

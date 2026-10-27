@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
 
 const PUBLIC_GET = /^(room-types(\/[\w-]+(\/(availability|rooms|apartments(\/[\w-]+)?))?)?|site-settings|applications\/config|locations|pages\/[\w-]+|slides|push\/config)$/;
 const PUBLIC_POST = /^(applications|pre-registrations|discount-codes\/check)$/;
-const STUDENT = /^student\/(me|me\/password|payments|renewal(\/preview)?|maintenance-requests(\/[\w-]+(\/photos(\/[\w-]+)?)?)?|push\/subscriptions)$/;
+const STUDENT = /^student\/(me|me\/password|payments|renewal(\/preview)?|maintenance-requests(\/[\w-]+(\/photos(\/[\w-]+)?)?)?|departures(\/exit|\/leaves(\/[\w-]+(\/return)?)?)?|push\/subscriptions)$/;
 const ADMIN = /^admin\/(?!auth\/login$)[\w\-/]+$/;
 
 const METHODS_WITH_BODY = new Set(["POST", "PUT", "PATCH", "DELETE"]);
