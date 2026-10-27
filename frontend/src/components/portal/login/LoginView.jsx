@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Icon from "@/components/ui/Icon";
-import Logo from "@/components/ui/Logo";
+import { WideLogo } from "@/components/ui/Logo";
 import LocalizedLink from "@/components/ui/LocalizedLink";
 import LanguageSwitch from "@/components/layout/LanguageSwitch";
 import LoginForm from "./LoginForm";
@@ -28,11 +28,8 @@ export default function LoginView({ from, expired }) {
                 <span aria-hidden="true" className="pointer-events-none absolute -bottom-28 -right-20 -z-10 h-80 w-80 rounded-full bg-orchid-violet/60 soft-blob animate-blob [animation-delay:-6s]" />
 
                 <div className="flex items-center justify-between">
-                    <LocalizedLink href="/" className="group flex items-center gap-3">
-                        <Logo className="h-11 w-11" />
-                        <span className="font-display text-2xl font-bold leading-none tracking-tight">
-                            Mazlum<span className="ml-1 italic text-orchid-petal">Apart</span>
-                        </span>
+                    <LocalizedLink href="/" aria-label="Mazlum Apart" className="group flex items-center">
+                        <WideLogo variant="light" className="h-11" />
                     </LocalizedLink>
                     <LanguageSwitch id="login-lang" dark className="lg:hidden" />
                 </div>

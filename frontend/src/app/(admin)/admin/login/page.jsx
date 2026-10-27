@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Icon from "@/components/ui/Icon";
-import Logo from "@/components/ui/Logo";
+import { WideLogo } from "@/components/ui/Logo";
 import LoginForm from "./LoginForm";
 
 export const metadata = {
@@ -28,13 +28,10 @@ export default function LoginPage() {
                     className="pointer-events-none absolute -bottom-40 -right-20 h-[420px] w-[420px] rounded-full bg-ad-accent-bright/25 soft-blob"
                 />
 
-                <div className="relative flex items-center gap-3">
-                    <Logo variant="light" className="h-12 w-12" />
-                    <span className="flex flex-col leading-tight">
-                        <span className="text-base font-bold tracking-tight">Mazlum Apart</span>
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
-                            Yönetim Paneli
-                        </span>
+                <div className="relative flex flex-col items-start gap-2.5">
+                    <WideLogo variant="light" className="h-12" />
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
+                        Yönetim Paneli
                     </span>
                 </div>
 

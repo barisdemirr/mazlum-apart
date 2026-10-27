@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useMotionValueEvent, useScroll } from "framer-motion";
 import LocalizedLink from "@/components/ui/LocalizedLink";
 import Icon from "@/components/ui/Icon";
-import Logo from "@/components/ui/Logo";
+import { WideLogo } from "@/components/ui/Logo";
 import Magnetic from "@/components/ui/Magnetic";
 import LanguageSwitch from "./LanguageSwitch";
 import MobileMenu from "./MobileMenu";
@@ -65,16 +65,8 @@ export default function SiteHeader() {
             >
                 <div className="glass-nav pointer-events-auto mx-auto flex h-16 max-w-[1180px] items-center justify-between rounded-full px-3 sm:h-20 sm:px-6">
                     {/* Marka */}
-                    <LocalizedLink href="/" data-cursor="Mazlum" className="group flex items-center gap-3" onClick={closeMenu}>
-                        <Logo className="h-10 w-10 rounded-full transition-transform duration-300 group-hover:scale-105 sm:h-11 sm:w-11" />
-                        <span className="flex flex-col">
-                            <span className="font-display text-xl font-bold leading-none tracking-tight text-orchid-dark sm:text-2xl">
-                                Mazlum<span className="ml-1 italic text-orchid-pink">Apart</span>
-                            </span>
-                            <span className="mt-1 hidden text-[9px] font-semibold uppercase tracking-[0.25em] text-orchid-muted sm:block">
-                                {t.nav.tagline}
-                            </span>
-                        </span>
+                    <LocalizedLink href="/" data-cursor="Mazlum" aria-label="Mazlum Apart" className="group flex items-center" onClick={closeMenu}>
+                        <WideLogo className="h-9 transition-transform duration-300 group-hover:scale-105 sm:h-11" />
                     </LocalizedLink>
 
                     {/* Masaüstü bağlantılar */}
