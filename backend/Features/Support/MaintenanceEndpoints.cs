@@ -58,7 +58,23 @@ public static class StudentMaintenance
                 .ToListAsync(ct))
             .Select(ToItem).ToList();
 
-        public async Task<Result<Item>> Create(Guid studentId, string displayName, IFormCollection form, CancellationToken ct)
+        public Task<Result<Item>> Create(Guid studentId, string displayName, IFormCollection form, CancellationToken ct) =>
+            CreateCore(studentId, null, ActorType.Student, displayName, null, form, ct);
+
+        /// <summary>Ofisten: personel öğrenci adına kayıt açar. Numara, zaman çizelgesi, fotoğraf ve takip süreci öğrencinin açtığı kayıtla aynıdır.</summary>
+        public async Task<Result<Item>> CreateByOffice(IFormCollection form, string adminName, CancellationToken ct)
+        {
+            if (!Guid.TryParse(form["enrollmentId"].ToString(), out var enrollmentId))
+                return Error.Field("enrollmentId", "Öğrenciyi seçin.");
+            var studentId = await db.Enrollments.AsNoTracking().Where(x => x.Id == enrollmentId).Select(x => (Guid?)x.StudentId).FirstOrDefaultAsync(ct);
+            if (studentId is null) return Error.Field("enrollmentId", "Öğrenci kaydı bulunamadı.");
+
+            var roomLabel = form["roomLabel"].ToString().Trim();
+            if (roomLabel.Length > 120) return Error.Field("roomLabel", "Daire / oda en fazla 120 karakter olabilir.");
+            return await CreateCore(studentId.Value, enrollmentId, ActorType.Admin, adminName, roomLabel.Length > 0 ? roomLabel : null, form, ct);
+        }
+
+        private async Task<Result<Item>> CreateCore(Guid studentId, Guid? enrollmentId, ActorType actor, string actorName, string? roomLabel, IFormCollection form, CancellationToken ct)
         {
             var title = form["title"].ToString().Trim();
             var description = form["description"].ToString().Trim();
@@ -77,16 +93,22 @@ public static class StudentMaintenance
 
             // Hangi kayıt adına: aktif dönemdeki onaylı/aktif kayıt
             var enrollment = await db.Enrollments.AsNoTracking()
-                .Where(x => x.StudentId == studentId && (x.Status == EnrollmentStatus.Active || x.Status == EnrollmentStatus.Approved))
+                .Where(x => x.StudentId == studentId && (enrollmentId == null || x.Id == enrollmentId) && (x.Status == EnrollmentStatus.Active || x.Status == EnrollmentStatus.Approved))
                 .Join(db.Periods.Where(p => p.Status == PeriodStatus.Active), e => e.PeriodId, p => p.Id, (e, p) => new { e, p })
                 .OrderByDescending(x => x.p.StartDate)
                 .Select(x => x.e)
                 .FirstOrDefaultAsync(ct);
-            if (enrollment is null) return Error.Conflict("Aktif bir konaklama kaydınız olmadığı için arıza bildirilemez.");
+            if (enrollment is null)
+                return Error.Conflict(actor == ActorType.Admin
+                    ? "Bu öğrencinin aktif dönemde onaylı ya da aktif bir kaydı olmadığı için arıza açılamaz."
+                    : "Aktif bir konaklama kaydınız olmadığı için arıza bildirilemez.");
 
-            var open = await db.MaintenanceRequests.CountAsync(x => x.StudentId == studentId && x.Status != MaintenanceStatus.Done, ct);
-            if (open >= MaintenanceRules.MaxOpenPerStudent)
-                return Error.Conflict("Çok sayıda açık arıza kaydınız var. Mevcut kayıtlar tamamlanınca yenisini açabilirsiniz.");
+            if (actor == ActorType.Student)
+            {
+                var open = await db.MaintenanceRequests.CountAsync(x => x.StudentId == studentId && x.Status != MaintenanceStatus.Done, ct);
+                if (open >= MaintenanceRules.MaxOpenPerStudent)
+                    return Error.Conflict("Çok sayıda açık arıza kaydınız var. Mevcut kayıtlar tamamlanınca yenisini açabilirsiniz.");
+            }
 
             var placements = await db.Placements.AsNoTracking().Include(x => x.Room).ThenInclude(r => r!.Apartment)
                 .Where(x => x.EnrollmentId == enrollment.Id).ToListAsync(ct);
@@ -115,20 +137,25 @@ public static class StudentMaintenance
                     PeriodId = enrollment.PeriodId,
                     EnrollmentId = enrollment.Id,
                     StudentId = studentId,
-                    RoomLabel = room?.Label ?? "",
+                    RoomLabel = roomLabel ?? room?.Label ?? "",
                     Area = area,
                     Title = title,
                     Description = description
                 };
-                request.Events.Add(new MaintenanceEvent { RequestId = request.Id, Status = MaintenanceStatus.Received, ActorType = ActorType.Student, ActorName = displayName });
+                request.Events.Add(new MaintenanceEvent
+                {
+                    RequestId = request.Id, Status = MaintenanceStatus.Received, ActorType = actor, ActorName = actorName,
+                    Note = actor == ActorType.Admin ? "Ofis tarafından sizin adınıza açıldı." : null
+                });
                 foreach (var p in saved)
                     request.Photos.Add(new MaintenancePhoto { RequestId = request.Id, FilePath = p.Path, FileSize = p.StoredBytes, Width = p.Width, Height = p.Height });
 
                 db.MaintenanceRequests.Add(request);
-                audit.Add("maintenance.create", "maintenance", request.Id, request.PeriodId, after: new { request.No, request.Area, request.Title, photos = saved.Count });
+                audit.Add("maintenance.create", "maintenance", request.Id, request.PeriodId, after: new { request.No, request.Area, request.Title, photos = saved.Count, office = actor == ActorType.Admin });
                 await db.SaveChangesAsync(ct);
 
-                alerts.Enqueue(new PushPayload("Yeni arıza kaydı", $"{request.RoomLabel} · {request.Title}".Trim(' ', '·'), "/admin/ariza", $"maintenance-{request.Id:N}"));
+                if (actor == ActorType.Student) // ofisten açılan kayıt için yöneticilere ayrıca bildirim gitmez
+                    alerts.Enqueue(new PushPayload("Yeni arıza kaydı", $"{request.RoomLabel} · {request.Title}".Trim(' ', '·'), "/admin/ariza", $"maintenance-{request.Id:N}"));
                 return ToItem(request);
             }
             catch
@@ -256,6 +283,16 @@ public static class AdminMaintenance
         {
             var group = app.MapGroup("/api/admin/maintenance");
             group.MapGet("", async (Guid periodId, string? status, Handler h, CancellationToken ct) => Results.Ok(await h.List(periodId, status, ct)));
+
+            // Ofisten manuel kayıt: multipart (enrollmentId, area, title, description, roomLabel?, photos[])
+            group.MapPost("", async (HttpRequest request, ClaimsPrincipal user, StudentMaintenance.Handler creator, CancellationToken ct) =>
+                {
+                    if (!request.HasFormContentType) return Error.Field("form", "Form verisi (multipart) bekleniyor.").ToProblem();
+                    var form = await request.ReadFormAsync(ct);
+                    return (await creator.CreateByOffice(form, user.GetDisplayName(), ct)).ToOk();
+                })
+                .DisableAntiforgery()
+                .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(20 * 1024 * 1024));
             group.MapPut("/{id:guid}", async (Guid id, UpdateCommand cmd, ClaimsPrincipal user, Handler h, CancellationToken ct) =>
                 (await h.Update(id, cmd, user, ct)).ToOk());
             group.MapGet("/{id:guid}/photos/{photoId:guid}", async (Guid id, Guid photoId, string? size, AppDbContext db, ImageService images, CancellationToken ct) =>

@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import ActionDialog from "@/components/admin/ActionDialog";
 import DataTable from "@/components/admin/DataTable";
+import Icon from "@/components/ui/Icon";
+import MaintenanceCreateDialog from "@/components/admin/support/MaintenanceCreateDialog";
 import { Chips, PageHeader, StatusBadge } from "@/components/admin/ui";
 import { useAdmin } from "@/components/admin/data/AdminDataProvider";
 import { updateMaintenance } from "@/lib/admin/commands/finance";
@@ -15,6 +17,7 @@ export default function MaintenanceView({ items }) {
     const { period } = useAdmin();
     const [tab, setTab] = useState("open");
     const [edit, setEdit] = useState(null);
+    const [creating, setCreating] = useState(false);
     const rows = items.filter((m) => (tab === "open" ? m.status !== "done" : tab === "done" ? m.status === "done" : true));
     const columns = [
         { key: "no", header: "No", render: (m) => <span className="ad-num text-xs">{m.no}</span>, export: { value: (m) => m.no } },
@@ -25,9 +28,11 @@ export default function MaintenanceView({ items }) {
     ];
     return (
         <div>
-            <PageHeader title="Arıza Kayıtları" description="Öğrencilerin Arıza sayfasından ilettiği bildirimler." />
+            <PageHeader title="Arıza Kayıtları" description="Öğrencilerin Arıza sayfasından ilettiği bildirimler; ofisten de öğrenci adına kayıt açabilirsiniz."
+                actions={period.status !== "closed" && <button type="button" onClick={() => setCreating(true)} className="ad-btn ad-btn-primary"><Icon name="add" className="text-[20px]" />Arıza kaydı aç</button>} />
             <div className="mb-4"><Chips value={tab} onChange={setTab} items={[{ value: "open", label: "Açık", count: items.filter((m) => m.status !== "done").length }, { value: "done", label: "Tamamlanan", count: items.filter((m) => m.status === "done").length }, { value: "all", label: "Tümü", count: items.length }]} /></div>
             <DataTable columns={columns} rows={rows} rowKey={(m) => m.id} searchText={(m) => `${m.no} ${m.title} ${m.student.firstName} ${m.student.lastName}`} searchPlaceholder="Arıza ara" onRowClick={(m) => period.status !== "closed" && setEdit(m)} exportName="ariza-kayitlari" empty={{ icon: "build", title: "Arıza bildirimi yok" }} />
+            {creating && <MaintenanceCreateDialog onClose={() => setCreating(false)} />}
             {edit && <ActionDialog title={edit.title} description={`${edit.no} · ${edit.student.firstName} ${edit.student.lastName} · ${edit.roomLabel}`} command={updateMaintenance} extra={{ id: edit.id }} initial={{ status: edit.status, adminNote: edit.adminNote ?? "" }} success="Arıza güncellendi." onClose={() => setEdit(null)}
                 note={edit.description}
                 fields={[{ name: "status", label: "Durum", type: "select", options: Object.entries(MAINT_STATUS).map(([k, v]) => [k, v.label]) }, { name: "adminNote", label: "Öğrenciye görünen not", type: "textarea" }]} />}

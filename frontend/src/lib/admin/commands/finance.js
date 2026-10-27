@@ -53,6 +53,17 @@ export const transfer = ({ periodId, fromId, toId, amount, date, note }) =>
     admin.post("/transfers", { periodId, fromId, toId, amount: n(amount), date: dateOrNull(date), note: note || null }, idem);
 
 /* Destek ve sistem */
+/** Ofisten öğrenci adına arıza kaydı (multipart; en fazla 3 görsel). Kayıt öğrencinin açtığı arızayla aynı süreçten geçer */
+export const createMaintenance = ({ enrollmentId, area, title, description, roomLabel, photos }) => {
+    const form = new FormData();
+    form.append("enrollmentId", enrollmentId);
+    form.append("area", area);
+    form.append("title", title);
+    form.append("description", description);
+    form.append("roomLabel", roomLabel || "");
+    for (const file of photos ?? []) form.append("photos", file, file.name);
+    return admin.upload("/maintenance", form);
+};
 export const updateMaintenance = ({ id, status, adminNote }) => admin.put(`/maintenance/${id}`, { status, adminNote: adminNote || null });
 export const resetStudentPassword = ({ studentId }) => admin.post(`/students/${studentId}/reset-password`);
 
