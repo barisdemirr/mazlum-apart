@@ -9,7 +9,8 @@ import DataTable from "@/components/admin/DataTable";
 import { Card, Chips, PageHeader, StatusBadge } from "@/components/admin/ui";
 import { useAdmin } from "@/components/admin/data/AdminDataProvider";
 import BillSubscriptionsPanel from "@/components/admin/accounting/BillSubscriptionsPanel";
-import { addBill, deleteBill, payBill, updateBill } from "@/lib/admin/commands/finance";
+import BillAddDialog from "@/components/admin/accounting/BillAddDialog";
+import { deleteBill, payBill, updateBill } from "@/lib/admin/commands/finance";
 import { monthLabel } from "@/lib/admin/month";
 import { BILL_KIND, BILL_STATE, date, money } from "@/lib/admin/labels";
 import { defaultAccountId } from "@/lib/admin/accounts";
@@ -51,8 +52,7 @@ export default function BillsView({ data, accounts, subscriptions = [] }) {
                 <Card><p className="text-xs font-bold uppercase tracking-wider text-ad-muted">Fatura bekleniyor</p><p className="ad-num mt-2 text-2xl font-extrabold">{awaiting.length}</p><p className="text-xs text-ad-muted">tutarı ve vadesi girilecek</p></Card>
             </div>
             <DataTable columns={columns} rows={rows} rowKey={(b) => b.id} searchText={(b) => `${BILL_KIND[b.kind]} ${b.month} ${b.subscriberNo ?? ""}`} searchPlaceholder="Fatura ara" exportName="faturalar" empty={{ icon: "receipt_long", title: "Fatura yok" }} />
-            {dialog?.type === "add" && <ActionDialog title="Fatura ekle" command={addBill} extra={{ periodId: period.id }} initial={{ month: today.slice(0, 7), dueDate: today }} success="Fatura eklendi." onClose={() => setDialog(null)}
-                fields={[{ name: "kind", label: "Tür", type: "select", options: Object.entries(BILL_KIND), span: 1 }, { name: "month", label: "Ay (YYYY-AA)", type: "text", required: true, span: 1 }, { name: "amount", label: "Tutar", type: "number", required: true, span: 1 }, { name: "dueDate", label: "Son ödeme tarihi", type: "date", span: 1 }, { name: "note", label: "Not", type: "text" }]} />}
+            {dialog?.type === "add" && <BillAddDialog periodId={period.id} today={today} subscriptions={subscriptions} onClose={() => setDialog(null)} />}
             {dialog?.type === "enter" && <ActionDialog title={dialog.item.awaitingInvoice ? "Gelen faturayı gir" : "Faturayı güncelle"} description={`${BILL_KIND[dialog.item.kind]} · ${monthLabel(dialog.item.month, { short: true })}${dialog.item.subscriberNo ? ` · Abone no ${dialog.item.subscriberNo}` : ""}`} command={updateBill} extra={{ id: dialog.item.id }} initial={{ amount: dialog.item.amount, dueDate: dialog.item.dueDate, note: dialog.item.note ?? "" }} success="Fatura güncellendi." onClose={() => setDialog(null)}
                 note={dialog.item.awaitingInvoice ? "Görünen tutar tahminidir. Gelen faturadaki tutarı ve son ödeme tarihini girin; kayıt ödenebilir hâle gelir." : undefined}
                 fields={[{ name: "amount", label: "Tutar", type: "number", required: true, span: 1 }, { name: "dueDate", label: "Son ödeme tarihi", type: "date", span: 1 }, { name: "note", label: "Not", type: "text" }]} />}
