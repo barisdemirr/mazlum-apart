@@ -19,6 +19,9 @@ export const refundAdvance = ({ enrollmentId, amount, date, accountId, note }) =
     admin.post(`/enrollments/${enrollmentId}/refunds`, { amount: n(amount), date: dateOrNull(date), accountId, note: note || null }, idem);
 export const addCharge = ({ enrollmentId, kind, month, amount, dueDate, note }) =>
     admin.post(`/enrollments/${enrollmentId}/charges`, { kind, month: month || null, amount: n(amount), dueDate: dateOrNull(dueDate), note: note || null }, idem);
+/** Aylık indirim: depozito ve tüm kira/yaz taksitlerinden aynı tutar düşer (ters kayıt + indirimli yeni kalem). includePaid: ödenmiş taksitlere de uygula */
+export const applyMonthlyDiscount = ({ enrollmentId, amount, includePaid, reason }) =>
+    admin.post(`/enrollments/${enrollmentId}/monthly-discount`, { amount: n(amount), includePaid: includePaid === "yes", reason }, idem);
 export const reverseCharge = ({ id, reason }) => admin.post(`/charges/${id}/reverse`, { reason });
 /** Kalem tutarını değiştirir: eski kalem ters kayıtla kapanır, aynı tür/ay/vadeyle yeni tutarda kalem açılır */
 export const amendCharge = ({ id, amount, reason }) => admin.post(`/charges/${id}/amend`, { amount: n(amount), reason });

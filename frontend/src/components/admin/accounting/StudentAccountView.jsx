@@ -9,7 +9,7 @@ import WhatsAppButton from "@/components/admin/WhatsAppButton";
 import useCommand from "@/components/admin/useCommand";
 import { Badge, Card, PageHeader, StatusBadge } from "@/components/admin/ui";
 import { adaptRow, describeCovered } from "@/lib/admin/adapters";
-import { addCharge, amendCharge, cancelPayment, recordPayment, refundAdvance, resetStudentPassword, reverseCharge } from "@/lib/admin/commands/finance";
+import { addCharge, amendCharge, applyMonthlyDiscount, cancelPayment, recordPayment, refundAdvance, resetStudentPassword, reverseCharge } from "@/lib/admin/commands/finance";
 import { monthLabel } from "@/lib/admin/month";
 import { turkeyDate } from "@/lib/format";
 import { CHARGE_KIND, ENROLLMENT_STATUS, METHOD, PAY_STATUS, date, money } from "@/lib/admin/labels";
@@ -48,6 +48,13 @@ export default function StudentAccountView({ account, accounts }) {
             fields={[{ name: "amount", label: "Tutar", type: "number", required: true, span: 1 }, { name: "date", label: "Tarih", type: "date", span: 1 }, accountField, { name: "note", label: "Not", type: "text" }]} />,
         charge: <ActionDialog title="Borç / indirim ekle" description={name} command={addCharge} extra={{ enrollmentId: e.id }} initial={{ kind: "other", dueDate: today, month: today.slice(0, 7) }} success="Kalem eklendi." onClose={close} note="İndirim için türü “İndirim” seçin; tutar pozitif yazılır."
             fields={[{ name: "kind", label: "Tür", type: "select", options: Object.entries(CHARGE_KIND), span: 1 }, { name: "amount", label: "Tutar", type: "number", required: true, span: 1 }, { name: "month", label: "Ay (YYYY-AA)", type: "text", span: 1 }, { name: "dueDate", label: "Vade", type: "date", span: 1 }, { name: "note", label: "Not", type: "text" }]} />,
+        discount: <ActionDialog title="İndirim uygula" description={name} command={applyMonthlyDiscount} extra={{ enrollmentId: e.id }} initial={{ includePaid: "no" }} success="İndirim uygulandı." saveLabel="İndirimi uygula" onClose={close}
+            note="Girilen aylık tutar depozito ve tüm kira/yaz taksitlerinden düşülür (bir taksit en az 1 ₺ kalır). Eski kalemler ters kayıtla kapanır, indirimli yenisi açılır; toplam borç, kalan ve taksit tutarları yeniden hesaplanır. Tutar, tarih ve işlemi yapan kullanıcı işlem geçmişine yazılır."
+            fields={[
+                { name: "amount", label: "Aylık indirim tutarı", type: "number", required: true, span: 1 },
+                { name: "includePaid", label: "Ödenmiş taksitler", type: "select", span: 1, options: [["no", "Dokunma (yalnızca ödenmemiş)"], ["yes", "Dahil et (fazla ödeme avansa döner)"]], hint: "Dahil edilirse ödenen fazla tutar avans olur ve açık taksitlere otomatik mahsup edilir." },
+                { name: "reason", label: "Gerekçe", type: "text", required: true, hint: "Örn. “Kardeş indirimi”, “Burs anlaşması”" },
+            ]} />,
         amend: dialog?.item && (
             <ActionDialog
                 title="Tutarı değiştir"
@@ -92,7 +99,7 @@ export default function StudentAccountView({ account, accounts }) {
             </div>
             <p className="mb-5 rounded-xl bg-ad-sunken px-3 py-2 text-xs">{describeCovered(summary.covered, money)}</p>
 
-            <Card title="Borç kalemleri" actions={!closed && !ended && <div className="flex gap-1.5"><button type="button" onClick={() => setDialog({ type: "charge" })} className="ad-btn ad-btn-soft ad-btn-sm">Kalem ekle</button>{summary.advance > 0 && <button type="button" onClick={() => setDialog({ type: "refund" })} className="ad-btn ad-btn-outline ad-btn-sm">Avans iade</button>}</div>}>
+            <Card title="Borç kalemleri" actions={!closed && !ended && <div className="flex gap-1.5"><button type="button" onClick={() => setDialog({ type: "discount" })} className="ad-btn ad-btn-soft ad-btn-sm">İndirim uygula</button><button type="button" onClick={() => setDialog({ type: "charge" })} className="ad-btn ad-btn-soft ad-btn-sm">Kalem ekle</button>{summary.advance > 0 && <button type="button" onClick={() => setDialog({ type: "refund" })} className="ad-btn ad-btn-outline ad-btn-sm">Avans iade</button>}</div>}>
                 <div className="ad-scroll mt-4 overflow-x-auto"><table className="ad-table">
                     <thead><tr><th>Kalem</th><th>Vade</th><th className="!text-end">Tutar</th><th className="!text-end">Ödenen</th><th className="!text-end">Kalan</th><th /></tr></thead>
                     <tbody>{account.items.map((i) => (

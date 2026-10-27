@@ -114,6 +114,7 @@ export const AUDIT_ACTION = {
     "charge.create": "Borç kalemi eklendi",
     "charge.discount": "İndirim uygulandı",
     "charge.reverse": "Borç kalemi iptal edildi",
+    "enrollment.discount": "Aylık indirim uygulandı",
     "account.create": "Hesap eklendi",
     "account.opening": "Açılış bakiyesi girildi",
     "transfer.create": "Transfer yapıldı",
