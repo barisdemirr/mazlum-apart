@@ -194,6 +194,37 @@ public class CatalogQueryHandler(AppDbContext db, AvailabilityService availabili
         return BuildRooms(s, type, counts).OrderBy(x => x.BedsFree > 0 ? 0 : 1).ToList();
     }
 
+    /// <summary>Yayındaki daireler (/odalar sayfası). Görünür oda tipi olmayan daire listelenmez. Sıra: panelde verilen görüntüleme sırası, sonra ad.</summary>
+    public async Task<List<ApartmentListing>> ApartmentListingsAsync(CancellationToken ct)
+    {
+        var s = await LoadAsync(ct);
+        var aptRank = s.ApartmentTypes.Select((a, i) => (a.Id, i)).ToDictionary(x => x.Id, x => x.i);
+        var flats = s.Apartments.Select(View).Where(f => f.ActiveRooms.Count > 0)
+            .OrderBy(f => f.Apartment.ApartmentTypeId is { } a && aptRank.TryGetValue(a, out var rank) ? rank : int.MaxValue).ToList();
+        var counts = await CountsAsync(s, flats, ct);
+        var visible = s.Types.ToDictionary(t => t.Id);
+
+        var list = new List<ApartmentListing>();
+        foreach (var f in flats)
+        {
+            var typeIds = f.ActiveRooms.Select(r => r.RoomTypeId).Distinct().Where(visible.ContainsKey).ToList();
+            if (typeIds.Count == 0) continue;
+            var types = typeIds.Select(id => visible[id]).OrderBy(t => t.OrderIndex).ToList();
+            var owner = f.Apartment.ApartmentTypeId is { } ownerId ? s.ApartmentTypes.FirstOrDefault(a => a.Id == ownerId) : null;
+            var prices = types.Select(t => s.Prices.FirstOrDefault(p => p.RoomTypeId == t.Id)?.Monthly).Where(p => p is not null).ToList();
+
+            list.Add(new ApartmentListing(
+                f.Apartment.Id, f.Apartment.Slug, new LocalizedText { Tr = f.Apartment.Name, En = f.Apartment.Name }, f.Apartment.Description,
+                f.Apartment.Floor, f.Beds, f.PerKitchen, f.PerBathroom,
+                f.ActiveRooms.Count, Free(f.ActiveRooms, counts),
+                Cover(f.Apartment), HasVideo(f.Apartment), PhotoCount(f.Apartment),
+                types[0].Slug, types.Select(t => t.Name).ToList(),
+                owner?.Slug, owner?.Name,
+                prices.Count > 0 ? prices.Min() : null, "TRY"));
+        }
+        return list;
+    }
+
     /// <summary>Tüm tiplerin tüm odaları (/odalar sayfası). Oda tipi sırası korunur; boş yatağı olanlar önde.</summary>
     public async Task<List<RoomListing>> AllRoomsAsync(CancellationToken ct)
     {
