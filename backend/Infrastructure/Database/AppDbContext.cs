@@ -61,6 +61,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<MaintenanceEvent> MaintenanceEvents => Set<MaintenanceEvent>();
     public DbSet<MaintenancePhoto> MaintenancePhotos => Set<MaintenancePhoto>();
 
+    // ---- Çıkış, geçici ayrılış & daire durumu (madde 18) ----
+    public DbSet<EnrollmentExit> EnrollmentExits => Set<EnrollmentExit>();
+    public DbSet<TemporaryLeave> TemporaryLeaves => Set<TemporaryLeave>();
+    public DbSet<ApartmentStatus> ApartmentStatuses => Set<ApartmentStatus>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder builder)
     {
         // Para: her yerde decimal(18,2). Metin enum'lar string olarak saklanır (okunabilir, sıra değişse bozulmaz).

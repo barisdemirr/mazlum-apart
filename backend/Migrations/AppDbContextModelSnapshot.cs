@@ -323,6 +323,56 @@ namespace MazlumApart.Migrations
                     b.ToTable("ApartmentMedia", (string)null);
                 });
 
+            modelBuilder.Entity("MazlumApart.Domain.Entities.ApartmentStatus", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ApartmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("BoilerOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Readiness")
+                        .HasMaxLength(14)
+                        .HasColumnType("nvarchar(14)");
+
+                    b.Property<DateTime?>("ReadinessSetAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApartmentId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ApartmentStatuses_Apartment")
+                        .HasFilter("[DeletedAt] IS NULL");
+
+                    b.ToTable("ApartmentStatuses", (string)null);
+                });
+
             modelBuilder.Entity("MazlumApart.Domain.Entities.ApartmentType", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1059,6 +1109,75 @@ namespace MazlumApart.Migrations
                         .HasFilter("[Status] <> 'Cancelled' AND [DeletedAt] IS NULL");
 
                     b.ToTable("Enrollments", (string)null);
+                });
+
+            modelBuilder.Entity("MazlumApart.Domain.Entities.EnrollmentExit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ConfirmedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ConfirmedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ConfirmedByName")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("EnrollmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("ExitDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("PeriodId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ReportedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ReportedByName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("ReportedByType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EnrollmentId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_EnrollmentExits_Enrollment_Open")
+                        .HasFilter("[DeletedAt] IS NULL");
+
+                    b.HasIndex("PeriodId", "ConfirmedAt");
+
+                    b.ToTable("EnrollmentExits", (string)null);
                 });
 
             modelBuilder.Entity("MazlumApart.Domain.Entities.Expense", b =>
@@ -2713,6 +2832,71 @@ namespace MazlumApart.Migrations
                     b.ToTable("StudentGuardians", (string)null);
                 });
 
+            modelBuilder.Entity("MazlumApart.Domain.Entities.TemporaryLeave", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("EnrollmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateOnly>("LeaveDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("PeriodId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("PlannedReturnDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("ReportedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ReportedByName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("ReportedByType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<DateOnly?>("ReturnedOn")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EnrollmentId", "LeaveDate");
+
+                    b.HasIndex("PeriodId", "LeaveDate");
+
+                    b.ToTable("TemporaryLeaves", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_TemporaryLeaves_Dates", "[PlannedReturnDate] > [LeaveDate]");
+                        });
+                });
+
             modelBuilder.Entity("MazlumApart.Domain.Entities.AccountTransaction", b =>
                 {
                     b.HasOne("MazlumApart.Domain.Entities.Account", null)
@@ -2756,6 +2940,15 @@ namespace MazlumApart.Migrations
                         .OnDelete(DeleteBehavior.NoAction);
 
                     b.Navigation("MediaAsset");
+                });
+
+            modelBuilder.Entity("MazlumApart.Domain.Entities.ApartmentStatus", b =>
+                {
+                    b.HasOne("MazlumApart.Domain.Entities.Apartment", null)
+                        .WithMany()
+                        .HasForeignKey("ApartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("MazlumApart.Domain.Entities.ApartmentType", b =>
@@ -2871,6 +3064,21 @@ namespace MazlumApart.Migrations
                     b.Navigation("RoomType");
 
                     b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("MazlumApart.Domain.Entities.EnrollmentExit", b =>
+                {
+                    b.HasOne("MazlumApart.Domain.Entities.Enrollment", null)
+                        .WithMany()
+                        .HasForeignKey("EnrollmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MazlumApart.Domain.Entities.Period", null)
+                        .WithMany()
+                        .HasForeignKey("PeriodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("MazlumApart.Domain.Entities.Expense", b =>
@@ -3130,6 +3338,21 @@ namespace MazlumApart.Migrations
                         .WithMany("Guardians")
                         .HasForeignKey("StudentId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MazlumApart.Domain.Entities.TemporaryLeave", b =>
+                {
+                    b.HasOne("MazlumApart.Domain.Entities.Enrollment", null)
+                        .WithMany()
+                        .HasForeignKey("EnrollmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MazlumApart.Domain.Entities.Period", null)
+                        .WithMany()
+                        .HasForeignKey("PeriodId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

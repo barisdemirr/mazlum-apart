@@ -120,6 +120,8 @@ builder.Services.AddSingleton<NumberGenerator>();
 builder.Services.AddScoped<CashBook>();
 builder.Services.AddScoped<IdempotencyGuard>();
 builder.Services.AddScoped<MazlumApart.Features.Accounting.ExpenseWriter>();
+builder.Services.AddScoped<MazlumApart.Features.Departures.PresenceReader>();
+builder.Services.AddScoped<MazlumApart.Features.Departures.DepartureWriter>();
 builder.Services.AddMemoryCache();
 
 // ---- Mesajlaşma: SMS (Netgsm) + Web Push (aşama 6) ----
