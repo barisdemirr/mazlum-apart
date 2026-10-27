@@ -54,6 +54,10 @@ public class EnrollmentConfiguration : IEntityTypeConfiguration<Enrollment>
         builder.Property(x => x.StayPlan).HasConversion<string>().HasMaxLength(10).HasDefaultValue(StayPlan.Academic);
         builder.Property(x => x.PayWindow).HasConversion<string>().HasMaxLength(10);
         builder.Property(x => x.EndReason).HasMaxLength(500);
+        builder.Property(x => x.MovedIn).HasDefaultValue(false);
+        builder.Property(x => x.FingerprintTaken).HasDefaultValue(false);
+        builder.Property(x => x.WhatsAppGroupAdded).HasDefaultValue(false);
+        builder.Property(x => x.ContractSigned).HasDefaultValue(false);
 
         // Aynı anda iki yazma (iki yönetici aynı hesaba tahsilat girerse) ikincisi 409 alır
         builder.Property(x => x.LedgerVersion).IsConcurrencyToken();

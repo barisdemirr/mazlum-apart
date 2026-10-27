@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using MazlumApart.Domain.Accounting;
 using MazlumApart.Domain.Enums;
+using MazlumApart.Features.Structure;
 using MazlumApart.Infrastructure.Database;
 using MazlumApart.Infrastructure.Services;
 using MazlumApart.Shared;
@@ -104,26 +105,28 @@ public static class GetRoomOptions
 
     public class Handler(AppDbContext db)
     {
-        public async Task<Result<List<Option>>> Handle(Guid enrollmentId, DateOnly? from, DateOnly? to, Guid? excludeRoomId, CancellationToken ct)
+        public async Task<Result<List<Option>>> Handle(Guid enrollmentId, DateOnly? from, DateOnly? to, Guid? excludeRoomId, Guid? roomTypeId, CancellationToken ct)
         {
             var enrollment = await db.Enrollments.AsNoTracking().FirstOrDefaultAsync(x => x.Id == enrollmentId, ct);
             if (enrollment is null) return Error.NotFound("Kayıt bulunamadı.");
             var period = await db.Periods.AsNoTracking().FirstAsync(x => x.Id == enrollment.PeriodId, ct);
 
-            // 12 ay kalanın yerleşimi 31 Ağustos'a kadar sürer: oda uygunluğu yaz aylarını da kapsar
-            var lastDay = enrollment.StayPlan == StayPlan.Yearly ? PaymentPlan.SummerEnd(period.EndDate) : period.EndDate;
+            // 12 ay kalanın yerleşimi 31 Ağustos'a kadar sürer (yaz aylarını kapsar); 1. yarı kaydı yarı sonunda biter
+            var lastDay = PlacementRules.LastDay(enrollment, period);
             var start = from ?? enrollment.EntryDate;
             var end = to is null || to == period.EndDate ? lastDay : to.Value;
             if (start > end) return Error.Field("from", "Başlangıç tarihi bitişten sonra olamaz.");
 
             var rooms = await db.Rooms.AsNoTracking().Include(x => x.Apartment)
-                .Where(x => x.RoomTypeId == enrollment.RoomTypeId && x.Id != excludeRoomId)
+                .Where(x => x.RoomTypeId == (roomTypeId ?? enrollment.RoomTypeId) && x.Id != excludeRoomId)
                 .ToListAsync(ct);
             var roomIds = rooms.Select(x => x.Id).ToList();
             var placements = await db.Placements.AsNoTracking().Where(x => roomIds.Contains(x.RoomId)).ToListAsync(ct);
 
+            var order = await StructureOrder.LoadAsync(db, ct);
             return rooms
-                .OrderBy(r => r.Apartment?.Name).ThenBy(r => r.OrderIndex).ThenBy(r => r.Name)
+                .OrderBy(r => order.ApartmentType(r.Apartment?.ApartmentTypeId)).ThenBy(r => r.Apartment?.OrderIndex).ThenBy(r => r.Apartment?.Name)
+                .ThenBy(r => order.RoomType(r.RoomTypeId)).ThenBy(r => r.OrderIndex).ThenBy(r => r.Name)
                 .Select(r =>
                 {
                     var active = r.Status == RoomStatus.Active;
@@ -137,7 +140,7 @@ public static class GetRoomOptions
     public class Endpoint : IEndpoint
     {
         public void MapEndpoint(IEndpointRouteBuilder app) =>
-            app.MapGet("/api/admin/enrollments/{id:guid}/room-options", async (Guid id, DateOnly? from, DateOnly? to, Guid? excludeRoomId, Handler handler, CancellationToken ct) =>
-                (await handler.Handle(id, from, to, excludeRoomId, ct)).ToOk());
+            app.MapGet("/api/admin/enrollments/{id:guid}/room-options", async (Guid id, DateOnly? from, DateOnly? to, Guid? excludeRoomId, Guid? roomTypeId, Handler handler, CancellationToken ct) =>
+                (await handler.Handle(id, from, to, excludeRoomId, roomTypeId, ct)).ToOk());
     }
 }

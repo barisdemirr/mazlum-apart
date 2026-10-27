@@ -29,5 +29,16 @@ public class Enrollment : BaseEntity
     public DateOnly? EndedAt { get; set; }
     public string? EndReason { get; set; }
 
+    /// <summary>
+    /// Dönem bazlı operasyon takibi (kayıt = dönem, bu yüzden her dönem sıfırdan başlar; eski dönemin işaretleri değişmez).
+    /// Yeni kayıtta hepsi "yapılmadı": giriş yapmadı, parmak izi alınmadı, WhatsApp grubuna eklenmedi, sözleşme imzalanmadı.
+    /// </summary>
+    public bool MovedIn { get; set; }
+    /// <summary>Fiilen giriş yaptığı tarih (planlanan giriş tarihi EntryDate'tir)</summary>
+    public DateOnly? MovedInDate { get; set; }
+    public bool FingerprintTaken { get; set; }
+    public bool WhatsAppGroupAdded { get; set; }
+    public bool ContractSigned { get; set; }
+
     public int LedgerVersion { get; set; }
 }

@@ -7,15 +7,17 @@ import { useAdmin } from "@/components/admin/data/AdminDataProvider";
 import FormDialog from "@/components/admin/FormDialog";
 import WhatsAppButton from "@/components/admin/WhatsAppButton";
 import useCommand from "@/components/admin/useCommand";
-import { DateInput, Field, SelectInput } from "@/components/admin/fields";
+import { DateInput, Field, SelectInput, Switch } from "@/components/admin/fields";
 import { Avatar, Badge, Card, EmptyState, PageHeader, StatusBadge } from "@/components/admin/ui";
 import { adaptRow, describeCovered } from "@/lib/admin/adapters";
-import { endEnrollment } from "@/lib/admin/commands/registration";
+import { changeEnrollmentTerm, endEnrollment, saveTracking } from "@/lib/admin/commands/registration";
 import { CONTACT_PURPOSE, ENROLLMENT_STATUS, MAINT_STATUS, PAY_STATUS, PAY_WINDOW, STAY_PLAN, TERM, date, money } from "@/lib/admin/labels";
 import { turkeyDate } from "@/lib/format";
 import { getProvinceName } from "@/lib/locations";
 import { GRADE_LABELS } from "./OfficeApplicationDialog";
 import PlacementDialog from "./PlacementDialog";
+import RoomChangeDialog from "./RoomChangeDialog";
+import StudentFilesPanel from "./StudentFilesPanel";
 
 const Info = ({ label, children }) => (
     <div className="min-w-0">
@@ -40,6 +42,20 @@ export default function StudentDetailView({ detail, contacts, maintenance }) {
     }, [enrollment.periodId, periodId, selectPeriod]);
 
     const [endForm, setEndForm] = useState({ status: "left", date: today, reason: "" });
+    const [termForm, setTermForm] = useState({ term: "", reason: "" });
+    const [track, setTrack] = useState({
+        movedIn: enrollment.movedIn ?? false,
+        movedInDate: enrollment.movedInDate ?? "",
+        fingerprintTaken: enrollment.fingerprintTaken ?? false,
+        whatsAppGroupAdded: enrollment.whatsAppGroupAdded ?? false,
+        contractSigned: enrollment.contractSigned ?? false,
+    });
+    const trackDirty = track.movedIn !== (enrollment.movedIn ?? false) || (track.movedInDate || "") !== (enrollment.movedInDate ?? "")
+        || track.fingerprintTaken !== (enrollment.fingerprintTaken ?? false) || track.whatsAppGroupAdded !== (enrollment.whatsAppGroupAdded ?? false)
+        || track.contractSigned !== (enrollment.contractSigned ?? false);
+    const submitTracking = async () => {
+        await exec(saveTracking, { enrollmentId: enrollment.id, ...track, movedInDate: track.movedIn ? track.movedInDate || today : null }, "Takip bilgileri kaydedildi.");
+    };
 
     const row = useMemo(() => adaptRow(enrollment), [enrollment]);
     const { summary, room, roomType } = row;
@@ -56,6 +72,16 @@ export default function StudentDetailView({ detail, contacts, maintenance }) {
         .map((p) => ({ ...p, id: p.placementId, current: p.start <= today && p.end >= today }));
     const others = detail.others;
     const currentRoomId = placements.find((p) => p.current)?.roomId ?? null;
+
+    const half = period?.halfTerm;
+    const canChangeTerm = canAct && half?.enabled && e.stayPlan === "academic" && ["full", "first"].includes(e.term);
+    const newTerm = e.term === "full" ? "first" : "full";
+
+    const submitTerm = async (event) => {
+        event.preventDefault();
+        const out = await exec(changeEnrollmentTerm, { enrollmentId: e.id, term: newTerm, reason: termForm.reason }, "Kayıt süresi güncellendi.");
+        if (out.ok) setDialog(null);
+    };
 
     const submitEnd = async (event) => {
         event.preventDefault(); // (e = kayıt; olay nesnesi onu gölgelemesin)
@@ -146,6 +172,8 @@ export default function StudentDetailView({ detail, contacts, maintenance }) {
                         )}
                     </Card>
 
+                    <StudentFilesPanel studentId={profile.id} enrollmentId={e.id} canEdit={!ended} />
+
                     <div className="grid gap-5 md:grid-cols-2">
                         <Card title="İletişim geçmişi">
                             {contacts.length === 0 ? (
@@ -190,6 +218,38 @@ export default function StudentDetailView({ detail, contacts, maintenance }) {
                             <Info label="Depozito"><span className="ad-num">{money(e.price.deposit ?? 0)}</span></Info>
                         </dl>
                         <p className="mt-4 text-[11px] text-ad-muted">Fiyatlar kayıt anında sabitlenmiştir; sonradan fiyat listesi değişse de bu kaydı etkilemez.</p>
+                        {canAct && (
+                            <button type="button" onClick={() => setDialog("roomchange")} className="ad-btn ad-btn-soft ad-btn-sm mt-3 mr-2">
+                                <Icon name="apartment" className="text-[18px]" />
+                                Daire / oda tipini değiştir
+                            </button>
+                        )}
+                        {canChangeTerm && (
+                            <button type="button" onClick={() => { setTermForm({ term: newTerm, reason: "" }); setDialog("term"); }} className="ad-btn ad-btn-soft ad-btn-sm mt-3">
+                                <Icon name="event_repeat" className="text-[18px]" />
+                                Süreyi değiştir ({e.term === "full" ? "1. yarıya" : "tam döneme"})
+                            </button>
+                        )}
+                    </Card>
+
+                    <Card title="Giriş ve işlem takibi" description={`${period?.name ?? ""} dönemine özel; her dönem yeniden işaretlenir.`}>
+                        <div className="mt-4 space-y-2.5">
+                            <Switch checked={track.movedIn} onChange={(v) => setTrack({ ...track, movedIn: v, movedInDate: v ? track.movedInDate || today : "" })} label={track.movedIn ? "Giriş yaptı" : "Henüz giriş yapmadı"} />
+                            {track.movedIn && (
+                                <Field label="Giriş tarihi">
+                                    <DateInput value={track.movedInDate} onChange={(ev) => setTrack({ ...track, movedInDate: ev.target.value })} />
+                                </Field>
+                            )}
+                            <Switch checked={track.fingerprintTaken} onChange={(v) => setTrack({ ...track, fingerprintTaken: v })} label={track.fingerprintTaken ? "Parmak izi alındı" : "Parmak izi alınmadı"} />
+                            <Switch checked={track.whatsAppGroupAdded} onChange={(v) => setTrack({ ...track, whatsAppGroupAdded: v })} label={track.whatsAppGroupAdded ? "WhatsApp grubuna eklendi" : "WhatsApp grubuna eklenmedi"} />
+                            <Switch checked={track.contractSigned} onChange={(v) => setTrack({ ...track, contractSigned: v })} label={track.contractSigned ? "Apart sözleşmesi imzalandı" : "Apart sözleşmesi imzalanmadı"} />
+                        </div>
+                        {trackDirty && (
+                            <button type="button" disabled={busy} onClick={submitTracking} className="ad-btn ad-btn-primary ad-btn-sm mt-3">
+                                <Icon name="check" className="text-[18px]" />
+                                Kaydet
+                            </button>
+                        )}
                     </Card>
 
                     <Card title="Ödeme özeti" actions={<Link href={`/admin/hesaplar/${e.id}`} className="text-xs font-bold text-ad-brand hover:underline">Ayrıntı</Link>}>
@@ -230,6 +290,25 @@ export default function StudentDetailView({ detail, contacts, maintenance }) {
 
             {(dialog === "place" || dialog === "move") && (
                 <PlacementDialog enrollment={{ ...e, studentName: fullName }} period={period} mode={dialog} currentRoomId={currentRoomId} onClose={() => setDialog(null)} />
+            )}
+
+            {dialog === "roomchange" && (
+                <RoomChangeDialog enrollment={{ ...e, studentName: fullName }} period={period} currentRoomId={currentRoomId} onClose={() => setDialog(null)} />
+            )}
+
+            {dialog === "term" && (
+                <FormDialog open title="Kayıt süresini değiştir" description={`${fullName} · ${TERM[e.term]} → ${TERM[newTerm]}`} onClose={() => setDialog(null)} onSubmit={submitTerm} busy={busy} saveLabel="Süreyi değiştir" columns={1}>
+                    <div className="rounded-2xl bg-ad-warn-soft p-4 text-xs text-ad-warn">
+                        Kayıt iptal edilmez; ödeme planı, yerleşim ve oda müsaitliği birlikte güncellenir.
+                        {newTerm === "first"
+                            ? ` Yarı sonundan (${date(half.firstEnd)}) sonraki kira ayları ters kayıtla kapanır (silinmez; ödenmiş kısım avansa döner) ve yerleşim ${date(half.firstEnd)} tarihinde biter: oda 2. yarı için müsait görünür.`
+                            : ` ${date(half.firstEnd)} sonrası için eksik kira ayları plana eklenir ve yerleşim dönem sonuna uzar. Oda o tarihlerde doluysa işlem durur; önce odayı değiştirin.`}
+                        {" "}Depozito değişmez. İşlem geçmişine yazılır.
+                    </div>
+                    <Field label="Neden" required>
+                        <textarea rows={3} value={termForm.reason} onChange={(ev) => setTermForm({ ...termForm, reason: ev.target.value })} className="ad-field resize-y" />
+                    </Field>
+                </FormDialog>
             )}
 
             {dialog === "end" && (

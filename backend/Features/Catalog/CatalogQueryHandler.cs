@@ -34,9 +34,13 @@ public class CatalogQueryHandler(AppDbContext db, AvailabilityService availabili
             .Where(x => x.IsActive).OrderBy(x => x.OrderIndex).ThenBy(x => x.CreatedAt).ToListAsync(ct);
         var activeTypeIds = apartmentTypes.Select(x => (Guid?)x.Id).ToList();
 
-        var types = await db.RoomTypes.AsNoTracking().Include(x => x.CoverMedia)
+        // Sıra yönetici panelindekiyle aynıdır: önce daire türü sırası, sonra türün altındaki oda tipi sırası
+        var typeRank = apartmentTypes.Select((a, i) => (a.Id, i)).ToDictionary(x => x.Id, x => x.i);
+        var types = (await db.RoomTypes.AsNoTracking().Include(x => x.CoverMedia)
             .Where(x => x.IsActive && (x.ApartmentTypeId == null || activeTypeIds.Contains(x.ApartmentTypeId)))
-            .OrderBy(x => x.OrderIndex).ThenBy(x => x.CreatedAt).ToListAsync(ct);
+            .ToListAsync(ct))
+            .OrderBy(x => x.ApartmentTypeId is { } a && typeRank.TryGetValue(a, out var r) ? r : int.MaxValue)
+            .ThenBy(x => x.OrderIndex).ThenBy(x => x.CreatedAt).ToList();
 
         var apartments = await db.Apartments.AsNoTracking()
             .Where(x => x.IsPublished)
@@ -188,35 +192,6 @@ public class CatalogQueryHandler(AppDbContext db, AvailabilityService availabili
 
         var counts = await CountsAsync(s, FlatsOf(s, type.Id), ct);
         return BuildRooms(s, type, counts).OrderBy(x => x.BedsFree > 0 ? 0 : 1).ToList();
-    }
-
-    /// <summary>Yayındaki daireler (/odalar sayfası). Görünür oda tipi olmayan daire listelenmez. Sıra: panelde verilen görüntüleme sırası, sonra ad.</summary>
-    public async Task<List<ApartmentListing>> ApartmentListingsAsync(CancellationToken ct)
-    {
-        var s = await LoadAsync(ct);
-        var flats = s.Apartments.Select(View).Where(f => f.ActiveRooms.Count > 0).ToList();
-        var counts = await CountsAsync(s, flats, ct);
-        var visible = s.Types.ToDictionary(t => t.Id);
-
-        var list = new List<ApartmentListing>();
-        foreach (var f in flats)
-        {
-            var typeIds = f.ActiveRooms.Select(r => r.RoomTypeId).Distinct().Where(visible.ContainsKey).ToList();
-            if (typeIds.Count == 0) continue;
-            var types = typeIds.Select(id => visible[id]).OrderBy(t => t.OrderIndex).ToList();
-            var owner = f.Apartment.ApartmentTypeId is { } ownerId ? s.ApartmentTypes.FirstOrDefault(a => a.Id == ownerId) : null;
-            var prices = types.Select(t => s.Prices.FirstOrDefault(p => p.RoomTypeId == t.Id)?.Monthly).Where(p => p is not null).ToList();
-
-            list.Add(new ApartmentListing(
-                f.Apartment.Id, f.Apartment.Slug, new LocalizedText { Tr = f.Apartment.Name, En = f.Apartment.Name }, f.Apartment.Description,
-                f.Apartment.Floor, f.Beds, f.PerKitchen, f.PerBathroom,
-                f.ActiveRooms.Count, Free(f.ActiveRooms, counts),
-                Cover(f.Apartment), HasVideo(f.Apartment), PhotoCount(f.Apartment),
-                types[0].Slug, types.Select(t => t.Name).ToList(),
-                owner?.Slug, owner?.Name,
-                prices.Count > 0 ? prices.Min() : null, "TRY"));
-        }
-        return list;
     }
 
     /// <summary>Tüm tiplerin tüm odaları (/odalar sayfası). Oda tipi sırası korunur; boş yatağı olanlar önde.</summary>

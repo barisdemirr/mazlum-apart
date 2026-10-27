@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using MazlumApart.Domain.Entities;
 using MazlumApart.Domain.Enums;
 using MazlumApart.Domain.ValueObjects;
+using MazlumApart.Features.Structure;
 using MazlumApart.Infrastructure.Database;
 using MazlumApart.Infrastructure.Services;
 using MazlumApart.Shared;
@@ -36,8 +37,9 @@ public static class GetRoomTypesAdmin
     {
         public async Task<List<RoomTypeAdminDto>> Handle(Guid? periodId, CancellationToken ct)
         {
-            var types = await db.RoomTypes.AsNoTracking().Include(x => x.CoverMedia)
-                .OrderBy(x => x.OrderIndex).ThenBy(x => x.CreatedAt).ToListAsync(ct);
+            var order = await StructureOrder.LoadAsync(db, ct);
+            var types = (await db.RoomTypes.AsNoTracking().Include(x => x.CoverMedia).ToListAsync(ct))
+                .OrderBy(x => order.RoomType(x.Id)).ToList();
             var typeNames = await db.ApartmentTypes.AsNoTracking().ToDictionaryAsync(x => x.Id, x => x.Name.Tr, ct);
             var rooms = await db.Rooms.AsNoTracking().Select(x => new { x.RoomTypeId, x.ApartmentId, x.Beds, x.Status }).ToListAsync(ct);
             var prices = periodId is null

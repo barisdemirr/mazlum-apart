@@ -18,7 +18,8 @@ public record RoomBedCounts(int Occupied, int Reserved);
 /// </summary>
 public class AvailabilityService(AppDbContext db)
 {
-    public async Task<Dictionary<Guid, RoomBedCounts>> GetRoomCountsAsync(Guid? periodId, IReadOnlyCollection<Guid> roomIds, CancellationToken ct)
+    /// <summary>onDay: doluluğun hesaplanacağı gün (boşsa bugün). 2. yarı başvurusunda 2. yarının ilk günüdür: 1. yarıda kalanların odaları o gün boşalmış sayılır.</summary>
+    public async Task<Dictionary<Guid, RoomBedCounts>> GetRoomCountsAsync(Guid? periodId, IReadOnlyCollection<Guid> roomIds, CancellationToken ct, DateOnly? onDay = null)
     {
         var result = roomIds.ToDictionary(id => id, _ => new RoomBedCounts(0, 0));
         if (periodId is null || roomIds.Count == 0) return result;
@@ -26,7 +27,7 @@ public class AvailabilityService(AppDbContext db)
         var period = await db.Periods.AsNoTracking().FirstOrDefaultAsync(x => x.Id == periodId, ct);
         if (period is null) return result;
 
-        var today = TurkeyClock.Today;
+        var today = onDay ?? TurkeyClock.Today;
         var day = today < period.StartDate ? period.StartDate : today > period.EndDate ? period.EndDate : today;
 
         var occupied = await db.Placements.AsNoTracking()

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using MazlumApart.Domain.Enums;
 using MazlumApart.Features.Enrollments;
+using MazlumApart.Features.Structure;
 using MazlumApart.Infrastructure.Database;
 using MazlumApart.Shared;
 
@@ -30,9 +31,12 @@ public static class GetOccupancy
             if (period is null) return Error.NotFound("Dönem bulunamadı.");
             var today = day ?? EnrollmentQueryHandler.DayIn(period);
 
-            var apartments = await db.Apartments.AsNoTracking()
+            // Sıra: yöneticinin belirlediği daire türü sırası → dairenin kendi sırası; odalar da oda tipi sırasına göre
+            var order = await StructureOrder.LoadAsync(db, ct);
+            var apartments = (await db.Apartments.AsNoTracking()
                 .Include(x => x.Rooms).ThenInclude(r => r.RoomType)
-                .OrderBy(x => x.OrderIndex).ThenBy(x => x.Name).ToListAsync(ct);
+                .ToListAsync(ct))
+                .OrderBy(x => order.ApartmentType(x.ApartmentTypeId)).ThenBy(x => x.OrderIndex).ThenBy(x => x.Name).ToList();
 
             var live = await (
                 from p in db.Placements.AsNoTracking()
@@ -49,7 +53,7 @@ public static class GetOccupancy
 
             var result = apartments.Select(a =>
             {
-                var rooms = a.Rooms.OrderBy(r => r.OrderIndex).ThenBy(r => r.Name).Select(r =>
+                var rooms = a.Rooms.OrderBy(r => order.RoomType(r.RoomTypeId)).ThenBy(r => r.OrderIndex).ThenBy(r => r.Name).Select(r =>
                 {
                     var occupants = byRoom[r.Id].Select(o => new Occupant(o.Id, o.EnrollmentId, o.StudentId, o.Name, o.Phone, o.StartDate, o.EndDate)).ToList();
                     var usable = r.Status == RoomStatus.Active;

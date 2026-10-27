@@ -11,7 +11,8 @@ import MediaPicker from "@/components/admin/content/MediaPicker";
 import { RoomTypeDialog } from "@/components/admin/structure/RoomTypesView";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/admin/ui";
 import { Field, Switch } from "@/components/admin/fields";
-import { deleteApartmentType, saveApartmentType } from "@/lib/admin/commands/structure";
+import SortableList from "@/components/admin/SortableList";
+import { deleteApartmentType, saveApartmentType, saveStructureOrder } from "@/lib/admin/commands/structure";
 import { mediaUrl } from "@/lib/media";
 import { money } from "@/lib/admin/labels";
 
@@ -25,6 +26,8 @@ export default function ApartmentTypesView({ apartmentTypes }) {
     const [removing, setRemoving] = useState(null);
     const { exec } = useCommand();
 
+    const reorder = (kind) => async (ids) => (await exec(saveStructureOrder, { kind, ids }, "Sıralama kaydedildi.")).ok;
+
     const confirmRemove = async () => {
         const out = await exec(deleteApartmentType, { id: removing.id }, "Daire türü silindi.");
         if (out.ok) setRemoving(null);
@@ -34,20 +37,21 @@ export default function ApartmentTypesView({ apartmentTypes }) {
         <div>
             <PageHeader
                 title="Daire Türleri"
-                description="Sitenin ana sayfasında listelenen daire türleri. Türün altına oda seçenekleri (balkonlu/balkonsuz, zemin kat/üst kat…) eklenir ve her seçeneğin kendi fiyatı olur. Aynı türden birden fazla daire varsa Daireler & Odalar sayfasında dairenin yanındaki “Kopyala” ile çoğaltılır; kontenjan oradan otomatik hesaplanır."
+                description="Sitenin ana sayfasında listelenen daire türleri. Kartları ve oda seçeneklerini sol baştaki tutamaçtan sürükleyerek (ya da ▲▼ ile) sıralayın; bu sıra sitedeki listelerde ve yerleştirme / doluluk ekranlarında aynen kullanılır, kayıtlara ve doluluğa dokunmaz. Türün altına oda seçenekleri (balkonlu/balkonsuz, zemin kat/üst kat…) eklenir ve her seçeneğin kendi fiyatı olur. Aynı türden birden fazla daire varsa Daireler & Odalar sayfasında dairenin yanındaki “Kopyala” ile çoğaltılır; kontenjan oradan otomatik hesaplanır."
                 actions={<button type="button" onClick={() => setEditing("new")} className="ad-btn ad-btn-primary"><Icon name="add" className="text-[20px]" />Daire türü ekle</button>}
             />
             {apartmentTypes.length === 0 ? <EmptyState icon="apartment" title="Daire türü yok" description="İlk daire türünü ekleyin, sonra Daireler & Odalar sayfasında dairelerin türünü seçin." /> : (
-                <div className="grid gap-5 lg:grid-cols-2">
-                    {apartmentTypes.map((t) => (
-                        <Card key={t.id} padded={false} className="overflow-hidden">
+                <SortableList items={apartmentTypes} onReorder={reorder("apartment-types")} className="grid gap-5 lg:grid-cols-2">
+                    {(t, { handle }) => (
+                        <Card padded={false} className="overflow-hidden">
                             <div className="aspect-[16/6] bg-ad-sunken">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 {t.coverUrl ? <img src={mediaUrl(t.coverUrl, "md")} alt={t.name.tr} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-ad-faint"><Icon name="image" className="text-[40px]" /></div>}
                             </div>
                             <div className="p-5">
                                 <div className="flex items-start justify-between gap-2">
-                                    <div className="min-w-0"><h2 className="ad-display truncate text-xl font-semibold">{t.name.tr}</h2><p className="truncate text-xs text-ad-muted">{t.name.en || "İngilizce adı yok"}</p></div>
+                                    {handle}
+                                    <div className="min-w-0 flex-1"><h2 className="ad-display truncate text-xl font-semibold">{t.name.tr}</h2><p className="truncate text-xs text-ad-muted">{t.name.en || "İngilizce adı yok"}</p></div>
                                     {!t.active && <Badge tone="neutral">Pasif</Badge>}
                                 </div>
                                 <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
@@ -58,14 +62,15 @@ export default function ApartmentTypesView({ apartmentTypes }) {
                                 <div className="mt-4">
                                     <p className="text-[11px] font-bold uppercase tracking-wider text-ad-muted">Oda seçenekleri</p>
                                     {t.options.length === 0 ? <p className="mt-2 text-sm text-ad-warn">Henüz seçenek yok; öğrenci oda seçemez.</p> : (
-                                        <ul className="mt-2 divide-y divide-ad-line text-sm">
-                                            {t.options.map((o) => (
-                                                <li key={o.id} className={`flex items-center justify-between gap-3 py-2 ${o.active ? "" : "opacity-50"}`}>
-                                                    <span className="min-w-0"><b className="block truncate">{o.name.tr}</b><span className="text-[11px] text-ad-muted">{o.rooms} oda · {o.beds} yatak</span></span>
+                                        <SortableList items={t.options} onReorder={reorder("room-types")} className="mt-2 divide-y divide-ad-line text-sm" itemClassName="py-2">
+                                            {(o, { handle: optionHandle }) => (
+                                                <div className={`flex items-center justify-between gap-3 ${o.active ? "" : "opacity-50"}`}>
+                                                    {optionHandle}
+                                                    <span className="min-w-0 flex-1"><b className="block truncate">{o.name.tr}</b><span className="text-[11px] text-ad-muted">{o.rooms} oda · {o.beds} yatak</span></span>
                                                     <span className="ad-num shrink-0 text-end font-bold">{o.monthly != null ? money(o.monthly) : <Badge tone="warn">Fiyat yok</Badge>}</span>
-                                                </li>
-                                            ))}
-                                        </ul>
+                                                </div>
+                                            )}
+                                        </SortableList>
                                     )}
                                     <p className="mt-2 text-[11px] text-ad-muted">Fiyatlar seçili dönemindir; <Link href="/admin/donemler" className="font-bold text-ad-brand hover:underline">Dönemler & Fiyatlar</Link> sayfasından girilir.</p>
                                 </div>
@@ -76,8 +81,8 @@ export default function ApartmentTypesView({ apartmentTypes }) {
                                 </div>
                             </div>
                         </Card>
-                    ))}
-                </div>
+                    )}
+                </SortableList>
             )}
             {editing && <ApartmentTypeDialog type={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
             {option && <RoomTypeDialog roomType={null} apartmentTypes={apartmentTypes} defaultApartmentTypeId={option.typeId} onClose={() => setOption(null)} />}

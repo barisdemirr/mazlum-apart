@@ -13,6 +13,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Student> Students => Set<Student>();
     public DbSet<StudentGuardian> StudentGuardians => Set<StudentGuardian>();
+    public DbSet<StudentDocument> StudentDocuments => Set<StudentDocument>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
 

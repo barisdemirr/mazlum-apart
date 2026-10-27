@@ -11,6 +11,15 @@ namespace MazlumApart.Features.Enrollments;
 
 public static class PlacementRules
 {
+    /// <summary>
+    /// Kaydın konaklamasının son günü: 1. yarı kaydında yarının bitişi (oda 2. yarı için boşalır), 12 aylıkta 31 Ağustos, diğerlerinde dönem sonu.
+    /// Yerleşim süresi ve oda uygunluğu bu güne göre hesaplanır.
+    /// </summary>
+    public static DateOnly LastDay(Enrollment enrollment, Period period) =>
+        enrollment.Term == StayTerm.First && period.HalfTermFirstEnd is { } firstEnd ? firstEnd
+        : enrollment.StayPlan == StayPlan.Yearly ? PaymentPlan.SummerEnd(period.EndDate)
+        : period.EndDate;
+
     /// <summary>Bir odada [start, end] aralığında aynı anda en çok kaç kişi kalıyor? (frontend peakOccupancy ile aynı)</summary>
     public static int Peak(IEnumerable<Placement> placements, Guid roomId, DateOnly start, DateOnly end, Guid? ignoreId = null)
     {
@@ -47,8 +56,8 @@ public static class PlaceStudent
             if (room.Status != RoomStatus.Active) return Error.Conflict("Bu oda şu an kullanıma kapalı (kapalı ya da bakımda).");
             if (room.RoomTypeId != enrollment.RoomTypeId) return Error.Conflict("Oda, öğrencinin kayıtlı oda tipine uygun değil.");
 
-            // 12 ay kalan öğrenci yaz aylarında da odasındadır: yerleşim dönem sonundan sonra 31 Ağustos'a kadar uzayabilir
-            var lastDay = enrollment.StayPlan == StayPlan.Yearly ? PaymentPlan.SummerEnd(period.EndDate) : period.EndDate;
+            // 12 ay kalan öğrenci yaz aylarında da odasındadır (31 Ağustos); 1. yarı kaydında yerleşim yarı sonunda biter, oda 2. yarıya boşalır
+            var lastDay = PlacementRules.LastDay(enrollment, period);
             var start = cmd.Start ?? enrollment.EntryDate;
             var end = cmd.End ?? lastDay;
             if (start > end) return Error.Field("start", "Başlangıç tarihi bitişten sonra olamaz.");

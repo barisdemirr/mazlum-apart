@@ -9,6 +9,8 @@ import { SelectInput } from "@/components/admin/fields";
 import { adaptRow, describeCovered } from "@/lib/admin/adapters";
 import { ENROLLMENT_STATUS, PAY_STATUS, STAY_PLAN, date, money } from "@/lib/admin/labels";
 
+const TrackBadge = ({ ok, yes, no }) => <Badge tone={ok ? "ok" : "warn"}>{ok ? yes : no}</Badge>;
+
 /** Seçili dönemin kayıtlı öğrencileri. Satıra tıklayınca öğrenci detayı açılır. */
 export default function StudentsView({ enrollments, roomTypes }) {
     const router = useRouter();
@@ -17,6 +19,9 @@ export default function StudentsView({ enrollments, roomTypes }) {
     const [roomType, setRoomType] = useState("");
     const [pay, setPay] = useState("");
     const [stayPlan, setStayPlan] = useState("");
+    const [track, setTrack] = useState({ movedIn: "", fingerprint: "", whatsapp: "", contract: "" });
+    const setT = (k) => (e) => setTrack((t) => ({ ...t, [k]: e.target.value }));
+    const yn = (v, filter) => !filter || (filter === "yes") === Boolean(v);
 
     const isLive = (r) => !["cancelled", "left"].includes(r.enrollment.status);
     const counts = useMemo(
@@ -35,6 +40,8 @@ export default function StudentsView({ enrollments, roomTypes }) {
         if (roomType && r.enrollment.roomTypeId !== roomType) return false;
         if (pay && r.summary.status !== pay) return false;
         if (stayPlan && r.enrollment.stayPlan !== stayPlan) return false;
+        if (!yn(r.enrollment.movedIn, track.movedIn) || !yn(r.enrollment.fingerprintTaken, track.fingerprint)
+            || !yn(r.enrollment.whatsAppGroupAdded, track.whatsapp) || !yn(r.enrollment.contractSigned, track.contract)) return false;
         return true;
     });
 
@@ -65,6 +72,11 @@ export default function StudentsView({ enrollments, roomTypes }) {
         { key: "type", header: "Oda tipi", render: (r) => <span className="whitespace-nowrap">{r.roomType?.name.tr}</span>, export: { value: (r) => r.roomType?.name.tr ?? "" } },
         { key: "stay", header: "Konaklama", hidden: true, export: { value: (r) => STAY_PLAN[r.enrollment.stayPlan]?.long ?? "" } },
         { key: "entry", header: "Giriş", sort: (r) => r.enrollment.entryDate, render: (r) => <span className="ad-num">{date(r.enrollment.entryDate)}</span>, export: { type: "date", value: (r) => r.enrollment.entryDate } },
+        { key: "moved", header: "Giriş", render: (r) => <TrackBadge ok={r.enrollment.movedIn} yes={r.enrollment.movedInDate ? date(r.enrollment.movedInDate) : "Girdi"} no="Girmedi" />, export: { value: (r) => (r.enrollment.movedIn ? "Giriş yaptı" : "Henüz yapmadı") } },
+        { key: "movedDate", header: "Giriş tarihi", hidden: true, export: { type: "date", value: (r) => r.enrollment.movedInDate ?? "" } },
+        { key: "finger", header: "Parmak izi", render: (r) => <TrackBadge ok={r.enrollment.fingerprintTaken} yes="Alındı" no="Alınmadı" />, export: { value: (r) => (r.enrollment.fingerprintTaken ? "Alındı" : "Alınmadı") } },
+        { key: "wa", header: "WhatsApp grubu", render: (r) => <TrackBadge ok={r.enrollment.whatsAppGroupAdded} yes="Eklendi" no="Eklenmedi" />, export: { value: (r) => (r.enrollment.whatsAppGroupAdded ? "Eklendi" : "Eklenmedi") } },
+        { key: "contract", header: "Sözleşme", render: (r) => <TrackBadge ok={r.enrollment.contractSigned} yes="İmzalandı" no="İmzalanmadı" />, export: { value: (r) => (r.enrollment.contractSigned ? "İmzalandı" : "İmzalanmadı") } },
         { key: "status", header: "Durum", render: (r) => <StatusBadge map={ENROLLMENT_STATUS} value={r.enrollment.status} />, export: { value: (r) => ENROLLMENT_STATUS[r.enrollment.status].label } },
         {
             key: "covered", header: "Ödenen süre",
@@ -127,6 +139,34 @@ export default function StudentsView({ enrollments, roomTypes }) {
                             <SelectInput value={stayPlan} onChange={(e) => setStayPlan(e.target.value)}>
                                 <option value="">Tüm konaklama türleri</option>
                                 {Object.entries(STAY_PLAN).map(([k, v]) => <option key={k} value={k}>{v.long}</option>)}
+                            </SelectInput>
+                        </div>
+                        <div className="w-full sm:w-40">
+                            <SelectInput value={track.movedIn} onChange={setT("movedIn")}>
+                                <option value="">Giriş: tümü</option>
+                                <option value="yes">Giriş yaptı</option>
+                                <option value="no">Henüz yapmadı</option>
+                            </SelectInput>
+                        </div>
+                        <div className="w-full sm:w-40">
+                            <SelectInput value={track.fingerprint} onChange={setT("fingerprint")}>
+                                <option value="">Parmak izi: tümü</option>
+                                <option value="yes">Alındı</option>
+                                <option value="no">Alınmadı</option>
+                            </SelectInput>
+                        </div>
+                        <div className="w-full sm:w-44">
+                            <SelectInput value={track.whatsapp} onChange={setT("whatsapp")}>
+                                <option value="">WhatsApp grubu: tümü</option>
+                                <option value="yes">Eklendi</option>
+                                <option value="no">Eklenmedi</option>
+                            </SelectInput>
+                        </div>
+                        <div className="w-full sm:w-40">
+                            <SelectInput value={track.contract} onChange={setT("contract")}>
+                                <option value="">Sözleşme: tümü</option>
+                                <option value="yes">İmzalandı</option>
+                                <option value="no">İmzalanmadı</option>
                             </SelectInput>
                         </div>
                     </>

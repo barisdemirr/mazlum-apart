@@ -142,7 +142,7 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
             var typeRooms = await db.Rooms.Where(x => x.RoomTypeId == roomType!.Id && x.Status == RoomStatus.Active && x.Apartment!.IsPublished).ToListAsync(ct);
             if (typeRooms.Count > 0)
             {
-                var counts = await availability.GetRoomCountsAsync(period.Id, typeRooms.Select(x => x.Id).ToList(), ct);
+                var counts = await availability.GetRoomCountsAsync(period.Id, typeRooms.Select(x => x.Id).ToList(), ct, OccupancyDay(period, term));
                 var free = typeRooms.Sum(x => Math.Max(0, x.Beds - counts[x.Id].Occupied - counts[x.Id].Reserved));
                 if (free == 0) return Error.Conflict("Seçtiğiniz oda tipi şu an dolu. Lütfen bizimle iletişime geçin.");
             }
@@ -181,7 +181,7 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
             if (room is null || room.RoomTypeId != roomType!.Id || room.Status != RoomStatus.Active || room.Apartment?.IsPublished != true)
                 return Error.Field("bedId", "Seçilen yatak bulunamadı. Lütfen yeniden seçin.");
 
-            var counts = (await availability.GetRoomCountsAsync(period.Id, [room.Id], ct))[room.Id];
+            var counts = (await availability.GetRoomCountsAsync(period.Id, [room.Id], ct, OccupancyDay(period, term)))[room.Id];
             if (counts.Occupied + counts.Reserved >= room.Beds)
                 return Error.Conflict("Seçtiğiniz yatak artık boş değil. Lütfen başka bir yatak seçin ya da “Yatak fark etmez” ile başvurun.");
             preferredRoom = room.Id;
@@ -255,6 +255,10 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
     }
 
     /// <summary>Yatak kimliği "{odaId}-{sıra}" biçimindedir (CatalogQueryHandler); oda kimliği çıkarılır</summary>
+    /// <summary>2. yarı başvurusunda doluluğa 2. yarının ilk gününe göre bakılır: 1. yarıda kalanların odaları o gün boşalmış sayılır</summary>
+    private static DateOnly? OccupancyDay(Period period, StayTerm? term) =>
+        term == StayTerm.Second && period.HalfTermSecondStart is { } secondStart ? secondStart : null;
+
     private static Guid? ParseRoomId(string bedId)
     {
         var dash = bedId.LastIndexOf('-');
