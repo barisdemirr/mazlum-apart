@@ -145,6 +145,32 @@ public sealed class EnrollmentLedger(AppDbContext db, Enrollment enrollment, Lis
         return payment;
     }
 
+    /// <summary>
+    /// Vade değişikliği: eski kalem ters kayıtla kapanır, aynı tutarda yeni vadeli kalem açılır. Ödenmiş kısım (tahsilat bazında)
+    /// yeni kaleme taşınır; para başka kaleme kaymaz.
+    /// </summary>
+    public Result<Charge> Reschedule(Guid chargeId, DateOnly newDue, string reason, Guid? by, string? newNote)
+    {
+        var charge = Charges.FirstOrDefault(c => c.Id == chargeId);
+        if (charge is null) return Error.NotFound("Kalem bulunamadı.");
+        if (charge.ReversalOfId is not null) return Error.Conflict("Ters kaydın vadesi değiştirilemez.");
+
+        var item = Items().FirstOrDefault(i => i.Id == chargeId);
+        if (item is null || item.Net <= 0) return Error.Conflict("Bu kalem iptal edilmiş; vadesi değiştirilemez.");
+
+        AddCharge(charge.Kind, charge.Month, -item.Net, charge.DueDate, $"Vade değişikliği: {reason.Trim()}", by, reversalOf: chargeId);
+        var fresh = AddCharge(charge.Kind, charge.Month, item.Net, newDue, newNote, by);
+
+        foreach (var paid in Allocations.Where(a => a.ChargeId == chargeId).GroupBy(a => a.PaymentId).ToList())
+        {
+            var amount = LedgerMath.Round(paid.Sum(a => a.Amount));
+            if (amount <= 0) continue;
+            AddAllocation(paid.Key, chargeId, -amount, auto: false, reversal: true);
+            AddAllocation(paid.Key, fresh.Id, amount, auto: false);
+        }
+        return fresh;
+    }
+
     /// <summary>Serbest (dağıtılmamış) tahsilat parasını açık kalemlere otomatik mahsup eder (vadesi en eski olandan)</summary>
     public void AutoAllocate()
     {

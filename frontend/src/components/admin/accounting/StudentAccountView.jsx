@@ -9,7 +9,7 @@ import WhatsAppButton from "@/components/admin/WhatsAppButton";
 import useCommand from "@/components/admin/useCommand";
 import { Badge, Card, PageHeader, StatusBadge } from "@/components/admin/ui";
 import { adaptRow, describeCovered } from "@/lib/admin/adapters";
-import { addCharge, amendCharge, applyMonthlyDiscount, cancelPayment, recordPayment, refundAdvance, resetStudentPassword, reverseCharge } from "@/lib/admin/commands/finance";
+import { addCharge, amendCharge, applyMonthlyDiscount, cancelPayment, changeDueDate, recordPayment, refundAdvance, resetStudentPassword, reverseCharge } from "@/lib/admin/commands/finance";
 import { monthLabel } from "@/lib/admin/month";
 import { turkeyDate } from "@/lib/format";
 import { CHARGE_KIND, ENROLLMENT_STATUS, METHOD, PAY_STATUS, date, money } from "@/lib/admin/labels";
@@ -55,6 +55,22 @@ export default function StudentAccountView({ account, accounts }) {
                 { name: "includePaid", label: "Ödenmiş taksitler", type: "select", span: 1, options: [["no", "Dokunma (yalnızca ödenmemiş)"], ["yes", "Dahil et (fazla ödeme avansa döner)"]], hint: "Dahil edilirse ödenen fazla tutar avans olur ve açık taksitlere otomatik mahsup edilir." },
                 { name: "reason", label: "Gerekçe", type: "text", required: true, hint: "Örn. “Kardeş indirimi”, “Burs anlaşması”" },
             ]} />,
+        due: dialog?.item && (
+            <ActionDialog
+                title="Vadeyi değiştir"
+                description={`${CHARGE_KIND[dialog.item.kind]}${dialog.item.month && ["rent", "summer"].includes(dialog.item.kind) ? ` · ${monthLabel(dialog.item.month, { short: true })}` : ""} · şu an ${date(dialog.item.dueDate)}`}
+                command={changeDueDate}
+                extra={{ id: dialog.item.id }}
+                initial={{ dueDate: dialog.item.dueDate }}
+                success="Vade güncellendi."
+                onClose={close}
+                note="Yalnızca bu taksidin son ödeme tarihi değişir; diğer taksitler etkilenmez. Eski ve yeni tarih, gerekçe ve işlemi yapan yönetici işlem geçmişine yazılır."
+                fields={[
+                    { name: "dueDate", label: "Yeni son ödeme tarihi", type: "date", required: true, span: 1 },
+                    { name: "reason", label: "Açıklama", type: "text", required: true, hint: "Örn. “Öğrenci talebiyle izinli erteleme”" },
+                ]}
+            />
+        ),
         amend: dialog?.item && (
             <ActionDialog
                 title="Tutarı değiştir"
@@ -71,7 +87,7 @@ export default function StudentAccountView({ account, accounts }) {
                 ]}
             />
         ),
-        reverse: dialog?.item && <ActionDialog title="Kalemi ters çevir" description={`${CHARGE_KIND[dialog.item.kind]} · ${money(dialog.item.amount)}`} command={reverseCharge} extra={{ id: dialog.item.id }} success="Kalem iptal edildi (ters kayıt)." saveLabel="Ters çevir" danger onClose={close} fields={REASON} />,
+        reverse: dialog?.item && <ActionDialog title="İşlemi iptal et" description={`${CHARGE_KIND[dialog.item.kind]} · ${money(dialog.item.amount)}`} command={reverseCharge} extra={{ id: dialog.item.id }} success="Kalem iptal edildi (ters kayıt)." saveLabel="İşlemi iptal et" danger onClose={close} fields={REASON} note="Kayıt silinmez; satır “İptal” olarak görünmeye devam eder ve ters kayıt yazılır. Ödenmiş kısım avansa döner." />,
         cancel: dialog?.item && <ActionDialog title="Tahsilatı iptal et" description={`${money(dialog.item.amount)} · ${date(dialog.item.date)}`} command={cancelPayment} extra={{ id: dialog.item.id }} success="Tahsilat iptal edildi." saveLabel="İptal et" danger onClose={close} fields={REASON} note="Kasa/banka hareketi ters kayıtla düzeltilir; dağıtılan tutar avansa döner." />,
     };
 
@@ -112,8 +128,9 @@ export default function StudentAccountView({ account, accounts }) {
                             <td className="text-end">
                                 {!closed && !i.reversed && i.amount > 0 && (
                                     <span className="flex justify-end gap-3 whitespace-nowrap">
+                                        {i.remaining > 0 && <button type="button" onClick={() => setDialog({ type: "due", item: i })} className="text-xs font-bold text-ad-brand hover:underline">Vadeyi değiştir</button>}
                                         <button type="button" onClick={() => setDialog({ type: "amend", item: i })} className="text-xs font-bold text-ad-brand hover:underline">Tutarı değiştir</button>
-                                        <button type="button" onClick={() => setDialog({ type: "reverse", item: i })} className="text-xs font-bold text-ad-danger hover:underline">Ters çevir</button>
+                                        <button type="button" onClick={() => setDialog({ type: "reverse", item: i })} className="text-xs font-bold text-ad-danger hover:underline">İşlemi iptal et</button>
                                     </span>
                                 )}
                             </td>

@@ -12,7 +12,8 @@ namespace MazlumApart.Features.Accounting;
 /*
  * KALEM DÜZELTMELERİ (kalemler değişmez kayıt olduğu için ters kayıt + yeni kalem ile yapılır; hiçbir satır silinmez)
  *  - Aylık indirim: depozito ve kira/yaz taksitlerinin her birinden aynı tutar düşülür.
- * İşlemi yapan yönetici, tarih, tutar ve gerekçe denetim kaydına (işlem geçmişine) yazılır.
+ *  - Vade değişikliği: yalnızca seçilen kalemin vadesi değişir; ödenmiş kısım yeni kaleme taşınır.
+ * İşlemi yapan yönetici, tarih, eski/yeni değer ve gerekçe denetim kaydına (işlem geçmişine) yazılır.
  */
 
 /// <summary>
@@ -86,5 +87,64 @@ public static class ApplyMonthlyDiscount
             app.MapPost("/api/admin/enrollments/{id:guid}/monthly-discount", async (Guid id, Command cmd, [FromHeader(Name = IdempotencyGuard.Header)] Guid? key,
                     ClaimsPrincipal user, Handler h, CancellationToken ct) =>
                 (await h.Handle(id, cmd, user.GetUserId(), key, ct)).ToOk());
+    }
+}
+
+/// <summary>
+/// Taksit vadesi değiştirme (izinli ödeme erteleme). Yalnızca seçilen kalem etkilenir: eski kalem ters kayıtla kapanır,
+/// aynı tutarda yeni vadeli kalem açılır; ödenmiş kısım yeni kaleme taşınır. Eski / yeni tarih, gerekçe ve yönetici geçmişe yazılır.
+/// </summary>
+public static class ChangeChargeDueDate
+{
+    public record Command(DateOnly? DueDate, string? Reason);
+
+    public class Handler(AppDbContext db, LedgerService ledgers, AuditWriter audit)
+    {
+        public async Task<Result<Guid>> Handle(Guid chargeId, Command cmd, Guid adminId, CancellationToken ct)
+        {
+            var reason = cmd.Reason?.Trim() ?? "";
+            var v = new Validator()
+                .Must("dueDate", cmd.DueDate is not null, "Yeni vade tarihini seçin.")
+                .Required("reason", reason, "Vade değişikliği için açıklama yazın.")
+                .MaxLength("reason", reason, 200);
+            if (!v.IsValid) return v.ToFailure<Guid>();
+
+            var target = await db.Charges.AsNoTracking().FirstOrDefaultAsync(x => x.Id == chargeId, ct);
+            if (target is null) return Error.NotFound("Kalem bulunamadı.");
+            if (target.ReversalOfId is not null || target.Kind == ChargeKind.Discount || target.Amount <= 0)
+                return Error.Conflict("Yalnızca borç kalemlerinin vadesi değiştirilebilir.");
+
+            var period = await db.Periods.AsNoTracking().FirstAsync(x => x.Id == target.PeriodId, ct);
+            if (PeriodRules.RequireOpen(period, "Vade değişikliği") is { } closed) return closed;
+
+            var ledger = await ledgers.LoadAsync(target.EnrollmentId, ct);
+            if (ledger is null) return Error.NotFound("Kayıt bulunamadı.");
+
+            var item = ledger.Items().FirstOrDefault(i => i.Id == chargeId);
+            if (item is null || item.Net <= 0) return Error.Conflict("Bu kalem iptal edilmiş; vadesi değiştirilemez.");
+            if (item.Remaining <= 0) return Error.Conflict("Bu kalem tamamen ödenmiş; vadesi değiştirilemez.");
+
+            var oldDue = target.DueDate;
+            var newDue = cmd.DueDate!.Value;
+            if (newDue == oldDue) return Error.Field("dueDate", "Yeni tarih mevcut vadeyle aynı.");
+
+            var note = $"{(string.IsNullOrWhiteSpace(target.Note) ? "" : target.Note + " · ")}Vade {oldDue:dd.MM.yyyy} → {newDue:dd.MM.yyyy}";
+            var moved = ledger.Reschedule(chargeId, newDue, reason, adminId, note.Length > 500 ? note[..500] : note);
+            if (!moved.IsSuccess) return moved.Error!;
+
+            audit.Add("charge.reschedule", "charge", chargeId, period.Id,
+                before: new { dueDate = oldDue },
+                after: new { dueDate = newDue, chargeId = moved.Value!.Id },
+                note: $"{oldDue:dd.MM.yyyy} → {newDue:dd.MM.yyyy} · {reason}");
+            await db.SaveChangesAsync(ct);
+            return moved.Value!.Id;
+        }
+    }
+
+    public class Endpoint : IEndpoint
+    {
+        public void MapEndpoint(IEndpointRouteBuilder app) =>
+            app.MapPost("/api/admin/charges/{id:guid}/due-date", async (Guid id, Command cmd, ClaimsPrincipal user, Handler h, CancellationToken ct) =>
+                (await h.Handle(id, cmd, user.GetUserId(), ct)).ToHttp(newId => Results.Ok(new { id = newId })));
     }
 }

@@ -22,6 +22,8 @@ export const addCharge = ({ enrollmentId, kind, month, amount, dueDate, note }) 
 /** Aylık indirim: depozito ve tüm kira/yaz taksitlerinden aynı tutar düşer (ters kayıt + indirimli yeni kalem). includePaid: ödenmiş taksitlere de uygula */
 export const applyMonthlyDiscount = ({ enrollmentId, amount, includePaid, reason }) =>
     admin.post(`/enrollments/${enrollmentId}/monthly-discount`, { amount: n(amount), includePaid: includePaid === "yes", reason }, idem);
+/** Tek taksidin son ödeme tarihini değiştirir (izinli erteleme): yalnızca bu kalem etkilenir, eski/yeni tarih ve gerekçe geçmişe yazılır */
+export const changeDueDate = ({ id, dueDate, reason }) => admin.post(`/charges/${id}/due-date`, { dueDate: dateOrNull(dueDate), reason });
 export const reverseCharge = ({ id, reason }) => admin.post(`/charges/${id}/reverse`, { reason });
 /** Kalem tutarını değiştirir: eski kalem ters kayıtla kapanır, aynı tür/ay/vadeyle yeni tutarda kalem açılır */
 export const amendCharge = ({ id, amount, reason }) => admin.post(`/charges/${id}/amend`, { amount: n(amount), reason });
