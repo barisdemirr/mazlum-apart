@@ -30,10 +30,13 @@ public static class GetStudentMe
             var s = await db.Students.AsNoTracking().Include(x => x.Guardians).FirstOrDefaultAsync(x => x.Id == studentId, ct);
             if (s is null) return Error.NotFound("Öğrenci bulunamadı.");
 
+            var now = TurkeyClock.Today;
             var enrollment = await db.Enrollments.AsNoTracking()
                 .Where(x => x.StudentId == studentId)
                 .Join(db.Periods, e => e.PeriodId, p => p.Id, (e, p) => new { e, p })
-                .OrderBy(x => x.p.Status == PeriodStatus.Active ? 0 : 1).ThenByDescending(x => x.p.StartDate)
+                // Önce bugünü kapsayan dönemin kaydı (kayıt yenileme sonrası gelecek dönemin kaydı da olabilir), sonra aktif dönem, sonra en yeni
+                .OrderBy(x => x.e.Status != EnrollmentStatus.Cancelled && x.p.StartDate <= now && x.p.EndDate >= now ? 0 : 1)
+                .ThenBy(x => x.p.Status == PeriodStatus.Active ? 0 : 1).ThenByDescending(x => x.p.StartDate)
                 .FirstOrDefaultAsync(ct);
 
             StayRoom? room = null;

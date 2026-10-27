@@ -44,10 +44,13 @@ public static class GetStudentPayments
     {
         public async Task<Result<Response>> Handle(Guid studentId, Guid? enrollmentId, CancellationToken ct)
         {
+            var now = TurkeyClock.Today;
             var mine = await db.Enrollments.AsNoTracking()
                 .Where(x => x.StudentId == studentId)
                 .Join(db.Periods, e => e.PeriodId, p => p.Id, (e, p) => new { e, p })
-                .OrderBy(x => x.p.Status == PeriodStatus.Active ? 0 : 1).ThenByDescending(x => x.p.StartDate)
+                // Önce bugünü kapsayan dönemin kaydı (kayıt yenileme sonrası gelecek dönemin kaydı da olabilir), sonra aktif dönem, sonra en yeni
+                .OrderBy(x => x.e.Status != EnrollmentStatus.Cancelled && x.p.StartDate <= now && x.p.EndDate >= now ? 0 : 1)
+                .ThenBy(x => x.p.Status == PeriodStatus.Active ? 0 : 1).ThenByDescending(x => x.p.StartDate)
                 .ToListAsync(ct);
             if (mine.Count == 0) return Error.NotFound("Kayıtlı bir döneminiz yok.");
 

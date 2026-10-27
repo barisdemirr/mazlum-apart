@@ -6,7 +6,7 @@ import LocalizedLink from "@/components/ui/LocalizedLink";
 import PageHeader from "@/components/portal/PageHeader";
 import DocumentField from "@/components/apply/DocumentField";
 import { bffPost, bffUpload } from "@/lib/api/bff";
-import { formatDate, formatPrice } from "@/lib/format";
+import { formatDate, formatPrice, turkeyDate } from "@/lib/format";
 import { GRADES } from "@/lib/application";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 
@@ -23,8 +23,11 @@ const TEXT = {
         choose: "Seçin",
         full: "dolu",
         month: "/ay",
-        sameRoom: "Aynı odamı istiyorum",
-        sameRoomHint: "Önceki odan boşsa aynı oda tercih edilir; doluysa başvuru alınamaz, “oda fark etmez” ile başvurabilirsin.",
+        roomPick: "Oda tercihi",
+        anyRoom: "Oda fark etmez",
+        sameRoom: "Aynı odam",
+        roomHint: "Tercih ettiğin oda başvuru anında doluysa başvuru alınamaz; “oda fark etmez” ile başvurabilirsin. Yerleşimi yönetim yapar.",
+        free: "{n} boş yatak",
         term: "Kayıt süresi",
         terms: { full: "Tam dönem", first: "1. yarıyıl", second: "2. yarıyıl" },
         entry: "Giriş tarihi",
@@ -67,8 +70,11 @@ const TEXT = {
         choose: "Select",
         full: "full",
         month: "/mo",
-        sameRoom: "I want my same room",
-        sameRoomHint: "Your previous room is requested if free; if it is taken the application cannot be placed, then apply with “any room”.",
+        roomPick: "Room preference",
+        anyRoom: "Any room",
+        sameRoom: "My same room",
+        roomHint: "If your preferred room is taken when you apply, the application cannot be placed; apply with “any room”. Placement is done by the office.",
+        free: "{n} free beds",
         term: "Term length",
         terms: { full: "Full term", first: "1st semester", second: "2nd semester" },
         entry: "Move-in date",
@@ -117,7 +123,7 @@ export default function RenewalView({ data }) {
     const [form, setForm] = useState(() => ({
         stayPlan: data.academic ? "academic" : "summer",
         roomTypeId: data.previous?.roomTypeId ?? "",
-        sameRoom: Boolean(data.previous?.roomId),
+        roomPick: data.previous?.roomId ? "same" : "", // "" = fark etmez · "same" = önceki oda · oda id
         term: "full",
         entryDate: "",
         payWindow: data.previous?.payWindow ?? "early",
@@ -141,7 +147,10 @@ export default function RenewalView({ data }) {
     const today = new Date().toISOString().slice(0, 10);
     const minDate = period ? (period.start > today ? period.start : today) : today;
     const halfOpen = form.stayPlan === "academic" && period?.halfTerm?.enabled;
-    const sameRoomPossible = Boolean(data.previous?.roomId) && data.previous?.roomTypeId === form.roomTypeId && form.stayPlan !== "summer";
+    // Yaz kaydında yatak tercihi alınmaz (sitedeki doluluk akademik dönemi gösterir); oda tercihi yalnızca akademik / 12 ayda
+    const roomChoiceOpen = form.stayPlan !== "summer" && Boolean(chosen);
+    const sameRoomPossible = roomChoiceOpen && Boolean(data.previous?.roomId) && data.previous?.roomTypeId === form.roomTypeId;
+    const roomChoices = roomChoiceOpen ? (chosen.rooms ?? []).filter((r) => !(sameRoomPossible && r.id === data.previous.roomId)) : [];
 
     // Plan/oda tipi/dönem değişince geçersiz seçimleri sıfırla
     useEffect(() => {
@@ -149,6 +158,11 @@ export default function RenewalView({ data }) {
         if (form.roomTypeId && !types.some((t) => t.id === form.roomTypeId)) setForm((f) => ({ ...f, roomTypeId: "" }));
         if (form.stayPlan === "yearly" && chosen && chosen.summerMonthly == null) setForm((f) => ({ ...f, stayPlan: "academic" }));
         if (!halfOpen && form.term !== "full") setForm((f) => ({ ...f, term: "full" }));
+        setForm((f) => {
+            const same = f.stayPlan !== "summer" && data.previous?.roomId && data.previous?.roomTypeId === f.roomTypeId;
+            const valid = f.roomPick === "" || (f.roomPick === "same" ? same : (types.find((t) => t.id === f.roomTypeId)?.rooms ?? []).some((r) => r.id === f.roomPick) && f.stayPlan !== "summer");
+            return valid ? f : { ...f, roomPick: "" };
+        });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [form.stayPlan, form.roomTypeId, period?.id]);
 
@@ -176,7 +190,12 @@ export default function RenewalView({ data }) {
         setError("");
         setBusy(true);
         try {
-            const body = { ...form, sameRoom: form.sameRoom && sameRoomPossible };
+            const { roomPick, ...rest } = form;
+            const body = {
+                ...rest,
+                sameRoom: roomPick === "same" && sameRoomPossible,
+                roomId: roomChoiceOpen && roomPick && roomPick !== "same" ? roomPick : null,
+            };
             const formData = new FormData();
             formData.append("data", JSON.stringify(body));
             if (document) formData.append("document", document, document.name);
@@ -218,7 +237,7 @@ export default function RenewalView({ data }) {
                         {data.applications.map((a) => (
                             <li key={a.id} className="flex flex-wrap items-center justify-between gap-2">
                                 <span className="font-bold text-orchid-dark">{a.no} · {a.periodName}</span>
-                                <span className="text-xs font-semibold text-orchid-muted">{c.status[a.status] ?? a.status}{a.rejectReason ? ` · ${a.rejectReason}` : ""} · {formatDate(a.createdAt)}</span>
+                                <span className="text-xs font-semibold text-orchid-muted">{c.status[a.status] ?? a.status}{a.rejectReason ? ` · ${a.rejectReason}` : ""} · {formatDate(turkeyDate(a.createdAt))}</span>
                             </li>
                         ))}
                     </ul>
@@ -247,11 +266,16 @@ export default function RenewalView({ data }) {
                                 ))}
                             </select>
                         </div>
-                        {sameRoomPossible && (
-                            <label className="flex items-start gap-3 rounded-2xl bg-white/70 p-4 sm:col-span-2">
-                                <input type="checkbox" checked={form.sameRoom} onChange={(e) => setForm((f) => ({ ...f, sameRoom: e.target.checked }))} className="mt-1 h-4 w-4" />
-                                <span><span className="block text-sm font-bold text-orchid-dark">{c.sameRoom}{data.previous?.roomLabel ? ` (${data.previous.roomLabel})` : ""}</span><span className="text-xs text-orchid-muted">{c.sameRoomHint}</span></span>
-                            </label>
+                        {roomChoiceOpen && (
+                            <div className="sm:col-span-2">
+                                <label className={label}>{c.roomPick}</label>
+                                <select className={input} value={form.roomPick} onChange={set("roomPick")}>
+                                    <option value="">{c.anyRoom}</option>
+                                    {sameRoomPossible && <option value="same">{c.sameRoom}{data.previous?.roomLabel ? ` (${data.previous.roomLabel})` : ""}</option>}
+                                    {roomChoices.map((r) => <option key={r.id} value={r.id}>{r.label} · {c.free.replace("{n}", r.free)}</option>)}
+                                </select>
+                                <p className="mt-1.5 text-xs text-orchid-muted">{c.roomHint}</p>
+                            </div>
                         )}
                         {halfOpen && (
                             <div>
@@ -292,7 +316,7 @@ export default function RenewalView({ data }) {
 
                     <div>
                         <p className="mb-2 text-xs text-orchid-muted">{c.docNote}</p>
-                        <DocumentField value={document} onChange={setDocument} error="" tick={0} />
+                        <DocumentField value={document} onChange={setDocument} error="" tick={0} required={false} />
                     </div>
 
                     {preview && (

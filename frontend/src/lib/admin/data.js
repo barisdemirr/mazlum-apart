@@ -14,10 +14,15 @@ export const adminGet = (path, query) => serverFetch(`/admin${path}${buildQuery(
 /** 404 ise null (sayfa notFound() yapabilsin) */
 export const adminGetOrNull = (path, query) => serverFetchOrNull(`/admin${path}${buildQuery(query)}`, { role: "admin" });
 
-/** Çerezdeki dönem geçerliyse o, değilse aktif dönem, o da yoksa en yeni dönem */
+/**
+ * Çerezdeki dönem geçerliyse o, değilse bugünü kapsayan aktif dönem (yeni dönem açılıp eski dönem henüz kapatılmadıysa
+ * birden çok aktif dönem olabilir), sonra herhangi bir aktif dönem, o da yoksa en yeni dönem
+ */
 export function pickPeriod(periods, selectedId) {
+    const today = todayInTurkey();
     return (
         periods.find((p) => p.id === selectedId) ??
+        periods.find((p) => p.status === "active" && p.start <= today && p.end >= today) ??
         periods.find((p) => p.status === "active") ??
         [...periods].sort((a, b) => b.start.localeCompare(a.start))[0] ??
         null

@@ -110,8 +110,8 @@ export default function AdminShell({ user, children }) {
 
 /* ── Geçmiş dönem uyarı şeridi ── */
 function PastPeriodBanner({ selected, periods }) {
-    const { selectPeriod } = useAdmin();
-    const active = periods.find((p) => p.status === "active");
+    const { selectPeriod, today } = useAdmin();
+    const active = periods.find((p) => p.status === "active" && p.start <= today && p.end >= today) ?? periods.find((p) => p.status === "active");
     const back = () => active && selectPeriod(active.id);
 
     return (

@@ -117,7 +117,7 @@ function NewPeriodDialog({ onClose }) {
         academic: { name: `${nextYear}–${nextYear + 1} Akademik`, start: `${nextYear}-09-01`, end: `${nextYear + 1}-06-30` },
         summer: { name: `${summerYear} Yaz`, start: `${summerYear}-07-01`, end: `${summerYear}-08-31` },
     };
-    const [f, setF] = useState({ type: "academic", ...defaults.academic, copyFromPeriodId: period?.id ?? "" });
+    const [f, setF] = useState({ type: "academic", ...defaults.academic, copyFromPeriodId: period?.id ?? "", closeActive: true });
     const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
     const setType = (e) => setF((x) => ({ ...x, type: e.target.value, ...defaults[e.target.value] }));
     // Yalnızca AYNI türdeki aktif dönem kapanır (akademik ve yaz dönemi birlikte açık kalabilir)
@@ -140,7 +140,19 @@ function NewPeriodDialog({ onClose }) {
             <Field label="Fiyatlar" hint="Seçilen dönemin oda tipi fiyatları kopyalanır; sonra düzenlenir." className="sm:col-span-2">
                 <SelectInput value={f.copyFromPeriodId} onChange={set("copyFromPeriodId")}><option value="">Fiyatları kopyalama (boş başla)</option>{periods.map((p) => <option key={p.id} value={p.id}>{p.name} fiyatlarını kopyala</option>)}</SelectInput>
             </Field>
-            {active.length > 0 && <p className="rounded-xl bg-ad-warn-soft px-3 py-2 text-xs text-ad-warn sm:col-span-2">Şu an aktif olan <b>{active.map((p) => p.name).join(", ")}</b> kapanacak. Kapanan dönemin açık borçları ve faturaları ana panelde “Önceki dönemlerden açık kalanlar” olarak görünmeye devam eder.</p>}
+            {active.length > 0 && (
+                <div className="space-y-2 sm:col-span-2">
+                    <Switch
+                        checked={f.closeActive}
+                        onChange={(v) => setF((x) => ({ ...x, closeActive: v }))}
+                        label={`${active.map((p) => p.name).join(", ")} kapatılsın`}
+                        hint="Kapatmazsanız eski dönem öğrenciler kalırken aktif kalır (yerleşim, tahsilat, indirim yapılabilir); yalnızca başvuruları kapanır ve yeni başvurular / kayıt yenilemeler yeni döneme gelir. Dönem bitince “Dönemi kapat” ile kapatırsınız."
+                    />
+                    {f.closeActive
+                        ? <p className="rounded-xl bg-ad-warn-soft px-3 py-2 text-xs text-ad-warn">Şu an aktif olan <b>{active.map((p) => p.name).join(", ")}</b> kapanacak. Kapanan dönemin açık borçları ve faturaları ana panelde “Önceki dönemlerden açık kalanlar” olarak görünmeye devam eder.</p>
+                        : <p className="rounded-xl bg-ad-sunken px-3 py-2 text-xs text-ad-body"><b>{active.map((p) => p.name).join(", ")}</b> aktif kalacak, başvuruları kapanacak.</p>}
+                </div>
+            )}
         </FormDialog>
     );
 }

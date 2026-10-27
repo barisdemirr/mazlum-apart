@@ -4,7 +4,7 @@ import { admin } from "@/lib/admin/api";
 const dateOrNull = (v) => (v ? v : null);
 
 export const createPeriod = (i) =>
-    admin.post("/periods", { name: i.name?.trim(), type: i.type, start: i.start, end: i.end, copyFromPeriodId: i.copyFromPeriodId || null });
+    admin.post("/periods", { name: i.name?.trim(), type: i.type, start: i.start, end: i.end, copyFromPeriodId: i.copyFromPeriodId || null, closeActive: i.closeActive !== false });
 
 export const updatePeriod = ({ id, name, start, end, applicationsOpen, halfTerm, nineMonthTerm }) =>
     admin.put(`/periods/${id}`, {

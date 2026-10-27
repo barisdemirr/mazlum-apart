@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Icon from "@/components/ui/Icon";
+import Logo from "@/components/ui/Logo";
 import LoginForm from "./LoginForm";
 
 export const metadata = {

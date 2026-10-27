@@ -5,6 +5,8 @@ import Icon from "@/components/ui/Icon";
 
 /**
  * Sürükle-bırak sıralanabilir liste (ek paket yok; tarayıcı sürükle-bırak olayları). Dokunmatik ekran için ▲▼ düğmeleri de vardır.
+ * İç içe kullanılabilir (daire türü kartları ve içindeki oda seçenekleri): her liste yalnızca KENDİ öğesinin sürüklenmesini işler,
+ * olayları üst listeye geçirmez; bir listenin öğesi başka bir listeye bırakılamaz.
  *
  *  items: [{ id, ... }] · onReorder(yeniIdSırası) → kaydeder (promise döner) · children: (item, { handle, dragging }) => node
  *  Sıra yerelde hemen güncellenir; kaydetme hata verirse eski sıraya dönülür.
@@ -15,6 +17,14 @@ export default function SortableList({ items, onReorder, children, className = "
     const [overId, setOverId] = useState(null);
     const [armed, setArmed] = useState(null);
     const saving = useRef(false);
+
+    // Tutamaç bırakıldığında (fare tutamacın dışında bırakılsa da) öğe yeniden sürüklenemez olur; kart içindeki metin seçilebilir kalır
+    useEffect(() => {
+        if (!armed) return;
+        const disarm = () => setArmed(null);
+        window.addEventListener("mouseup", disarm);
+        return () => window.removeEventListener("mouseup", disarm);
+    }, [armed]);
 
     // Sunucudan gelen sıra değişince (kayıt sonrası yenileme) yerel sırayı eşitle
     useEffect(() => { setOrder(items.map((i) => i.id)); }, [items]);
@@ -78,10 +88,26 @@ export default function SortableList({ items, onReorder, children, className = "
                     <div
                         key={item.id}
                         draggable={armed === item.id}
-                        onDragStart={(e) => { setDragId(item.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", item.id); }}
-                        onDragOver={(e) => { if (dragId) { e.preventDefault(); setOverId(item.id); } }}
-                        onDrop={(e) => { e.preventDefault(); drop(item.id); }}
-                        onDragEnd={() => { setDragId(null); setOverId(null); setArmed(null); }}
+                        onDragStart={(e) => {
+                            e.stopPropagation(); // iç listedeki sürükleme dış listeyi tetiklemesin
+                            setDragId(item.id);
+                            e.dataTransfer.effectAllowed = "move";
+                            e.dataTransfer.setData("text/plain", item.id);
+                        }}
+                        onDragOver={(e) => {
+                            if (!dragId) return; // bu listenin sürüklemesi değil: üst listeye bırak
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (overId !== item.id) setOverId(item.id);
+                        }}
+                        onDragLeave={() => { if (overId === item.id) setOverId(null); }}
+                        onDrop={(e) => {
+                            if (!dragId) return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            drop(item.id);
+                        }}
+                        onDragEnd={(e) => { e.stopPropagation(); setDragId(null); setOverId(null); setArmed(null); }}
                         className={`${itemClassName} ${dragging ? "opacity-40" : ""} ${overId === item.id && dragId && dragId !== item.id ? "ring-2 ring-ad-brand" : ""}`}
                     >
                         {children(item, { handle, dragging })}

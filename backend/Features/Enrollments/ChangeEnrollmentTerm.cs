@@ -52,7 +52,13 @@ public static class ChangeEnrollmentTerm
                 .Where(d => d.Kind == ChargeKind.Rent)
                 .ToDictionary(d => d.Month);
 
-            var current = ledger.Items().Where(i => i.Kind == ChargeKind.Rent && i.Net > 0).ToList();
+            // Yalnızca yarı sınırından (1. yarının bittiği ay) itibarenki aylar değişir; öncesine dokunulmaz.
+            // (Kayıttan sonra "9 aylık dönem" açılmış olsa bile eski kaydın Eylül kirası gibi geçmiş ayları iptal edilmez.)
+            var boundary = PaymentPlan.MonthKey(firstEnd);
+            bool AfterBoundary(string month) => string.CompareOrdinal(month, boundary) >= 0;
+            desired = desired.Where(kv => AfterBoundary(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value);
+
+            var current = ledger.Items().Where(i => i.Kind == ChargeKind.Rent && i.Net > 0 && AfterBoundary(i.Month)).ToList();
             var currentMonths = current.Select(i => i.Month).ToHashSet();
             var toReverse = current.Where(i => !desired.ContainsKey(i.Month)).ToList();
             var toAdd = desired.Values.Where(d => !currentMonths.Contains(d.Month)).OrderBy(d => d.Month, StringComparer.Ordinal).ToList();

@@ -17,7 +17,8 @@ const sizeText = (bytes, locale) =>
  * Öğrenci belgesi yükleme: sürükle-bırak ya da dokunarak seç. Yalnızca PDF, en fazla 4 MB.
  * Dosya seçilir seçilmez denetlenir; geçersizse forma alınmaz ve neden yazılır.
  */
-export default function DocumentField({ value, onChange, error, tick }) {
+/** required: başvuru formunda zorunlu (varsayılan); portaldaki kayıt yenilemede isteğe bağlı */
+export default function DocumentField({ value, onChange, error, tick, required = true }) {
     const { t, tpl, locale } = useLanguage();
     const d = t.apply.school;
     const errors = t.apply.errors;
@@ -53,7 +54,7 @@ export default function DocumentField({ value, onChange, error, tick }) {
 
     return (
         <motion.div animate={controls} data-field="document" className="flex flex-col gap-3">
-            <GroupLabel required id="document-label">{d.document}</GroupLabel>
+            <GroupLabel required={required} id="document-label">{d.document}</GroupLabel>
             <input
                 ref={inputRef}
                 id="document"

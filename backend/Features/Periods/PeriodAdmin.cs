@@ -61,7 +61,11 @@ public static class GetPeriods
 /// </summary>
 public static class CreatePeriod
 {
-    public record Command(string? Name, PeriodType Type, DateOnly Start, DateOnly End, Guid? CopyFromPeriodId);
+    /// <param name="CloseActive">
+    /// true (varsayılan): aynı türdeki aktif dönem kapanır. false: eski dönem AKTİF kalır (öğrenciler dönem sonuna kadar kalırken
+    /// yeni dönemin kayıt yenilemesi / başvurusu alınabilsin), yalnızca eski dönemin başvuruları kapanır; eski dönem sonra "Dönemi kapat" ile kapatılır.
+    /// </param>
+    public record Command(string? Name, PeriodType Type, DateOnly Start, DateOnly End, Guid? CopyFromPeriodId, bool CloseActive = true);
 
     public class Handler(AppDbContext db, AuditWriter audit)
     {
@@ -81,11 +85,13 @@ public static class CreatePeriod
 
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-            var closing = await db.Periods.Where(x => x.Status == PeriodStatus.Active && x.Type == cmd.Type).ToListAsync(ct);
-            foreach (var p in closing)
+            var sameType = await db.Periods.Where(x => x.Status == PeriodStatus.Active && x.Type == cmd.Type).ToListAsync(ct);
+            List<Period> closing = cmd.CloseActive ? sameType : new List<Period>();
+            foreach (var p in sameType)
             {
+                p.ApplicationsOpen = false; // yeni başvurular yeni döneme gider
+                if (!cmd.CloseActive) continue;
                 p.Status = PeriodStatus.Closed;
-                p.ApplicationsOpen = false;
                 p.ClosedAt = DateTime.UtcNow;
             }
 
@@ -106,7 +112,7 @@ public static class CreatePeriod
             }
 
             audit.Add("period.create", "period", period.Id, period.Id,
-                after: new { period.Name, period.Type, start = period.StartDate, end = period.EndDate, closed = closing.Select(x => x.Name), copiedPrices = copied });
+                after: new { period.Name, period.Type, start = period.StartDate, end = period.EndDate, closed = closing.Select(x => x.Name), keptActive = cmd.CloseActive ? null : sameType.Select(x => x.Name), copiedPrices = copied });
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
 

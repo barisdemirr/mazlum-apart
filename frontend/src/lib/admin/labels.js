@@ -120,6 +120,7 @@ export const AUDIT_ACTION = {
     "student.document": "Öğrenci belgesi yüklendi",
     "student.document-delete": "Öğrenci belgesi silindi",
     "enrollment.room-change": "Daire / oda tipi değiştirildi",
+    "structure.order": "Daire / oda tipi sırası değiştirildi",
     "charge.reschedule": "Taksit vadesi değiştirildi",
     "account.create": "Hesap eklendi",
     "account.opening": "Açılış bakiyesi girildi",

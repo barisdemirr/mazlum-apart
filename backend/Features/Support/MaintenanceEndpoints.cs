@@ -92,10 +92,14 @@ public static class StudentMaintenance
             if (!v.IsValid) return v.ToFailure<Item>();
 
             // Hangi kayıt adına: aktif dönemdeki onaylı/aktif kayıt
+            var now = TurkeyClock.Today;
             var enrollment = await db.Enrollments.AsNoTracking()
                 .Where(x => x.StudentId == studentId && (enrollmentId == null || x.Id == enrollmentId) && (x.Status == EnrollmentStatus.Active || x.Status == EnrollmentStatus.Approved))
                 .Join(db.Periods.Where(p => p.Status == PeriodStatus.Active), e => e.PeriodId, p => p.Id, (e, p) => new { e, p })
-                .OrderByDescending(x => x.p.StartDate)
+                // Birden çok aktif dönem olabilir (yeni dönem açılıp eski dönem kapatılmadıysa): önce bugünü kapsayan dönemin kaydı
+                .OrderBy(x => x.p.StartDate <= now && x.p.EndDate >= now ? 0 : 1)
+                .ThenBy(x => x.e.Status == EnrollmentStatus.Active ? 0 : 1)
+                .ThenByDescending(x => x.p.StartDate)
                 .Select(x => x.e)
                 .FirstOrDefaultAsync(ct);
             if (enrollment is null)

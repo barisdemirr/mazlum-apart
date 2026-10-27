@@ -26,7 +26,10 @@ namespace MazlumApart.Features.StudentPortal;
 /// </summary>
 public static class StudentRenewal
 {
-    public record RoomTypeOption(Guid Id, string Name, string? ApartmentTypeName, decimal Monthly, decimal Deposit, decimal? SummerMonthly, bool Full);
+    /// <summary>Seçilebilecek oda: o dönemde boş yatağı olan aktif oda (öğrenci belirli bir oda tercih edebilir)</summary>
+    public record RoomChoice(Guid Id, string Label, int Free);
+
+    public record RoomTypeOption(Guid Id, string Name, string? ApartmentTypeName, decimal Monthly, decimal Deposit, decimal? SummerMonthly, bool Full, List<RoomChoice> Rooms);
 
     public record PeriodOption(Guid Id, string Name, PeriodType Type, DateOnly Start, DateOnly End, DateOnly YearlyEnd, bool NineMonth, HalfTermDto HalfTerm, List<RoomTypeOption> RoomTypes);
 
@@ -45,13 +48,16 @@ public static class StudentRenewal
     public record Preview(Guid PeriodId, string PeriodName, decimal Monthly, decimal Deposit, decimal? SummerMonthly, List<PlanLine> Plan, decimal DueAtRegistration, decimal Total);
 
     /// <summary>Öğrencinin değiştirebildiği alanlar + seçimler (T.C., ad, doğum tarihi, telefon, il/ilçe ve veliler kayıtlı bilgiden alınır)</summary>
-    public record RenewalInput(string? StayPlan, Guid? RoomTypeId, string? Term, DateOnly? EntryDate, string? PayWindow, bool SameRoom,
+    /// <param name="SameRoom">önceki odayı iste (oda tipi aynıysa)</param>
+    /// <param name="RoomId">ya da listeden belirli bir oda (boşsa "oda fark etmez")</param>
+    public record RenewalInput(string? StayPlan, Guid? RoomTypeId, string? Term, DateOnly? EntryDate, string? PayWindow, bool SameRoom, Guid? RoomId,
         string? Grade, string? School, string? Faculty, string? Department, string? Address, string? Note);
 
     private static async Task<List<Period>> OpenPeriodsAsync(AppDbContext db, CancellationToken ct) =>
         await db.Periods.AsNoTracking().Where(x => x.Status == PeriodStatus.Active && x.ApplicationsOpen).OrderByDescending(x => x.StartDate).ToListAsync(ct);
 
-    public class Reader(AppDbContext db, AvailabilityService availability)
+    // Adı "Handler" ile bitmeli: FeatureExtensions yalnızca *Handler sınıflarını DI'a kaydeder
+    public class RenewalHandler(AppDbContext db, AvailabilityService availability)
     {
         public async Task<Result<Response>> Handle(Guid studentId, CancellationToken ct)
         {
@@ -93,7 +99,11 @@ public static class StudentRenewal
                 .Where(t => t.ApartmentTypeId is null || activeApt.ContainsKey(t.ApartmentTypeId.Value))
                 .OrderBy(t => order.RoomType(t.Id)).ToList();
 
-            var rooms = await db.Rooms.AsNoTracking().Where(x => x.Status == RoomStatus.Active && x.Apartment!.IsPublished).Select(x => new { x.Id, x.RoomTypeId, x.Beds }).ToListAsync(ct);
+            var rooms = (await db.Rooms.AsNoTracking().Where(x => x.Status == RoomStatus.Active && x.Apartment!.IsPublished)
+                    .Select(x => new { x.Id, x.RoomTypeId, x.Beds, x.Name, x.OrderIndex, ApartmentName = x.Apartment!.Name, ApartmentOrder = x.Apartment.OrderIndex, x.Apartment.ApartmentTypeId })
+                    .ToListAsync(ct))
+                .OrderBy(r => order.ApartmentType(r.ApartmentTypeId)).ThenBy(r => r.ApartmentOrder).ThenBy(r => r.ApartmentName).ThenBy(r => r.OrderIndex).ThenBy(r => r.Name)
+                .ToList();
             var counts = await availability.GetRoomCountsAsync(p.Id, rooms.Select(r => r.Id).ToList(), ct);
 
             var options = new List<RoomTypeOption>();
@@ -102,9 +112,11 @@ public static class StudentRenewal
                 var price = prices.FirstOrDefault(x => x.RoomTypeId == t.Id);
                 if (price is null) continue;
                 var own = rooms.Where(r => r.RoomTypeId == t.Id).ToList();
-                var free = own.Sum(r => Math.Max(0, r.Beds - counts[r.Id].Occupied - counts[r.Id].Reserved));
+                int FreeOf(Guid roomId, int beds) => Math.Max(0, beds - counts[roomId].Occupied - counts[roomId].Reserved);
+                var free = own.Sum(r => FreeOf(r.Id, r.Beds));
+                var choices = own.Where(r => FreeOf(r.Id, r.Beds) > 0).Select(r => new RoomChoice(r.Id, $"{r.ApartmentName} · {r.Name}", FreeOf(r.Id, r.Beds))).ToList();
                 options.Add(new RoomTypeOption(t.Id, t.Name.Tr, t.ApartmentTypeId is { } a ? activeApt.GetValueOrDefault(a) : null,
-                    price.Monthly, price.Deposit, price.SummerMonthly, own.Count > 0 && free == 0));
+                    price.Monthly, price.Deposit, price.SummerMonthly, own.Count > 0 && free == 0, choices));
             }
 
             return new PeriodOption(p.Id, p.Name, p.Type, p.RentStart, p.EndDate, PaymentPlan.SummerEnd(p.EndDate), p.NineMonthTerm,
@@ -148,7 +160,7 @@ public static class StudentRenewal
         {
             var group = app.MapGroup("/api/student/renewal").RequireAuthorization(AppPolicies.Student);
 
-            group.MapGet("", async (ClaimsPrincipal user, Reader reader, CancellationToken ct) => (await reader.Handle(user.GetUserId(), ct)).ToOk());
+            group.MapGet("", async (ClaimsPrincipal user, RenewalHandler reader, CancellationToken ct) => (await reader.Handle(user.GetUserId(), ct)).ToOk());
 
             group.MapPost("/preview", async (PreviewRequest request, PreviewHandler handler, CancellationToken ct) => (await handler.Handle(request, ct)).ToOk())
                 .RequireRateLimiting(RatePolicies.StudentWrite);
@@ -181,7 +193,9 @@ public static class StudentRenewal
 
                     // Aynı odayı iste: önceki odanın tipi seçilen oda tipiyle aynıysa yatak tercihi olarak iletilir (doluysa başvuru reddedilir)
                     string? bed = null;
-                    if (input.SameRoom && input.RoomTypeId is { } rt)
+                    if (input.RoomId is { } chosenRoom)
+                        bed = $"{chosenRoom}-1"; // oda tipi, yayın ve boşluk denetimi başvuru oluşturulurken yapılır
+                    else if (input.SameRoom && input.RoomTypeId is { } rt)
                     {
                         var lastRoomId = await db.Placements.AsNoTracking().Where(x => x.EnrollmentId == prev.Id).OrderByDescending(x => x.StartDate).Select(x => (Guid?)x.RoomId).FirstOrDefaultAsync(ct);
                         if (lastRoomId is { } rid && await db.Rooms.AnyAsync(x => x.Id == rid && x.RoomTypeId == rt, ct)) bed = $"{rid}-1";

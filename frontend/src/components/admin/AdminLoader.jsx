@@ -1,4 +1,5 @@
 import Icon from "@/components/ui/Icon";
+import Logo from "@/components/ui/Logo";
 
 /**
  * Panelin markalı yükleme ekranı. Sayfa geçişlerinde loading.jsx üzerinden gösterilir.
