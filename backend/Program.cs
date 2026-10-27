@@ -205,6 +205,21 @@ app.Use(async (context, next) =>
     await next();
 });
 
+// Öğrenci belgeleri (PDF) wwwroot/uploads/documents altında durur ama ASLA adresle sunulmaz: yalnızca yönetici uçları okur
+// (/api/admin/applications/{id}/document, /api/admin/student-documents/{id}/file). Statik dosya katmanından ÖNCE kesilir;
+// "documents" geçen her /uploads adresi (çift eğik çizgi gibi sapmalar dahil) 404 döner. Galeri görselleri bu sözcüğü taşımaz.
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path;
+    if (path.StartsWithSegments("/uploads", StringComparison.OrdinalIgnoreCase)
+        && path.Value!.Contains("documents", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+    await next();
+});
+
 app.UseStaticFiles(new StaticFileOptions
 {
     OnPrepareResponse = context =>
