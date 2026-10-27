@@ -3,8 +3,8 @@ using MazlumApart.Domain.Enums;
 namespace MazlumApart.Domain.Entities;
 
 /// <summary>
-/// İndirim kodu (kayıt yenileyen eski öğrenciler için). Başvuru formunda girilir; AYLIK KİRAYA (12 ayda yaz kirasına da) uygulanır,
-/// depozitoya uygulanmaz. İndirim başvuru anında fiyata işlenir (başvuru liste fiyatını ve kodu da saklar).
+/// İndirim kodu (kayıt yenileyen eski öğrenciler için). Başvuru formunda girilir; AYLIK KİRAYA (12 ayda yaz kirasına da) ve
+/// depozitoya (son ay kirası yerine sayıldığı için) uygulanır. İndirim başvuru anında fiyata işlenir (başvuru liste fiyatını ve kodu da saklar).
 /// Aktiflik BaseEntity.IsActive ile tutulur. Tc doluysa kod yalnızca o öğrenciye özeldir. MaxUses boşsa sınırsız; UsedCount başvuru açılınca artar, ret edilince geri düşer.
 /// </summary>
 public class DiscountCode : BaseEntity

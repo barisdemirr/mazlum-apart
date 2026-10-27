@@ -78,8 +78,16 @@ Yanıtı tam olarak şu biçimde ver:
     if (!response.ok) {
         const detail = await response.text().catch(() => "");
         console.error("[gemini]", response.status, detail.slice(0, 500));
+        // Yalnızca oturum açmış yönetici görür: Gemini'nin hata iletisi teşhis için eklenir (anahtar hiçbir zaman yazılmaz)
+        let reason = "";
+        try {
+            reason = JSON.parse(detail)?.error?.message ?? "";
+        } catch {
+            reason = detail;
+        }
+        reason = reason.replace(apiKey, "***").slice(0, 200);
         return Response.json(
-            { title: response.status === 429 ? "Çeviri sınırı aşıldı, biraz bekleyin." : "Çeviri başarısız." },
+            { title: response.status === 429 ? "Çeviri sınırı aşıldı, biraz bekleyin." : `Çeviri başarısız (Gemini ${response.status}${reason ? `: ${reason}` : ""}).` },
             { status: 502 }
         );
     }

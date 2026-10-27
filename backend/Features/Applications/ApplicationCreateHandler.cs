@@ -152,10 +152,11 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
         if (await db.Applications.AnyAsync(x => x.PeriodId == period.Id && x.Tc == applicant!.Tc && x.Status != ApplicationStatus.Rejected, ct))
             return Error.Conflict("Bu T.C. kimlik no ile bu dönemde zaten bir başvuru ya da kayıt var.");
 
-        // ---- indirim kodu: aylık kiraya (12 ayda yaz kirasına da) uygulanır, depozitoya uygulanmaz ----
+        // ---- indirim kodu: aylık kiraya (12 ayda yaz kirasına da) ve depozitoya uygulanır (depozito son ay kirası yerine sayıldığı için) ----
         stage = "discount";
         DiscountCode? discount = null;
         var monthly = price.Monthly;
+        var deposit = price.Deposit;
         if (DiscountCodeRules.Normalize(input.DiscountCode) is { Length: > 0 } codeText)
         {
             discount = await db.DiscountCodes.FirstOrDefaultAsync(x => x.Code == codeText, ct);
@@ -165,6 +166,7 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
                 return Error.Field("discountCode", "Bu kod bu T.C. kimlik no için geçerli değil.");
 
             monthly = DiscountMath.Apply(discount.Kind, discount.Value, price.Monthly);
+            deposit = DiscountMath.Apply(discount.Kind, discount.Value, price.Deposit);
             if (summerMonthly is { } sm) summerMonthly = DiscountMath.Apply(discount.Kind, discount.Value, sm);
             discount.UsedCount++;
         }
@@ -214,7 +216,7 @@ public class ApplicationCreateHandler(AppDbContext db, AvailabilityService avail
             EntryDate = input.EntryDate!.Value,
             PayWindow = window!.Value,
             PriceMonthly = monthly,
-            PriceDeposit = price.Deposit,
+            PriceDeposit = deposit,
             PriceSummerMonthly = summerMonthly,
             DiscountCodeId = discount?.Id,
             DiscountCodeText = discount?.Code,

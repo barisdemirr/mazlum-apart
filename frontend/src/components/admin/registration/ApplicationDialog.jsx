@@ -222,7 +222,7 @@ export default function ApplicationDialog({ application, onClose }) {
                         {application.discountCode && (
                             <p className="mt-2 flex items-center gap-2 rounded-xl bg-ad-brand-soft px-3 py-2 text-xs font-semibold text-ad-brand">
                                 <Icon name="sell" filled className="text-[16px]" />
-                                İndirim kodu {application.discountCode}: aylık kira {money(application.listPriceMonthly)} yerine {money(application.priceMonthly)}. Depozito indirimsizdir.
+                                İndirim kodu {application.discountCode}: aylık kira {money(application.listPriceMonthly)} yerine {money(application.priceMonthly)}. Depozito da aynı indirimle hesaplanır.
                             </p>
                         )}
                         <div className={`mt-2 grid gap-3 text-sm ${application.priceSummerMonthly != null ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>

@@ -1,6 +1,6 @@
 /**
  * İndirim kodu hesabı (backend Domain/Accounting/DiscountMath.cs ile AYNI hesap).
- * İndirim aylık kiraya (12 ayda yaz kirasına da) uygulanır; depozitoya uygulanmaz. Sonuç en az 1 TL.
+ * İndirim aylık kiraya (12 ayda yaz kirasına da) ve depozitoya uygulanır (depozito son ay kirası yerine sayılır). Sonuç en az 1 TL.
  * discount: { code, kind: "percent" | "fixed", value, restricted }
  */
 export function discounted(discount, price) {
@@ -11,7 +11,7 @@ export function discounted(discount, price) {
 
 /**
  * Oda tiplerini indirimli fiyatla döndürür: monthlyPrice (ve varsa summerMonthlyPrice) indirimli olur,
- * liste fiyatı listMonthlyPrice / listSummerMonthlyPrice olarak kalır, depozito ESKİ (indirimsiz) kirada sabitlenir.
+ * liste fiyatı listMonthlyPrice / listSummerMonthlyPrice olarak kalır, depozito da indirimli olur (liste depozitosu listDepositAmount).
  */
 export function discountRooms(rooms, discount) {
     if (!discount) return rooms;
@@ -22,7 +22,8 @@ export function discountRooms(rooms, discount) {
             discount,
             listMonthlyPrice: room.monthlyPrice,
             monthlyPrice: discounted(discount, room.monthlyPrice),
-            depositAmount: room.depositAmount ?? room.monthlyPrice,
+            listDepositAmount: room.depositAmount ?? room.monthlyPrice,
+            depositAmount: discounted(discount, room.depositAmount ?? room.monthlyPrice),
             ...(room.summerMonthlyPrice != null
                 ? { listSummerMonthlyPrice: room.summerMonthlyPrice, summerMonthlyPrice: discounted(discount, room.summerMonthlyPrice) }
                 : {}),

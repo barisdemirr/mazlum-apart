@@ -119,7 +119,7 @@ export default function DiscountCodesView({ items }) {
         <div>
             <PageHeader
                 title="İndirim Kodları"
-                description="Kayıt yenileyen eski öğrencilerimize verdiğiniz kodlar. Öğrenci başvuru formunda kodu yazınca aylık kira indirimli görünür; depozito değişmez. Kod belirli bir T.C.'ye özel de olabilir."
+                description="Kayıt yenileyen eski öğrencilerimize verdiğiniz kodlar. Öğrenci başvuru formunda kodu yazınca aylık kira ve depozito indirimli görünür. Kod belirli bir T.C.'ye özel de olabilir."
                 actions={
                     <button type="button" onClick={() => setCreating(true)} className="ad-btn ad-btn-primary">
                         <Icon name="add" className="text-[20px]" />
@@ -228,7 +228,7 @@ function CreateDialog({ onClose }) {
             <Field label="T.C.'ye özel (isteğe bağlı)" hint="Doluysa yalnızca bu T.C. kullanabilir; başka birinin kodu kullanmasını engeller." className="sm:col-span-2">
                 <TextInput inputMode="numeric" value={f.tc} onChange={(e) => setF((x) => ({ ...x, tc: onlyDigits(e.target.value, 11) }))} />
             </Field>
-            <p className="rounded-xl bg-ad-sunken px-3 py-2 text-xs text-ad-body sm:col-span-2">İndirim aylık kiraya (12 aylık kayıtta yaz kirasına da) uygulanır; depozito indirimsizdir. Kod başvuru anında fiyata işlenir, sonradan kodu silmek ya da pasife almak mevcut başvuruları etkilemez.</p>
+            <p className="rounded-xl bg-ad-sunken px-3 py-2 text-xs text-ad-body sm:col-span-2">İndirim aylık kiraya (12 aylık kayıtta yaz kirasına da) ve depozitoya uygulanır. Kod başvuru anında fiyata işlenir, sonradan kodu silmek ya da pasife almak mevcut başvuruları etkilemez.</p>
         </FormDialog>
     );
 }
