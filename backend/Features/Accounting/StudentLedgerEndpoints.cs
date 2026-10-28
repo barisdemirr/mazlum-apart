@@ -6,6 +6,7 @@ using MazlumApart.Domain.Entities;
 using MazlumApart.Domain.Enums;
 using MazlumApart.Features.Enrollments;
 using MazlumApart.Infrastructure.Database;
+using MazlumApart.Infrastructure.Messaging;
 using MazlumApart.Infrastructure.Services;
 using MazlumApart.Shared;
 
@@ -106,7 +107,7 @@ public static class RecordPayment
 
     public record Response(Guid PaymentId, List<AllocationLine> Lines, decimal Advance);
 
-    public class Handler(AppDbContext db, LedgerService ledgers, CashBook cashBook, IdempotencyGuard idempotency, AuditWriter audit)
+    public class Handler(AppDbContext db, LedgerService ledgers, CashBook cashBook, IdempotencyGuard idempotency, StudentAlerts studentAlerts, AuditWriter audit)
     {
         public async Task<Result<Response>> Handle(Guid enrollmentId, Command cmd, Guid adminId, Guid? key, CancellationToken ct)
         {
@@ -152,6 +153,19 @@ public static class RecordPayment
             audit.Add("payment.create", "payment", payment.Id, payment.PeriodId,
                 after: new { amount = payment.Amount, method = payment.Method, account = account.Name, manual, lines = result, advance });
             await db.SaveChangesAsync(ct);
+
+            // Öğrenciye "ödemeniz alındı" bildirimi; bildirim hatası tahsilatı asla bozmamalı
+            try
+            {
+                var studentId = await db.Enrollments.AsNoTracking().Where(x => x.Id == enrollmentId).Select(x => x.StudentId).FirstOrDefaultAsync(ct);
+                if (studentId != Guid.Empty)
+                {
+                    var amountText = payment.Amount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture).Replace('.', ',') + " ₺";
+                    studentAlerts.Enqueue(new StudentPush(studentId, "Ödemeniz alındı", $"{amountText} tutarındaki ödemeniz kaydedildi.",
+                        "Payment received", $"Your payment of {amountText} has been recorded.", "/ogrenci/odemeler", $"payment-{payment.Id:N}"));
+                }
+            }
+            catch (Exception) { /* bildirim yan etkidir */ }
 
             return new Response(payment.Id, result, advance);
         }

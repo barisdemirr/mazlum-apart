@@ -166,6 +166,8 @@ builder.Services.AddSingleton<WebPushSender>();
 builder.Services.AddScoped<PushDispatcher>();
 builder.Services.AddSingleton<AdminAlerts>();
 builder.Services.AddHostedService<AdminAlertWorker>();
+builder.Services.AddSingleton<StudentAlerts>();
+builder.Services.AddHostedService<StudentAlertWorker>();
 builder.Services.AddScoped<AuditWriter>();
 
 // ---- Hız sınırı ----

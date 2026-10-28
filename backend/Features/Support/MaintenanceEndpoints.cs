@@ -244,7 +244,7 @@ public static class AdminMaintenance
 
     public record UpdateCommand(MaintenanceStatus? Status, string? AdminNote);
 
-    public class Handler(AppDbContext db, AuditWriter audit)
+    public class Handler(AppDbContext db, StudentAlerts studentAlerts, AuditWriter audit)
     {
         public async Task<List<Row>> List(Guid periodId, string? status, CancellationToken ct)
         {
@@ -281,6 +281,19 @@ public static class AdminMaintenance
 
             audit.Add("maintenance.update", "maintenance", id, request.PeriodId, before: before, after: new { request.Status, request.AdminNote });
             await db.SaveChangesAsync(ct);
+
+            // Öğrenciye bildirim: arıza durumu / yönetici notu değişti (bildirimi kapalıysa sessizce atlanır)
+            var (statusTr, statusEn) = status switch
+            {
+                MaintenanceStatus.Done => ("Tamamlandı", "Completed"),
+                MaintenanceStatus.Received => ("Alındı", "Received"),
+                _ => ("İşleme alındı", "In progress")
+            };
+            studentAlerts.Enqueue(new StudentPush(request.StudentId,
+                "Arıza kaydınız güncellendi", $"{request.No} · {request.Title}: {statusTr}" + (note is null ? "" : $" — {note}"),
+                "Your maintenance request was updated", $"{request.No} · {request.Title}: {statusEn}" + (note is null ? "" : $" — {note}"),
+                "/ogrenci/ariza", $"maintenance-{request.Id:N}"));
+
             return ToRow(request, await StudentsAsync([request.StudentId], ct));
         }
 

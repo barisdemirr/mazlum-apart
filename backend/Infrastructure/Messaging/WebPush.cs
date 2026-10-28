@@ -175,3 +175,59 @@ public sealed class AdminAlertWorker(AdminAlerts alerts, IServiceScopeFactory sc
         }
     }
 }
+
+/// <summary>Bir öğrenciye gidecek otomatik bildirim (TR + EN): her cihaza aboneliğindeki dile göre gönderilir. Url /ogrenci altında olmalı.</summary>
+public sealed record StudentPush(Guid StudentId, string TitleTr, string BodyTr, string TitleEn, string BodyEn, string Url, string? Tag = null);
+
+/// <summary>
+/// Öğrencilere arka planda otomatik bildirim (arıza durumu değişti, ödeme alındı…). AdminAlerts'in öğrenci karşılığıdır:
+/// isteği bekletmez, bildirimi kapalı (abonesiz) öğrenci sessizce atlanır, kuyruk dolarsa en eskisi düşer.
+/// </summary>
+public sealed class StudentAlerts
+{
+    private readonly Channel<StudentPush> channel = Channel.CreateBounded<StudentPush>(
+        new BoundedChannelOptions(500) { FullMode = BoundedChannelFullMode.DropOldest });
+
+    public ChannelReader<StudentPush> Reader => channel.Reader;
+
+    public void Enqueue(StudentPush push) => channel.Writer.TryWrite(push);
+}
+
+public sealed class StudentAlertWorker(StudentAlerts alerts, IServiceScopeFactory scopes, WebPushSender sender, ILogger<StudentAlertWorker> logger) : BackgroundService
+{
+    private static string Cut(string value, int max) => value.Length > max ? value[..max] : value;
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        await foreach (var push in alerts.Reader.ReadAllAsync(stoppingToken))
+        {
+            if (!sender.Enabled) continue;
+            try
+            {
+                await using var scope = scopes.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var dispatcher = scope.ServiceProvider.GetRequiredService<PushDispatcher>();
+
+                var subscriptions = await db.PushSubscriptions
+                    .Where(x => x.OwnerType == PushOwner.Student && x.OwnerId == push.StudentId).ToListAsync(stoppingToken);
+                if (subscriptions.Count == 0) continue; // öğrenci bildirimi açmamış
+
+                var jobs = subscriptions.Select(s =>
+                {
+                    var english = s.Lang == "en";
+                    return (s, new PushPayload(
+                        Cut(english ? push.TitleEn : push.TitleTr, PushRules.TitleMax),
+                        Cut(english ? push.BodyEn : push.BodyTr, PushRules.BodyMax),
+                        push.Url, push.Tag));
+                }).ToList();
+
+                await dispatcher.SendAsync(jobs, stoppingToken);
+                await db.SaveChangesAsync(stoppingToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(ex, "Öğrenci bildirimi gönderilemedi");
+            }
+        }
+    }
+}
