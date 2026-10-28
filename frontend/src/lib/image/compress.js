@@ -1,8 +1,9 @@
 /**
  * Tarayıcıda fotoğraf küçültme. Vercel'in istek gövdesi sınırı 4,5 MB olduğu için telefon fotoğrafları (5–12 MB)
- * yüklenmeden önce uzun kenarı 1600 px olan JPEG'e çevrilir (çoğunlukla 200–600 KB). Backend zaten WebP'ye çevirir.
+ * yüklenmeden önce uzun kenarı 1280 px olan JPEG'e çevrilir (çoğunlukla 150–400 KB). Backend bunu 720 px genişlikli WebP'ye indirir.
+ * 3 fotoğraf × en fazla 1 MB = 3 MB: gövde Vercel sınırının (4,5 MB) güvenle altında kalır.
  */
-export async function compressImage(file, { maxSide = 1600, maxBytes = 1_400_000 } = {}) {
+export async function compressImage(file, { maxSide = 1280, maxBytes = 1_000_000 } = {}) {
     if (!file.type.startsWith("image/")) throw new Error("not-image");
 
     const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });

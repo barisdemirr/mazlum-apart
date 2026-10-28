@@ -5,7 +5,11 @@ using SkiaSharp;
 namespace MazlumApart.Infrastructure.Services;
 
 /// <summary>Dosyanın nereye yazılacağı: herkese açık (wwwroot/uploads) ya da özel (App_Data/private, yalnızca yetkili uçtan okunur)</summary>
-public enum StorageArea { Public, Private }
+/// <summary>
+/// Protected: wwwroot/uploads/fault-photos altına yazılır (hosting App_Data'ya yazma izni vermediği için) ama adresle ASLA sunulmaz:
+/// Program.cs ara katmanı ve web.config hiddenSegments bu klasörü keser; dosyaları yalnızca yetkili API uçları okur.
+/// </summary>
+public enum StorageArea { Public, Private, Protected }
 
 public record ProcessedImage(string Path, long StoredBytes, int Width, int Height);
 
@@ -26,11 +30,22 @@ public class ImageService(IWebHostEnvironment env, IOptions<UploadOptions> optio
         ("lg", 1600, 82)
     ];
 
+    /// <summary>Arıza fotoğrafları: küçük önizleme + en fazla 720 px genişlikte ana görsel (720'den büyük 720'ye indirilir, küçük büyütülmez)</summary>
+    public static readonly (string Suffix, int Width, int Quality)[] FaultVariants =
+    [
+        ("thumb", 320, 75),
+        ("lg", 720, 82)
+    ];
+
+    /// <summary>Herkese kapalı fotoğrafların bulunduğu klasör adı (wwwroot/uploads altında). Program.cs ve web.config bu adı keser.</summary>
+    public const string ProtectedFolder = "fault-photos";
+
     /// <summary>"/uploads/2026/10/abc_lg.webp" + "md" -> "/uploads/2026/10/abc_md.webp"</summary>
     public static string VariantPath(string lgPath, string suffix) =>
         lgPath.EndsWith("_lg.webp", StringComparison.Ordinal) ? lgPath[..^"_lg.webp".Length] + $"_{suffix}.webp" : lgPath;
 
-    public async Task<Result<ProcessedImage>> SaveAsync(Stream input, StorageArea area, CancellationToken ct)
+    public async Task<Result<ProcessedImage>> SaveAsync(Stream input, StorageArea area, CancellationToken ct,
+        (string Suffix, int Width, int Quality)[]? variants = null)
     {
         var maxBytes = options.Value.MaxImageBytes;
 
@@ -64,10 +79,11 @@ public class ImageService(IWebHostEnvironment env, IOptions<UploadOptions> optio
         var name = Guid.CreateVersion7().ToString("N");
         var created = new List<string>();
         long total = 0;
+        int storedWidth = source.Width, storedHeight = source.Height;
 
         try
         {
-            foreach (var (suffix, width, quality) in Variants)
+            foreach (var (suffix, width, quality) in variants ?? Variants)
             {
                 var targetWidth = Math.Min(width, source.Width);
                 var targetHeight = Math.Max(1, (int)Math.Round(source.Height * (double)targetWidth / source.Width));
@@ -76,6 +92,9 @@ public class ImageService(IWebHostEnvironment env, IOptions<UploadOptions> optio
                     ? source.Resize(new SKImageInfo(targetWidth, targetHeight), new SKSamplingOptions(SKCubicResampler.Mitchell))
                       ?? throw new InvalidOperationException("Görsel yeniden boyutlandırılamadı.")
                     : null;
+
+                storedWidth = (resized ?? source).Width; // son (en büyük) varyantın boyutu
+                storedHeight = (resized ?? source).Height;
 
                 using var image = SKImage.FromBitmap(resized ?? source);
                 using var data = image.Encode(SKEncodedImageFormat.Webp, quality);
@@ -93,7 +112,9 @@ public class ImageService(IWebHostEnvironment env, IOptions<UploadOptions> optio
             throw;
         }
 
-        return Result<ProcessedImage>.Success(new ProcessedImage($"{urlPrefix}/{name}_lg.webp", total, source.Width, source.Height));
+        // Varsayılan varyantlarda özgün boyut bildirilir (eski davranış); özel varyantlarda saklanan gerçek boyut
+        return Result<ProcessedImage>.Success(new ProcessedImage($"{urlPrefix}/{name}_lg.webp", total,
+            variants is null ? source.Width : storedWidth, variants is null ? source.Height : storedHeight));
     }
 
     /// <summary>Bir görselin tüm varyantlarını diskten siler (lg yolu verilir)</summary>
@@ -122,9 +143,13 @@ public class ImageService(IWebHostEnvironment env, IOptions<UploadOptions> optio
     public (string Directory, string UrlPrefix) Folder(StorageArea area)
     {
         var now = DateTime.UtcNow;
-        var (root, prefix) = area == StorageArea.Public
-            ? (Path.Combine(env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot"), "uploads"), "/uploads")
-            : (Path.Combine(env.ContentRootPath, "App_Data", "private"), "private");
+        var web = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
+        var (root, prefix) = area switch
+        {
+            StorageArea.Public => (Path.Combine(web, "uploads"), "/uploads"),
+            StorageArea.Protected => (Path.Combine(web, "uploads", ProtectedFolder), $"/uploads/{ProtectedFolder}"),
+            _ => (Path.Combine(env.ContentRootPath, "App_Data", "private"), "private")
+        };
 
         var directory = Path.Combine(root, now.ToString("yyyy"), now.ToString("MM"));
         Directory.CreateDirectory(directory);

@@ -1,4 +1,5 @@
 import { admin } from "@/lib/admin/api";
+import { compressImage } from "@/lib/image/compress";
 
 /** Muhasebe komutları. Para hareketi yapanlar Idempotency-Key taşır (çift tıklama tek kayıt). Kurallar backend'dedir. */
 const idem = { idempotent: true };
@@ -54,14 +55,18 @@ export const transfer = ({ periodId, fromId, toId, amount, date, note }) =>
 
 /* Destek ve sistem */
 /** Ofisten öğrenci adına arıza kaydı (multipart; en fazla 3 görsel). Kayıt öğrencinin açtığı arızayla aynı süreçten geçer */
-export const createMaintenance = ({ enrollmentId, area, title, description, roomLabel, photos }) => {
+export const createMaintenance = async ({ enrollmentId, area, title, description, roomLabel, photos }) => {
     const form = new FormData();
     form.append("enrollmentId", enrollmentId);
     form.append("area", area);
     form.append("title", title);
     form.append("description", description);
     form.append("roomLabel", roomLabel || "");
-    for (const file of photos ?? []) form.append("photos", file, file.name);
+    // Görseller yüklenmeden önce küçültülür (Vercel gövde sınırı 4,5 MB); backend ayrıca 720 px'e indirir
+    for (const original of photos ?? []) {
+        const file = await compressImage(original);
+        form.append("photos", file, file.name);
+    }
     return admin.upload("/maintenance", form);
 };
 export const updateMaintenance = ({ id, status, adminNote }) => admin.put(`/maintenance/${id}`, { status, adminNote: adminNote || null });

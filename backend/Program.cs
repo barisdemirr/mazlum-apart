@@ -207,14 +207,16 @@ app.Use(async (context, next) =>
     await next();
 });
 
-// Öğrenci belgeleri (PDF) wwwroot/uploads/documents altında durur ama ASLA adresle sunulmaz: yalnızca yönetici uçları okur
-// (/api/admin/applications/{id}/document, /api/admin/student-documents/{id}/file). Statik dosya katmanından ÖNCE kesilir;
-// "documents" geçen her /uploads adresi (çift eğik çizgi gibi sapmalar dahil) 404 döner. Galeri görselleri bu sözcüğü taşımaz.
+// Öğrenci belgeleri (PDF) wwwroot/uploads/documents, arıza fotoğrafları wwwroot/uploads/fault-photos altında durur ama ASLA adresle sunulmaz:
+// belgeleri yalnızca yönetici uçları (/api/admin/applications/{id}/document, /api/admin/student-documents/{id}/file),
+// fotoğrafları yalnızca yetkili arıza uçları (/api/student|admin/.../photos/{id}) okur. Statik dosya katmanından ÖNCE kesilir;
+// "documents" ya da "fault-photos" geçen her /uploads adresi (çift eğik çizgi gibi sapmalar dahil) 404 döner. Galeri görselleri bu sözcükleri taşımaz.
 app.Use(async (context, next) =>
 {
     var path = context.Request.Path;
     if (path.StartsWithSegments("/uploads", StringComparison.OrdinalIgnoreCase)
-        && path.Value!.Contains("documents", StringComparison.OrdinalIgnoreCase))
+        && (path.Value!.Contains("documents", StringComparison.OrdinalIgnoreCase)
+            || path.Value!.Contains(ImageService.ProtectedFolder, StringComparison.OrdinalIgnoreCase)))
     {
         context.Response.StatusCode = StatusCodes.Status404NotFound;
         return;

@@ -12,8 +12,9 @@ namespace MazlumApart.Features.Support;
 
 /*
  * ARIZA KAYITLARI (frontend services/maintenance.js + admin MaintenanceView)
- *  Öğrenci: kendi taleplerini listeler, yeni talep açar (en fazla 3 fotoğraf, her biri 5 MB). Fotoğraflar ÖZEL alanda (App_Data/private)
- *           WebP olarak saklanır; yalnızca talebin sahibi ve yöneticiler görebilir.
+ *  Öğrenci: kendi taleplerini listeler, yeni talep açar (en fazla 3 fotoğraf, her biri 5 MB). Fotoğraflar en fazla 720 px genişlikte WebP olarak
+ *           wwwroot/uploads/fault-photos altında saklanır; klasör adresle KAPALIDIR (Program.cs + web.config), yalnızca talebin sahibi
+ *           ve yöneticiler API uçlarından görebilir.
  *  Yönetici: dönemin taleplerini listeler, durum ve öğrenciye görünen not girer (her değişiklik zaman çizelgesine yazılır).
  *  Kapalı dönemin talepleri yalnızca okunur. Açık talep sayısı öğrenci başına sınırlıdır (kötüye kullanım).
  */
@@ -119,11 +120,23 @@ public static class StudentMaintenance
             var room = EnrollmentQueryHandler.CurrentRoom(placements, TurkeyClock.Today);
 
             // Fotoğraflar: içerik doğrulanır (gerçek görsel mi), WebP'ye çevrilip özel alana yazılır
+            // Not: eskiden App_Data/private'a yazılıyordu; hosting App_Data'ya yazma izni vermediği için fotoğraflı kayıt 500 veriyordu.
+            // Şimdi wwwroot/uploads/fault-photos (adresle kapalı) altına, en fazla 720 px genişlikte WebP olarak yazılır.
             var saved = new List<ProcessedImage>();
             foreach (var file in files)
             {
-                await using var stream = file.OpenReadStream();
-                var processed = await images.SaveAsync(stream, StorageArea.Private, ct);
+                Result<ProcessedImage> processed;
+                try
+                {
+                    await using var stream = file.OpenReadStream();
+                    processed = await images.SaveAsync(stream, StorageArea.Protected, ct, ImageService.FaultVariants);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+                {
+                    foreach (var p in saved) images.Delete(p.Path);
+                    logger.LogError(ex, "Arıza fotoğrafı kaydedilemedi");
+                    return Error.Field("photos", "Fotoğraf kaydedilemedi. Lütfen birkaç dakika sonra tekrar deneyin ya da fotoğrafsız gönderin.");
+                }
                 if (!processed.IsSuccess)
                 {
                     foreach (var p in saved) images.Delete(p.Path);
@@ -212,6 +225,8 @@ public static class MaintenancePhotoFile
         if (photo is null || variant is null) return Results.NotFound();
 
         var path = images.ToPhysicalPath(ImageService.VariantPath(photo.FilePath, variant));
+        // Yeni fotoğraflarda yalnızca thumb + lg (720 px) vardır: md istenirse lg verilir
+        if (!File.Exists(path) && variant == "md") path = images.ToPhysicalPath(ImageService.VariantPath(photo.FilePath, "lg"));
         if (!File.Exists(path)) return Results.NotFound();
 
         // Dosya yolu veritabanından gelir (istemciden değil); ToPhysicalPath kök dışına çıkışı ayrıca engeller

@@ -10,7 +10,7 @@ import useCommand from "@/components/admin/useCommand";
  * fields: [{ name, label, type: text|number|date|select|textarea, options?: [[value,label]], required, hint, span }]
  * Örnek: <ActionDialog title="Gider ekle" fields={[...]} initial={{...}} command={addExpense} success="Kaydedildi." onClose={...} />
  */
-export default function ActionDialog({ title, description, fields, initial = {}, command, extra = {}, success, saveLabel = "Kaydet", danger = false, size = "md", onClose, onDone, note }) {
+export default function ActionDialog({ title, description, fields, initial = {}, command, extra = {}, success, saveLabel = "Kaydet", danger = false, size = "md", onClose, onDone, note, top }) {
     const { exec, busy } = useCommand();
     const [v, setV] = useState(() => Object.fromEntries(fields.map((f) => [f.name, initial[f.name] ?? (f.type === "select" ? f.options?.[0]?.[0] ?? "" : "")])));
     const set = (name) => (e) => setV((x) => ({ ...x, [name]: e?.target ? e.target.value : e }));
@@ -27,6 +27,7 @@ export default function ActionDialog({ title, description, fields, initial = {},
     return (
         <FormDialog open title={title} description={description} onClose={onClose} onSubmit={submit} busy={busy} saveLabel={saveLabel} danger={danger} size={size}>
             {note && <div className="rounded-2xl bg-ad-warn-soft p-4 text-xs text-ad-warn sm:col-span-2">{note}</div>}
+            {top}
             {fields.map((f) => (
                 <Field key={f.name} label={f.label} required={f.required} hint={f.hint} className={f.span === 1 ? "" : "sm:col-span-2"}>
                     {f.type === "select" ? (

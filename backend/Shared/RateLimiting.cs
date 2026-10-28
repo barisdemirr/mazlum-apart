@@ -54,9 +54,11 @@ public static class RateLimitingExtensions
             options.AddPolicy(RatePolicies.StudentLogin, context =>
                 RateLimitPartition.GetFixedWindowLimiter(ClientIp.Get(context), _ => Window(20, TimeSpan.FromMinutes(1))));
 
-            // Herkese açık formlar (başvuru): IP başına 10 dakikada 5
+            // Herkese açık formlar (başvuru, ön başvuru): IP başına 10 dakikada 100.
+            // Cömert tutulur: aynı okul/yurt/operatör (CGNAT) ağındaki gerçek öğrenciler tek IP'den geliyor olabilir; hatalı denemeler de hak tüketir.
+            // Asıl koruma başvuru handler'ındaki T.C. tekilliği ve belge doğrulamasıdır.
             options.AddPolicy(RatePolicies.PublicForm, context =>
-                RateLimitPartition.GetFixedWindowLimiter(ClientIp.Get(context), _ => Window(5, TimeSpan.FromMinutes(10))));
+                RateLimitPartition.GetFixedWindowLimiter(ClientIp.Get(context), _ => Window(100, TimeSpan.FromMinutes(10))));
 
             // Öğrencinin yazma işlemleri (arıza talebi, bildirim aboneliği): öğrenci başına saatte 30
             options.AddPolicy(RatePolicies.StudentWrite, context =>

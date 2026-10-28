@@ -74,7 +74,19 @@ public static class SubmitApplication
                     IOptions<JsonOptions> json, CancellationToken ct) =>
                 {
                     if (!request.HasFormContentType) return Error.Field("document", "Öğrenci belgeni (PDF) yükle.").ToProblem();
-                    var form = await request.ReadFormAsync(ct);
+                    IFormCollection form;
+                    try
+                    {
+                        form = await request.ReadFormAsync(ct);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        // Gövde okunamadı (yarım kalan yükleme, geçici klasöre yazılamama, bozuk multipart): sessiz 500 yerine aşamalı teşhis
+                        http.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Applications")
+                            .LogError(ex, "Başvuru formu okunamadı (geçici klasör: {Temp})", Path.GetTempPath());
+                        return Results.Problem(detail: $"form-read · {ex.GetBaseException().GetType().Name}",
+                            statusCode: StatusCodes.Status500InternalServerError, title: "Başvuru kaydedilemedi");
+                    }
                     if (form.Files.Count > 1) return Error.Field("document", "Yalnızca bir PDF yükle.").ToProblem();
 
                     ApplicationInput? input;

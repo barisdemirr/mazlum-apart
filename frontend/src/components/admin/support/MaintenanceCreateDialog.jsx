@@ -12,7 +12,7 @@ import { createMaintenance, listEnrollments } from "@/lib/admin/commands/finance
 import { MAINT_AREA } from "@/lib/admin/labels";
 
 const MAX_PHOTOS = 3;
-const MAX_PHOTO_MB = 5;
+const MAX_PHOTO_MB = 25; // ham dosya sınırı; görseller yüklenmeden önce otomatik küçültülür
 const norm = (s) => String(s ?? "").toLocaleLowerCase("tr").replace(/\s+/g, " ").trim();
 const live = (r) => !["cancelled", "left"].includes(r.enrollment.status);
 
