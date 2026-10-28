@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import SiteLoader from "@/components/ui/SiteLoader";
+import { stripLocale } from "@/lib/i18n/config";
 import { PRELOADER_DURATION, PRELOADER_STORAGE_KEY, BRAND_NAME } from "@/lib/constants";
 
 const LETTERS = Array.from(BRAND_NAME);
 
 /**
- * ~1 sn'lik açılış: harfler belirir, eğri bir perde yukarı çekilir.
+ * ~1 sn'lik açılış: markalı yükleme animasyonu (SiteLoader) görünür, eğri bir perde yukarı çekilir (öğrenci alanında: harfler belirir).
  * Animasyon tamamen CSS'tedir (globals.css #preloader); bu bileşen yalnızca
  *  - oturumda bir kez oynatır (sessionStorage),
  *  - süre bitince DOM'dan kaldırır.
@@ -14,6 +17,8 @@ const LETTERS = Array.from(BRAND_NAME);
  */
 export default function Preloader() {
     const [mounted, setMounted] = useState(true);
+    // Öğrenci alanı eski harf animasyonunu korur; markalı yükleme animasyonu yalnızca genel sitede gösterilir
+    const portal = stripLocale(usePathname() || "/").startsWith("/ogrenci");
 
     useEffect(() => {
         let seen = false;
@@ -33,6 +38,14 @@ export default function Preloader() {
     }, []);
 
     if (!mounted) return null;
+
+    if (!portal) {
+        return (
+            <div id="preloader" aria-hidden="true" className="flex items-center justify-center">
+                <SiteLoader />
+            </div>
+        );
+    }
 
     return (
         <div id="preloader" aria-hidden="true" className="flex items-center justify-center">

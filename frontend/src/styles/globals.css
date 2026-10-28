@@ -168,6 +168,24 @@ body {
 /* Bu oturumda zaten görüldüyse hiç gösterme (layout içindeki küçük script işaretler) */
 html[data-preloader-seen] #preloader { display: none; }
 
+/* ───────────── Marka yükleme animasyonu (açılış + sayfa geçişleri) ─────────────
+   Yönetim panelindeki yükleme ekranının (admin.css .admin-loader-*) orkide temalı karşılığı. Bileşen: components/ui/SiteLoader.jsx */
+@keyframes site-spin { to { transform: rotate(360deg); } }
+@keyframes site-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+@keyframes site-pulse { 0%, 100% { opacity: 0.45; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1.05); } }
+@keyframes site-slide { 0% { transform: translateX(-110%); } 100% { transform: translateX(320%); } }
+
+.site-loader-ring {
+    background: conic-gradient(from 0deg, transparent 0deg, var(--color-orchid-pink) 270deg, var(--color-orchid-petal) 330deg, transparent 360deg);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+    animation: site-spin 1s linear infinite;
+}
+.site-loader-spin-rev { animation: site-spin 6s linear infinite reverse; }
+.site-loader-breathe { animation: site-breathe 1.8s ease-in-out infinite; }
+.site-loader-pulse { animation: site-pulse 1.8s ease-in-out infinite; }
+.site-loader-slide { animation: site-slide 1.3s cubic-bezier(0.65, 0, 0.35, 1) infinite; }
+
 /* Özel imleç yalnızca JS çalışıp imleç bileşeni açıldığında gizlenir */
 @media (pointer: fine) {
     html.has-custom-cursor,
