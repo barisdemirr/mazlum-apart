@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { API_CONFIG } from "@/lib/api/config";
+import { PUBLIC_TAGS } from "@/lib/api/cache";
 import { readStudentToken } from "@/lib/student/auth";
 import { readAdminToken } from "@/lib/admin/auth";
 import { refreshRequest } from "@/lib/api/auth-session";
@@ -118,6 +120,13 @@ async function forward(request, { params }) {
         if (upstream.status === 401 && names && !renewed && (await renew())) upstream = await send();
     } catch {
         return problem(502, "Bağlantı hatası", "Sunucuya ulaşılamadı. Lütfen biraz sonra tekrar deneyin.");
+    }
+
+    // Veri değiştiren başarılı istek (panel işlemi ya da yeni başvuru): herkese açık sayfaların önbelleği süre dolmasını
+    // beklemeden tazelenir. Böylece önbellek süreleri uzun tutulabilir (sayfalar sürekli yeniden üretilmez, CPU harcanmaz)
+    // ama panelden yapılan değişiklik sitede hemen görünür.
+    if (method !== "GET" && upstream.ok && (route.role === "admin" || target === "applications")) {
+        for (const tag of PUBLIC_TAGS) revalidateTag(tag);
     }
 
     const out = new Headers({ "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });

@@ -1,14 +1,16 @@
 import { apiGet } from "@/lib/api";
 import { orNull } from "@/lib/api/nullable";
+import { TTL_LONG, TTL_SHORT } from "@/lib/api/cache";
 
 /**
- * Oda tipleri ve doluluk: herkese açık uçlar (token gerekmez). Sunucu bileşenlerinde çalışır, Next önbelleği ile
- * 60 sn tutulur; yönetici panelden değişiklik yapınca en geç 1 dk içinde sitede görünür.
+ * Oda tipleri ve doluluk: herkese açık uçlar (token gerekmez). Sunucu bileşenlerinde çalışır, Next önbelleği ile tutulur.
+ * Panelden yapılan her değişiklik ve her yeni başvuru "catalog" etiketini hemen geçersiz kılar (bkz. lib/api/cache.js),
+ * süreler yalnızca tarihe bağlı değişiklikler için yedektir.
  */
 const enc = encodeURIComponent;
-const CACHE = { revalidate: 60, tags: ["catalog"] };
+const CACHE = { revalidate: TTL_LONG, tags: ["catalog"] };
 // Doluluk daha sık değişir: kısa önbellek
-const FRESH = { revalidate: 20, tags: ["catalog"] };
+const FRESH = { revalidate: TTL_SHORT, tags: ["catalog"] };
 
 /** GET /api/apartment-types: ana sayfadaki daire türleri, her birinin altında fiyatlı oda seçenekleri */
 export const getApartmentTypes = () => apiGet("/api/apartment-types", FRESH);

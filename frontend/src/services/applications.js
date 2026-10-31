@@ -1,5 +1,6 @@
 import { apiGet } from "@/lib/api";
 import { bffUpload } from "@/lib/api/bff";
+import { TTL_SHORT } from "@/lib/api/cache";
 
 /**
  * Başvuru formunun ayarları (GET /api/applications/config):
@@ -8,7 +9,7 @@ import { bffUpload } from "@/lib/api/bff";
  * Ne akademik ne yaz dönemi açıksa null döner ve sayfa "başvurular kapalı" mesajını gösterir.
  */
 export async function getApplicationConfig() {
-    const config = await apiGet("/api/applications/config", { revalidate: 30, tags: ["application-config"] });
+    const config = await apiGet("/api/applications/config", { revalidate: TTL_SHORT, tags: ["application-config"] });
     const academic = Boolean(config?.period && config.applicationsOpen);
     return academic || config?.summer ? config : null;
 }

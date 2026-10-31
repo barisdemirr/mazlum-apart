@@ -1,11 +1,12 @@
 import { apiGet } from "@/lib/api";
+import { TTL_LONG } from "@/lib/api/cache";
 
 /**
  * Herkese açık site ayarları: telefon, WhatsApp, adres, harita, Instagram, hero videosu, konum görseli,
  * ön başvuru alanı ({ enabled, announceDate }).
  * Boş alanlar null gelir ve sitede hiç gösterilmez. IBAN burada YOK (yalnızca öğrenci portalında).
  */
-export const getSiteSettings = () => apiGet("/api/site-settings", { revalidate: 60, tags: ["site-settings"] });
+export const getSiteSettings = () => apiGet("/api/site-settings", { revalidate: TTL_LONG, tags: ["site-settings"] });
 
 const EMPTY = { phone: null, whatsapp: null, email: null, address: null, mapUrl: null, instagram: null, heroVideo: null, mapImage: null, preRegistration: null };
 

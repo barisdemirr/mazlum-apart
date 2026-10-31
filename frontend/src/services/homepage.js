@@ -1,8 +1,9 @@
 import { apiGet } from "@/lib/api";
+import { TTL_LONG } from "@/lib/api/cache";
 import { getSiteSettings } from "./siteSettings";
 
 /** Anasayfa hero slaytları (yalnızca yayındakiler, sıralı): [{ id, image, title, subtitle }] */
-export const getHeroSlides = () => apiGet("/api/slides", { revalidate: 60, tags: ["slides"] });
+export const getHeroSlides = () => apiGet("/api/slides", { revalidate: TTL_LONG, tags: ["slides"] });
 
 /**
  * Anasayfa hero medyası: site ayarlarındaki oda turu videosu ve kapak görseli (videonun poster karesi).
