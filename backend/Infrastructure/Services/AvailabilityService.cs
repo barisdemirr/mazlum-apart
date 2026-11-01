@@ -13,7 +13,9 @@ public record RoomBedCounts(int Occupied, int Reserved);
 /// Panel öğrenciyi YATAĞA değil ODAYA yerleştirir; sitedeki yatak kutuları odanın yatak sayısından türetilir:
 ///   önce "dolu" kadar yatak, sonra "ayrılmış" kadar yatak, kalanı "boş".
 ///   dolu     = o gün (bugün; dönem henüz başlamadıysa dönemin ilk günü) odada yerleşimi olan kayıtlar — HANGİ DÖNEMDEN olursa olsun
-///              (yaz döneminde, akademik dönemden 12 ay kalan öğrenciler de odayı doldurur)
+///              (yaz döneminde, akademik dönemden 12 ay kalan öğrenciler de odayı doldurur).
+///              İstisna: yönetici tarafından girilmiş (ya da yönetici onaylı) ÇIKIŞ kaydı olan öğrenci, çıkış tarihinden itibaren odayı doldurmaz;
+///              böylece 2. yarıyılda boşalacak odalar o yarıyıl için başvuruya açık görünür.
 ///   ayrılmış = bu odayı tercih eden bekleyen başvurular + bu odayı tercih edip onaylanmış ama henüz yerleşmemiş kayıtlar
 /// </summary>
 public class AvailabilityService(AppDbContext db)
@@ -30,8 +32,14 @@ public class AvailabilityService(AppDbContext db)
         var today = onDay ?? TurkeyClock.Today;
         var day = today < period.StartDate ? period.StartDate : today > period.EndDate ? period.EndDate : today;
 
+        // Çıkış tarihi gelmiş (ExitDate <= day) ve yönetici girişli / onaylı çıkışlar: öğrencinin yerleşimi yerinde durur ama yatak o gün boş sayılır.
+        // Öğrencinin kendi bildirdiği, onaylanmamış çıkış yatağı boşaltmaz (yanlış bildirim odayı sitede boş göstermesin).
+        var exited = db.EnrollmentExits.AsNoTracking()
+            .Where(x => x.ExitDate <= day && (x.ConfirmedAt != null || x.ReportedByType == ActorType.Admin))
+            .Select(x => x.EnrollmentId);
+
         var occupied = await db.Placements.AsNoTracking()
-            .Where(x => roomIds.Contains(x.RoomId) && x.StartDate <= day && x.EndDate >= day)
+            .Where(x => roomIds.Contains(x.RoomId) && x.StartDate <= day && x.EndDate >= day && !exited.Contains(x.EnrollmentId))
             .GroupBy(x => x.RoomId)
             .Select(g => new { RoomId = g.Key, Count = g.Count() })
             .ToListAsync(ct);

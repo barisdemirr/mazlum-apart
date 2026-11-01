@@ -28,8 +28,38 @@ public static class PlacementRules
         return points.Select(day => list.Count(p => p.StartDate <= day && p.EndDate >= day)).DefaultIfEmpty(0).Max();
     }
 
+    /// <summary>
+    /// Odanın yerleşimleri (YALNIZCA okuma / kapasite hesabı için: izlenmeyen kayıtlardır, değiştirilip kaydedilmez).
+    /// Yönetici girişli ya da onaylı çıkışı olan öğrencinin yerleşimi çıkış gününün bir gün öncesinde biter sayılır;
+    /// böylece 2. yarıyıl öğrencisi, çıkış yapacak öğrencinin odasına yerleştirilebilir.
+    /// </summary>
     public static async Task<List<Placement>> RoomPlacementsAsync(AppDbContext db, Guid roomId, CancellationToken ct) =>
-        await db.Placements.Where(x => x.RoomId == roomId).ToListAsync(ct);
+        await TrimByExitsAsync(db, await db.Placements.AsNoTracking().Where(x => x.RoomId == roomId).ToListAsync(ct), ct);
+
+    /// <summary>Çıkışı girilmiş kayıtların yerleşim bitişini çıkıştan bir gün öncesine çeker (izlenmeyen kayıtlar üzerinde); çıkışla başlangıcı aşılan yerleşim listeden düşer</summary>
+    public static async Task<List<Placement>> TrimByExitsAsync(AppDbContext db, List<Placement> placements, CancellationToken ct)
+    {
+        if (placements.Count == 0) return placements;
+
+        var enrollmentIds = placements.Select(p => p.EnrollmentId).Distinct().ToList();
+        var exits = await db.EnrollmentExits.AsNoTracking()
+            .Where(x => enrollmentIds.Contains(x.EnrollmentId) && (x.ConfirmedAt != null || x.ReportedByType == ActorType.Admin))
+            .ToDictionaryAsync(x => x.EnrollmentId, x => x.ExitDate, ct);
+        if (exits.Count == 0) return placements;
+
+        var result = new List<Placement>(placements.Count);
+        foreach (var p in placements)
+        {
+            if (exits.TryGetValue(p.EnrollmentId, out var exitDate))
+            {
+                var lastDay = exitDate.AddDays(-1);
+                if (lastDay < p.StartDate) continue; // çıkış, yerleşim başlamadan önce
+                if (lastDay < p.EndDate) p.EndDate = lastDay;
+            }
+            result.Add(p);
+        }
+        return result;
+    }
 }
 
 /// <summary>

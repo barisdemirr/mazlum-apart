@@ -121,7 +121,7 @@ public static class GetRoomOptions
                 .Where(x => x.RoomTypeId == (roomTypeId ?? enrollment.RoomTypeId) && x.Id != excludeRoomId)
                 .ToListAsync(ct);
             var roomIds = rooms.Select(x => x.Id).ToList();
-            var placements = await db.Placements.AsNoTracking().Where(x => roomIds.Contains(x.RoomId)).ToListAsync(ct);
+            var placements = await PlacementRules.TrimByExitsAsync(db, await db.Placements.AsNoTracking().Where(x => roomIds.Contains(x.RoomId)).ToListAsync(ct), ct);
 
             var order = await StructureOrder.LoadAsync(db, ct);
             return rooms

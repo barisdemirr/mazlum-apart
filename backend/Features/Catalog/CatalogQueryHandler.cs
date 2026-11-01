@@ -94,8 +94,15 @@ public class CatalogQueryHandler(AppDbContext db, AvailabilityService availabili
         var s = await LoadAsync(ct);
         var all = s.Types.SelectMany(t => FlatsOf(s, t.Id)).ToList();
         var counts = await CountsAsync(s, all, ct);
-        return s.Types.Select(t => Card(s, t, counts)).ToList();
+        var secondCounts = await SecondHalfCountsAsync(s, all, ct);
+        return s.Types.Select(t => Card(s, t, counts, secondCounts)).ToList();
     }
+
+    /// <summary>Yarım dönem açıksa 2. yarıyılın ilk gününe göre yatak sayımları (başvuru formunda "2. Yarıyıl" seçilince odalar buna göre dolu/boş görünür); kapalıysa null</summary>
+    private async Task<Dictionary<Guid, RoomBedCounts>?> SecondHalfCountsAsync(Structure s, IEnumerable<FlatView> flats, CancellationToken ct) =>
+        s.Period is { HalfTermEnabled: true, HalfTermSecondStart: { } secondStart } period
+            ? await availability.GetRoomCountsAsync(period.Id, flats.SelectMany(f => f.ActiveRooms).Select(r => r.Id).Distinct().ToList(), ct, secondStart)
+            : null;
 
     public async Task<RoomTypeDetail?> RoomTypeAsync(string slug, CancellationToken ct)
     {
@@ -110,7 +117,7 @@ public class CatalogQueryHandler(AppDbContext db, AvailabilityService availabili
             c.RoomCount, c.PeopleInFlatMax, c.PeopleSharingKitchenMax, c.PeopleSharingBathroomMax, c.ApartmentTypeSlug, c.ApartmentTypeName);
     }
 
-    private static RoomTypeCard Card(Structure s, RoomType t, Dictionary<Guid, RoomBedCounts> counts)
+    private static RoomTypeCard Card(Structure s, RoomType t, Dictionary<Guid, RoomBedCounts> counts, Dictionary<Guid, RoomBedCounts>? secondCounts = null)
     {
         var flats = FlatsOf(s, t.Id);
         var owner = t.ApartmentTypeId is { } ownerId ? s.ApartmentTypes.FirstOrDefault(a => a.Id == ownerId) : null;
@@ -133,7 +140,8 @@ public class CatalogQueryHandler(AppDbContext db, AvailabilityService availabili
             flats.Count > 0 ? flats.Max(f => f.Beds) : null,
             flats.Where(f => f.PerKitchen is not null).Select(f => f.PerKitchen).Max(),
             flats.Where(f => f.PerBathroom is not null).Select(f => f.PerBathroom).Max(),
-            owner?.Slug, owner?.Name);
+            owner?.Slug, owner?.Name,
+            secondCounts is null ? null : flats.Sum(f => Free(f.ActiveRooms.Where(r => r.RoomTypeId == t.Id), secondCounts)));
     }
 
     private static LocalizedList Paragraphs(LocalizedText? text)

@@ -12,6 +12,7 @@ public record LocalizedList(List<string> Tr, List<string> En);
 /// <summary>
 /// Oda tipi kartı (anasayfa, /odalar, başvuru formu). Aynı tipteki odalar farklı dairelerde (ve bir dairede farklı tiplerle) bulunabilir;
 /// bu yüzden dairenin kişi/mutfak/banyo sayıları tek değer değil ARALIKTIR: alan = en az, alanMax = en çok (aynıysa eşittir).
+/// BedsFreeSecond: yarım dönem açıksa 2. yarıyılın ilk günü boş olacak yatak sayısı (1. yarıda kalanlar ve çıkışı girilenler boşalmış sayılır); kapalıysa null.
 /// </summary>
 public record RoomTypeCard(
     Guid Id,
@@ -33,7 +34,8 @@ public record RoomTypeCard(
     int? PeopleSharingKitchenMax,
     int? PeopleSharingBathroomMax,
     string? ApartmentTypeSlug = null,
-    LocalizedText? ApartmentTypeName = null);
+    LocalizedText? ApartmentTypeName = null,
+    int? BedsFreeSecond = null);
 
 public record RoomTypeDetail(
     Guid Id,

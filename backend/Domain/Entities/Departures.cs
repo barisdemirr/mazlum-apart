@@ -4,8 +4,10 @@ namespace MazlumApart.Domain.Entities;
 
 /*
  * ÇIKIŞ, GEÇİCİ AYRILIŞ VE DAİRE DURUMU (madde 18).
- * Bu üç tablo kayıt, yerleşim, borç ve tahsilata DOKUNMAZ: öğrenci çıkış yapsa da yerleşimi yerinde durur,
- * yatak sayıları değişmez, oda yeni başvurulara açılmaz. Durumlar (aktif / geçici ayrıldı / çıkış bildirildi / onaylandı,
+ * Bu üç tablo kayıt, yerleşim, borç ve tahsilata DOKUNMAZ: öğrenci çıkış yapsa da yerleşimi yerinde durur.
+ * Tek etkisi doluluk hesabındadır: yönetici girişli ya da onaylı çıkışın tarihinden itibaren yatak boş sayılır
+ * (AvailabilityService, PlacementRules) — böylece o oda çıkış tarihinden sonraki yarıyıl için başvuruya açılabilir.
+ * Geçici ayrılış odayı hiçbir zaman boşaltmaz. Durumlar (aktif / geçici ayrıldı / çıkış bildirildi / onaylandı,
  * daire boş mu) saklanmaz; seçilen güne göre PresenceMath ile hesaplanır.
  */
 
