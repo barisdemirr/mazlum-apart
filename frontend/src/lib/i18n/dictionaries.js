@@ -255,6 +255,8 @@ export const dictionaries = {
                 fullTerm: "Tam Dönem",
                 firstTerm: "1. Yarıyıl",
                 secondTerm: "2. Yarıyıl",
+                secondTermNote: "2. yarıyıl için, o tarihte boş olacak odalar seçilebilir (yarım dönem kalan ya da dönem ortasında çıkış yapacak öğrencilerin odaları dahil).",
+                secondTermOpen: "2. yarıyıl için müsait",
                 entryLabel: "Giriş Tarihi",
                 entryHint: "En erken {date}",
                 discount: {
@@ -1169,6 +1171,8 @@ export const dictionaries = {
                 fullTerm: "Full Term",
                 firstTerm: "First Half",
                 secondTerm: "Second Half",
+                secondTermNote: "For the second half, you can pick rooms that will be free by then (including rooms of students staying one semester or leaving mid-year).",
+                secondTermOpen: "Available for the second half",
                 entryLabel: "Move-in Date",
                 entryHint: "Earliest {date}",
                 discount: {

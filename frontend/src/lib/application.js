@@ -110,15 +110,24 @@ export function stayConfig(config, stayPlan) {
     return { period: config.period ?? config.summer?.period, halfTerm: config.halfTerm };
 }
 
-/** Oda tipleri seçilen türün fiyatlarıyla: yaz → yaz döneminin kirası ve depozitosu; 12 ay → summerMonthlyPrice eklenir */
-export function roomsForStay(rooms, config, stayPlan) {
-    return markFull(priceRooms(rooms, config, stayPlan), stayPlan);
+/**
+ * Oda tipleri seçilen türün fiyatlarıyla: yaz → yaz döneminin kirası ve depozitosu; 12 ay → summerMonthlyPrice eklenir.
+ * term: seçili kayıt süresi; "second" ise doluluk 2. yarıyılın ilk gününe göre bakılır.
+ */
+export function roomsForStay(rooms, config, stayPlan, term = "full") {
+    return markFull(priceRooms(rooms, config, stayPlan), stayPlan, term);
 }
 
-/** Tüm yatakları dolu oda tipi: "Dolu" gösterilir ve seçilemez (unavailable gibi davranır). Yaz kaydında doluluk akademik dönemi gösterdiği için bakılmaz. */
-function markFull(rooms, stayPlan) {
+/**
+ * Tüm yatakları dolu oda tipi: "Dolu" gösterilir ve seçilemez (unavailable gibi davranır). Yaz kaydında doluluk akademik dönemi gösterdiği için bakılmaz.
+ * 2. yarıyıl seçiliyse backend'in hesapladığı bedsFreeSecond kullanılır: 1. yarıda kalan ya da çıkış tarihi girilen öğrencilerin odaları o yarıyıl için boştur.
+ */
+function markFull(rooms, stayPlan, term) {
     if (stayPlan === "summer") return rooms;
-    return rooms.map((room) => (!room.unavailable && room.roomCount > 0 && room.bedsFree === 0 ? { ...room, unavailable: true, full: true } : room));
+    return rooms.map((room) => {
+        const free = term === "second" && room.bedsFreeSecond != null ? room.bedsFreeSecond : room.bedsFree;
+        return !room.unavailable && room.roomCount > 0 && free === 0 ? { ...room, unavailable: true, full: true } : room;
+    });
 }
 
 function priceRooms(rooms, config, stayPlan) {

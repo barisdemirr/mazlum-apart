@@ -85,7 +85,7 @@ export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }
     const stay = useMemo(() => stayConfig(config, form.stayPlan), [config, form.stayPlan]);
     // İndirim kodu (eski öğrenci): geçerliyse aylık kira indirimli gösterilir; backend başvuruda kodu yeniden doğrular
     const [discount, setDiscount] = useState(null);
-    const stayRooms = useMemo(() => discountRooms(roomsForStay(rooms, config, form.stayPlan), discount), [rooms, config, form.stayPlan, discount]);
+    const stayRooms = useMemo(() => discountRooms(roomsForStay(rooms, config, form.stayPlan, form.term), discount), [rooms, config, form.stayPlan, form.term, discount]);
     const openRooms = useMemo(() => stayRooms.filter((item) => !item.unavailable), [stayRooms]);
     // Seçili kayıt süresinin aralığı (tam dönem ya da yarıyıl): tarih sınırları, plan ve doğrulama bunu kullanır
     const terms = useMemo(() => termOptions(stay), [stay]);
@@ -131,9 +131,13 @@ export default function ApplyForm({ rooms, config, initialRoomSlug, bedRequest }
             return;
         }
         if (field === "term") {
-            // Süre değişince giriş tarihi yeni sürenin sınırlarına çekilir
-            setFormState((f) => ({ ...f, term: value, entryDate: clampEntry(f.entryDate, termRange(stay, value)) }));
-            clearErrors(["term", "entryDate"]);
+            // Süre değişince giriş tarihi yeni sürenin sınırlarına çekilir; seçili oda o sürede doluysa (2. yarıyılda boşalan odalar farklıdır) seçim bırakılır
+            setFormState((f) => {
+                const nextRooms = roomsForStay(rooms, config, f.stayPlan, value);
+                const keepRoom = nextRooms.some((item) => item.slug === f.roomSlug && !item.unavailable);
+                return { ...f, term: value, roomSlug: keepRoom ? f.roomSlug : "", entryDate: clampEntry(f.entryDate, termRange(stay, value)) };
+            });
+            clearErrors(["term", "entryDate", "roomSlug"]);
             return;
         }
         setFormState((f) => ({ ...f, [field]: value }));

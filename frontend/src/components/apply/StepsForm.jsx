@@ -144,6 +144,34 @@ export function StepRoom({ form, set, err, tick, config, rooms, terms, period, b
                 </div>
             )}
 
+            {/* Kayıt süresi: yarım dönem kapalıyken (varsayılan) bu bölüm hiç gösterilmez, form tam dönemdir */}
+            {terms.length > 1 && (
+                <div data-field="term" className="flex flex-col gap-3">
+                    <GroupLabel id="term-label">{a.room.termLabel}</GroupLabel>
+                    <div role="radiogroup" aria-labelledby="term-label" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                        {terms.map((term) => (
+                            <SelectionCard key={term.id} selected={form.term === term.id} onClick={() => set("term", term.id)} className="px-5 py-5">
+                                <span className="block pr-9 pb-1">
+                                    <span className="block font-display text-xl font-medium text-orchid-dark">
+                                        {term.id === "full" ? a.room.fullTerm : term.id === "first" ? a.room.firstTerm : a.room.secondTerm}
+                                    </span>
+                                    <span className="mt-0.5 block text-sm text-orchid-muted">
+                                        {formatDate(term.start)} – {formatDate(term.end)}
+                                    </span>
+                                </span>
+                            </SelectionCard>
+                        ))}
+                    </div>
+                    <FieldError id="term-error" message={err("term")} />
+                    {form.term === "second" && (
+                        <p className="flex items-start gap-3 rounded-2xl bg-orchid-powder/70 px-4 py-3 text-sm text-orchid-dark">
+                            <Icon name="info" filled className="mt-0.5 text-[20px] text-orchid-pink" />
+                            <span>{a.room.secondTermNote}</span>
+                        </p>
+                    )}
+                </div>
+            )}
+
             {/* Oda tipi */}
             <div data-field="roomSlug" className="flex flex-col gap-3">
                 <GroupLabel required id="room-label">{a.room.title}</GroupLabel>
@@ -173,7 +201,13 @@ export function StepRoom({ form, set, err, tick, config, rooms, terms, period, b
                                         <span className="block font-display text-xl font-medium leading-tight text-orchid-dark">{name}</span>
                                         <span className="mt-0.5 block text-xs text-orchid-muted">{tpl(a.room.inFlat, { count: rangeText(room.peopleInFlat, room.peopleInFlatMax) })}</span>
                                         {room.unavailable ? (
-                                            <span className={`mt-1.5 block text-xs font-semibold ${room.full ? "w-fit rounded-full bg-orchid-dark px-3 py-1 text-white" : "text-orchid-muted"}`}>{room.full ? a.room.full : s.noPrice}</span>
+                                            <>
+                                                <span className={`mt-1.5 block text-xs font-semibold ${room.full ? "w-fit rounded-full bg-orchid-dark px-3 py-1 text-white" : "text-orchid-muted"}`}>{room.full ? a.room.full : s.noPrice}</span>
+                                                {/* Şu an dolu ama 2. yarıyılda boşalacak oda: öğrenci yarıyıl seçeneğine yönlendirilir */}
+                                                {room.full && form.term !== "second" && terms.length > 1 && room.bedsFreeSecond > 0 && (
+                                                    <span className="mt-1.5 block text-xs font-semibold text-orchid-violet">{a.room.secondTermOpen}</span>
+                                                )}
+                                            </>
                                         ) : (
                                             <>
                                                 <span className="mt-1.5 block font-display text-2xl font-semibold text-orchid-pink">
@@ -231,28 +265,6 @@ export function StepRoom({ form, set, err, tick, config, rooms, terms, period, b
                     )}
                 </AnimatePresence>
             </div>
-
-            {/* Kayıt süresi: yarım dönem kapalıyken (varsayılan) bu bölüm hiç gösterilmez, form tam dönemdir */}
-            {terms.length > 1 && (
-                <div data-field="term" className="flex flex-col gap-3">
-                    <GroupLabel id="term-label">{a.room.termLabel}</GroupLabel>
-                    <div role="radiogroup" aria-labelledby="term-label" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                        {terms.map((term) => (
-                            <SelectionCard key={term.id} selected={form.term === term.id} onClick={() => set("term", term.id)} className="px-5 py-5">
-                                <span className="block pr-9 pb-1">
-                                    <span className="block font-display text-xl font-medium text-orchid-dark">
-                                        {term.id === "full" ? a.room.fullTerm : term.id === "first" ? a.room.firstTerm : a.room.secondTerm}
-                                    </span>
-                                    <span className="mt-0.5 block text-sm text-orchid-muted">
-                                        {formatDate(term.start)} – {formatDate(term.end)}
-                                    </span>
-                                </span>
-                            </SelectionCard>
-                        ))}
-                    </div>
-                    <FieldError id="term-error" message={err("term")} />
-                </div>
-            )}
 
             {/* İndirim kodu (kayıt yenileyen eski öğrenciler) */}
             <DiscountCodeField discount={discount} onChange={onDiscount} error={err("discountCode")} currency={selectedRoom?.currency ?? rooms[0]?.currency ?? "TRY"} />

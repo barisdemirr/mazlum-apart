@@ -88,7 +88,7 @@ export default function DepartureDialog({ enrollmentId, studentName, readOnly = 
                     {/* Kesin çıkış */}
                     <section className="rounded-2xl border border-ad-line p-4">
                         <h3 className="text-sm font-bold">Kesin çıkış</h3>
-                        {!exit && <p className="mt-0.5 text-xs text-ad-muted">Henüz çıkış girilmedi. Çıkış tarihi gelene kadar öğrenci odasında sayılır.</p>}
+                        {!exit && <p className="mt-0.5 text-xs text-ad-muted">Henüz çıkış girilmedi. Çıkış tarihi gelene kadar öğrenci odasında sayılır. Yönetici olarak girdiğiniz (ya da onayladığınız) çıkış tarihinden itibaren oda sitede müsait görünür; yarım dönem açıksa 2. yarıyıl başvurularında da boş sayılır.</p>}
                         {exit && (
                             <p className="mt-0.5 text-xs text-ad-muted">
                                 {dateTime(exit.reportedAt)} · {exit.reportedBy === "student" ? "öğrenci bildirdi" : "yönetici girdi"} ({exit.reportedByName})
