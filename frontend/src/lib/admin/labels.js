@@ -96,6 +96,7 @@ export const MAINT_STATUS = {
 export const CONTACT_PURPOSE = {
     payment_reminder: "Ödeme hatırlatma",
     payment_overdue: "Geciken ödeme",
+    payment_received: "Ödeme alındı",
     application_received: "Başvuru bilgilendirme",
     enrollment_approved: "Kayıt onayı",
     maintenance_update: "Arıza durumu",

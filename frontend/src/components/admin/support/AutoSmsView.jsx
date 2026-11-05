@@ -10,7 +10,7 @@ const FORMAT = new Intl.DateTimeFormat("tr-TR", { timeZone: "Europe/Istanbul", d
 const stamp = (iso) => (iso ? FORMAT.format(new Date(iso)) : "—");
 
 /**
- * Otomatik gönderilen ödeme hatırlatma SMS'lerinin kaydı (sistem günlük çalışır; hangi öğrenciye, ne zaman, ne gitti).
+ * Otomatik gönderilen SMS'lerin kaydı (ödeme hatırlatma + "ödemeniz alındı") (sistem günlük çalışır; hangi öğrenciye, ne zaman, ne gitti).
  * Sıralama: sütun başlıklarına tıklayın (varsayılan en yeni önce). Süzme: öğrenci seçimi, durum, arama kutusu.
  */
 export default function AutoSmsView({ items }) {
@@ -66,8 +66,9 @@ export default function AutoSmsView({ items }) {
     return (
         <div className="flex flex-col gap-4">
             <p className="max-w-3xl text-sm text-ad-muted">
-                Vadesi geçen ödemeler için sistemin kendiliğinden gönderdiği SMS'ler. Kısmi ödeme yapan öğrenciye, ödediği oran kadar süre dolmadan SMS gitmez;
-                aynı öğrenciye art arda günlerde gönderilmez.
+                Sistemin kendiliğinden gönderdiği SMS'ler: vadesi geçen ödeme hatırlatmaları ve tahsilat girilince giden “ödemeniz alındı” mesajları.
+                Hatırlatma, kısmi ödeme yapan öğrenciye ödediği oran kadar süre dolmadan gitmez; aynı öğrenciye art arda günlerde gönderilmez.
+                “Ödemeniz alındı” metni Mesaj Şablonları'ndan düzenlenir.
             </p>
             <Chips items={statusChips} value={status} onChange={setStatus} />
             <DataTable

@@ -11,6 +11,7 @@ import { saveTemplate } from "@/lib/admin/commands/content";
 const VARS = [
     ["{ad}", "Öğrencinin adı"], ["{telefon}", "Telefon"], ["{oda}", "Daire ve oda"], ["{tutar}", "Tutar"],
     ["{vade}", "Vade tarihi"], ["{kalem}", "Borç kalemi"], ["{sifre}", "İlk şifre (kayıt onayında)"], ["{konu}", "Arıza konusu"], ["{durum}", "Arıza durumu"],
+    ["{tarih}", "Tahsilat tarihi (ödeme alındı SMS'i)"], ["{kalan}", "Kalan toplam borç (ödeme alındı SMS'i)"],
 ];
 
 /** WhatsApp ve SMS için hazır mesajlar. Gönderirken yine de düzenlenebilir; buradaki metin başlangıç metnidir. */
