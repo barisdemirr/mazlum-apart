@@ -16,7 +16,7 @@ public static class MessagePurposes
 {
     public static readonly HashSet<string> All =
     [
-        "payment_reminder", "payment_overdue", "application_received", "enrollment_approved", "maintenance_update", "announcement", "other"
+        "payment_reminder", "payment_overdue", "payment_received", "application_received", "enrollment_approved", "maintenance_update", "announcement", "other"
     ];
 }
 

@@ -1,6 +1,8 @@
 using System.Security.Claims;
+using Hangfire;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using MazlumApart.Domain.Accounting;
 using MazlumApart.Domain.Entities;
 using MazlumApart.Domain.Enums;
@@ -107,7 +109,8 @@ public static class RecordPayment
 
     public record Response(Guid PaymentId, List<AllocationLine> Lines, decimal Advance);
 
-    public class Handler(AppDbContext db, LedgerService ledgers, CashBook cashBook, IdempotencyGuard idempotency, StudentAlerts studentAlerts, AuditWriter audit)
+    public class Handler(AppDbContext db, LedgerService ledgers, CashBook cashBook, IdempotencyGuard idempotency, StudentAlerts studentAlerts,
+        IBackgroundJobClient jobs, IOptions<Features.Messaging.PaymentReceiptOptions> receiptOptions, ILogger<Handler> logger, AuditWriter audit)
     {
         public async Task<Result<Response>> Handle(Guid enrollmentId, Command cmd, Guid adminId, Guid? key, CancellationToken ct)
         {
@@ -166,6 +169,19 @@ public static class RecordPayment
                 }
             }
             catch (Exception) { /* bildirim yan etkidir */ }
+
+            // Öğrenciye "ödemeniz alındı" SMS'i arka planda (Hangfire) gider; kuyruğa atılamasa bile tahsilat kaydı geçerlidir
+            if (receiptOptions.Value.Enabled)
+            {
+                try
+                {
+                    jobs.Enqueue<Features.Messaging.PaymentReceiptSmsJob>(job => job.RunAsync(payment.Id, CancellationToken.None));
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Ödeme alındı SMS'i kuyruğa atılamadı: {PaymentId}", payment.Id);
+                }
+            }
 
             return new Response(payment.Id, result, advance);
         }

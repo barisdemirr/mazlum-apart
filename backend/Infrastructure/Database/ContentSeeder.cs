@@ -60,6 +60,9 @@ public static class ContentSeeder
         ("maintenance_update", "Arıza durumu",
             "Merhaba {ad}, “{konu}” arıza kaydınızın durumu: {durum}.",
             "Hello {ad}, the status of your maintenance request “{konu}” is: {durum}."),
+        ("payment_received", "Ödeme alındı (otomatik SMS)",
+            "Sevgili {ad}, {tarih} tarihli {tutar} tutarındaki ödemeniz alınmıştır. Teşekkür ederiz.",
+            "Dear {ad}, your payment of {tutar} dated {tarih} has been received. Thank you."),
         ("enrollment_approved", "Kayıt onayı ve giriş bilgisi",
             "Merhaba {ad}, kaydınız onaylandı. Öğrenci alanı giriş bilgileriniz: telefon {telefon}, şifre {sifre}.",
             "Hello {ad}, your registration is confirmed. Your student area login: phone {telefon}, password {sifre}.")

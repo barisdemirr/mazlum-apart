@@ -232,7 +232,7 @@ public sealed class PaymentReminderJob(
     }
 }
 
-/// <summary>Yönetici paneli: otomatik gönderilen SMS kayıtları (en yeni önce; sıralama ve arama arayüzde)</summary>
+/// <summary>Yönetici paneli: otomatik gönderilen SMS kayıtları — ödeme hatırlatmaları ve "ödemeniz alındı" mesajları (en yeni önce; sıralama ve arama arayüzde)</summary>
 public static class AutoSmsLog
 {
     public record Row(Guid Id, DateTime At, Guid? EnrollmentId, string Name, string Phone, string Body, int Parts, SmsMessageStatus Status, string? ProviderStatus);
@@ -244,7 +244,7 @@ public static class AutoSmsLog
             {
                 var query = from m in db.SmsMessages.AsNoTracking()
                             join b in db.SmsBatches.AsNoTracking() on m.BatchId equals b.Id
-                            where b.Purpose == AutoSms.Purpose
+                            where b.Purpose == AutoSms.Purpose || b.Purpose == ReceiptSms.Purpose
                             select m;
                 if (enrollmentId is { } id) query = query.Where(m => m.EnrollmentId == id);
 

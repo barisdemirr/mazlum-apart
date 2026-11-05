@@ -158,6 +158,10 @@ builder.Services.AddHostedService<MazlumApart.Features.Jobs.RecurringJobCleanup>
 builder.Services.AddHangfireServer(options => options.WorkerCount = 1);
 builder.Services.AddScoped<MazlumApart.Features.Messaging.PaymentReminderJob>();
 
+// Tahsilat girilince öğrenciye otomatik "ödemeniz alındı" SMS'i (Hangfire kuyruğu; şablon: Mesaj Şablonları > payment_received)
+builder.Services.Configure<MazlumApart.Features.Messaging.PaymentReceiptOptions>(builder.Configuration.GetSection("PaymentReceiptSms"));
+builder.Services.AddScoped<MazlumApart.Features.Messaging.PaymentReceiptSmsJob>();
+
 // Fatura abonelikleri: her ay için "fatura bekleniyor" kaydı (günlük görev; faturalar sayfası da eksikleri tamamlar)
 builder.Services.AddScoped<MazlumApart.Features.Accounting.BillSubscriptionGenerator>();
 builder.Services.AddScoped<MazlumApart.Features.Accounting.BillSubscriptionJob>();
